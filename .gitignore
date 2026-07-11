@@ -1,0 +1,92 @@
+# === OS ===
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# === IDE ===
+.idea/
+# .vscode: ignore personal editor state but share extension recommendations.
+# (contents-only pattern — ignoring the dir itself would make the negation dead)
+**/.vscode/*
+!**/.vscode/extensions.json
+*.swp
+*.swo
+*~
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+
+# === Environment / Secrets ===
+# Catch-all: ignore every .env / .env.* variant, but keep the committable
+# *.example templates. Pre-empts stray files like .env.production,
+# .env.staging, or .env.backup that the old specific patterns would have missed.
+.env
+.env.*
+!.env.example
+!.env.*.example
+# Private keys, certs, keystores
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.cer
+*.crt
+id_rsa
+id_ed25519
+*.ppk
+# Cloud / service-account credential dumps
+client_secret*.json
+*-credentials.json
+service-account*.json
+
+# === Logs ===
+*.log
+logs/
+
+# === Node / Frontend ===
+node_modules/
+frontend/.vite/
+.eslintcache
+
+# === Java / Backend ===
+backend/target/
+backend/*.jar
+
+# === Docker ===
+*.pid
+
+# === Build ===
+dist/
+build/
+
+# === Test / Coverage ===
+coverage/
+backend/jacoco/
+*.lcov
+test-results/
+
+# === Private developer docs (never publish) ===
+# Deploy runbooks with live server details, ops notes, planning journals.
+docs-internal/
+# AGENTS.md is currently a claude-mem context dump (internal tooling artifact),
+# not contributor guidance. Remove this line if it's rewritten as a real doc.
+AGENTS.md
+
+# === AI agent instruction files (any directory) ===
+# Covers CLAUDE.md and CLAUDE.local.md at any depth; .claude/ is ignored below.
+CLAUDE*.md
+GEMINI.md
+.cursorrules
+.cursor/
+.windsurfrules
+.aider*
+
+# === Misc ===
+*.bak
+*.tmp
+.claude/
