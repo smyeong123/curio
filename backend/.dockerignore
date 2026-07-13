@@ -1,0 +1,12 @@
+target/
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.git
+.gitignore
+.env
+.env.*
+*.md
+.DS_Store
