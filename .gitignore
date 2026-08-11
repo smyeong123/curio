@@ -89,6 +89,9 @@ GEMINI.md
 .cursor/
 .windsurfrules
 .aider*
+# Project AI skill/agent definitions (Claude Code skills, Codex agents)
+.agents/
+.codex/
 
 # === Generated artifacts ===
 # graphify knowledge-graph output (regenerable via /graphify)
