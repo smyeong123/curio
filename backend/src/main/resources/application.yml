@@ -1,0 +1,127 @@
+spring:
+  application:
+    name: curio-backend
+
+  mvc:
+    async:
+      request-timeout: 60000
+
+  profiles:
+    # Safe default: fall back to the fail-fast prod profile (which requires real
+    # JWT/webhook secrets) when SPRING_PROFILES_ACTIVE is unset, so a deploy that
+    # forgets to set the profile refuses to boot instead of silently running dev
+    # (localhost DB, placeholder secrets, cookie.secure=false, 2FA code logging).
+    # Local dev: run with -Dspring-boot.run.profiles=dev (or SPRING_PROFILES_ACTIVE=dev).
+    active: ${SPRING_PROFILES_ACTIVE:prod}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    # Release the JDBC connection at the end of the service-layer transaction
+    # instead of holding it for the whole HTTP request. Critical here because the
+    # connection pool is small and the digest/email jobs are connection-hungry.
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 30
+          time_zone: UTC
+        order_inserts: true
+        order_updates: true
+
+  datasource:
+    hikari:
+      # Bounded, configurable pool. Default 10 — sized for the single small box
+      # (Postgres on the same 1 GB host); a larger pool just amplifies the
+      # connection-hold risk without helping throughput here. Override via
+      # DB_POOL_SIZE on a bigger host. Fail fast (10s) rather than hang forever
+      # when the pool is exhausted, so callers surface a clear error.
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: 10000
+      max-lifetime: 1800000
+
+  flyway:
+    enabled: true
+    # Dev/test bootstrap convenience: lets Flyway adopt a pre-existing (or empty)
+    # schema by writing a baseline instead of erroring. DANGEROUS in prod — on a
+    # restored/populated DB with no flyway_schema_history, Flyway would baseline
+    # at the current version and SILENTLY SKIP all migrations. application-prod.yml
+    # overrides this to false (prod schema is established and Flyway-managed from V1).
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+
+auth:
+  # Email-based 2FA on email/password login: after credentials check out, a
+  # one-time code is emailed and must be entered to complete sign-in. Google
+  # login is never gated by this. Disable for environments that don't want a
+  # second factor (e.g. integration tests mocking the auth service).
+  email-verification:
+    enabled: ${AUTH_EMAIL_VERIFICATION_ENABLED:true}
+    max-attempts: ${AUTH_EMAIL_VERIFICATION_MAX_ATTEMPTS:5}
+    code-length: ${AUTH_EMAIL_VERIFICATION_CODE_LENGTH:6}
+    code-ttl-minutes: ${AUTH_EMAIL_VERIFICATION_CODE_TTL_MINUTES:10}
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      aiProvider:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 30
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 60
+        slow-call-rate-threshold: 80
+        slow-call-duration-threshold: 60s
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        # Bulkhead saturation is local backpressure, not provider failure —
+        # don't let a burst of BulkheadFullException open the breaker.
+        ignore-exceptions:
+          - io.github.resilience4j.bulkhead.BulkheadFullException
+      googleTokenVerify:
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 20s
+  bulkhead:
+    instances:
+      aiProvider:
+        max-concurrent-calls: 4
+        max-wait-duration: 5m
+  timelimiter:
+    instances:
+      aiProvider:
+        timeout-duration: 90s
+        cancel-running-future: true
+      googleTokenVerify:
+        timeout-duration: 5s
+        cancel-running-future: true
+  retry:
+    instances:
+      aiProvider:
+        max-attempts: 2
+        wait-duration: 2s
+        exponential-backoff-multiplier: 2

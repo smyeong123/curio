@@ -1,0 +1,97 @@
+spring:
+  # Load backend/.env (KEY=VALUE → parsed as properties) so local secrets like
+  # RESEND_API_KEY / CLAUDE_API_KEY reach the app when running `mvn spring-boot:run`
+  # from the backend/ dir. `optional:` keeps startup working when the file is absent.
+  config:
+    import: optional:file:.env[.properties]
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/curio_dev
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      # Blank by default; set REDIS_PASSWORD if docker-compose.infra.yml runs
+      # Redis with auth enabled.
+      password: ${REDIS_PASSWORD:}
+
+jwt:
+  # Dev-only placeholder defaults — NOT secrets. Long enough to satisfy HS256
+  # (≥256 bits as raw UTF-8). Prod uses application-prod.yml, which requires
+  # JWT_SECRET / JWT_REFRESH_SECRET from the env with no default.
+  secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-change-me-do-not-use-in-prod}
+  refresh-secret: ${JWT_REFRESH_SECRET:dev-only-insecure-jwt-refresh-secret-change-me-not-for-prod}
+  expiration: 3600000       # 60 minutes (access token)
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:10800000}  # 3 hours (sliding idle timeout)
+
+claude:
+  api-key: ${CLAUDE_API_KEY:your-api-key}
+  model: ${CLAUDE_MODEL:claude-sonnet-4-6}
+  api-url: https://api.anthropic.com/v1/messages
+
+resend:
+  api-key: ${RESEND_API_KEY:your-api-key}
+  # Resend only delivers from a verified domain. With an unverified account the
+  # ONLY working sender is onboarding@resend.dev, and it can only reach the
+  # account owner's own address. Set FROM_EMAIL to an address on a domain you've
+  # verified at resend.com/domains to email arbitrary users.
+  from-email: ${FROM_EMAIL:onboarding@resend.dev}
+  webhook-secret: ${RESEND_WEBHOOK_SECRET:whsec_ZGV2LXdlYmhvb2stc2VjcmV0}
+  webhook-tolerance-seconds: 300
+
+auth:
+  # Dev convenience: log the login verification code so you can complete the
+  # 2FA step locally even when email delivery isn't configured. NEVER enable in prod.
+  email-verification:
+    log-code: true
+
+ai:
+  provider: ${AI_PROVIDER:claude}   # claude | gemini | openai
+
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  api-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent
+
+openai:
+  api-key: ${OPENAI_API_KEY:}
+  api-url: https://api.openai.com/v1/chat/completions
+  model: ${OPENAI_MODEL:gpt-4o-mini}
+
+news:
+  api-key: ${NEWS_API_KEY:your-api-key}
+
+app:
+  # Google OAuth client id — used ONLY to validate the Google ID token's `aud`
+  # claim in AuthService (tokeninfo flow; there is no server-side oauth2Login).
+  # Empty → Google login is off; email/password auth unaffected.
+  google-client-id: ${GOOGLE_CLIENT_ID:}
+  frontend-url: http://localhost:5173
+  backend-url: http://localhost:8080
+  cors-allowed-origins: http://localhost:5173,http://localhost:3000
+  unsubscribe-secret: ${UNSUBSCRIBE_SECRET:dev-unsubscribe-secret-change-me}
+  unsubscribe-token-ttl-hours: 720
+  # Empty → ApiKeyCipher uses a deterministic dev fallback (logs a warning).
+  api-key-encryption-key: ${API_KEY_ENCRYPTION_KEY:}
+  cookie:
+    secure: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: curio
+
+logging:
+  level:
+    com.curio: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level [%X{requestId:-}] %logger{36} - %msg%n"
