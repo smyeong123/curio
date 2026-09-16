@@ -12,6 +12,7 @@ import com.curio.news.port.out.DigestPort;
 import com.curio.user.entity.UserApiKey;
 import com.curio.user.port.in.UserApiKeyUseCase;
 import com.curio.shared.exception.ResourceNotFoundException;
+import com.curio.shared.i18n.Language;
 import com.curio.news.dto.QuizGenerationResult;
 import com.curio.news.dto.QuizQuestionItem;
 import com.curio.news.service.AiService;
@@ -164,7 +165,10 @@ public class QuizService implements QuizUseCase {
         // BYOK: bill the quiz to the user's own key when they have one, so the platform
         // key is never used for a BYOK user (their digest already runs on their key).
         String userKey = resolveUserApiKey(userId);
-        QuizGenerationResult quizResult = aiService.generateQuizQuestions(contentStr, hint, userKey);
+        // Quiz in the language the digest was WRITTEN in (stamped on its content), not the
+        // user's current setting — the questions must quote the stories in their own words.
+        Language language = Language.fromDigestContent(digest.getContent());
+        QuizGenerationResult quizResult = aiService.generateQuizQuestions(contentStr, language, hint, userKey);
         // Guard the documented "exactly 5 questions" invariant: never persist an empty
         // quiz. Returning null routes into getQuizForDigest's null-handling (surfacing a
         // "Failed to generate" error) so a later request can retry instead of caching a

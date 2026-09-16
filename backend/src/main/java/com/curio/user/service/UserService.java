@@ -3,6 +3,7 @@ package com.curio.user.service;
 import com.curio.auth.port.out.RefreshTokenPort;
 import com.curio.auth.service.UnsubscribeTokenService;
 import com.curio.shared.config.TopicConstants;
+import com.curio.shared.i18n.Language;
 import com.curio.user.dto.PreferencesRequest;
 import com.curio.user.dto.UserResponse;
 import com.curio.user.entity.User;
@@ -70,11 +71,13 @@ public class UserService implements UserUseCase {
             result.put("timezone", p.getTimezone());
             result.put("deliveryHour", p.getDeliveryHour());
             result.put("timezoneAuto", p.isTimezoneAuto());
+            result.put("language", Language.fromCode(p.getLanguage()).code());
         }, () -> {
             result.put("topics", new String[0]);
             result.put("timezone", null);
             result.put("deliveryHour", null);
             result.put("timezoneAuto", true);
+            result.put("language", Language.DEFAULT.code());
         });
         return result;
     }
@@ -117,6 +120,14 @@ public class UserService implements UserUseCase {
         }
         if (request.getTimezoneAuto() != null) {
             preferences.setTimezoneAuto(request.getTimezoneAuto());
+        }
+        if (request.getLanguage() != null) {
+            // The DTO already rejects anything but en/ko at the API edge; re-check here so
+            // internal callers can't slip an unsupported edition into the column either.
+            if (!Language.isSupportedCode(request.getLanguage())) {
+                throw new IllegalArgumentException("Invalid language: " + request.getLanguage());
+            }
+            preferences.setLanguage(Language.fromCode(request.getLanguage()).code());
         }
         userPreferencesPort.save(preferences);
 

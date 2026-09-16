@@ -103,7 +103,7 @@ mvn test -Dtest=AuthControllerIntegrationTest   # a single class
 mvn clean install -DskipTests           # build, skipping tests
 ```
 
-25 test classes (as of 2026-07-18): Mockito unit tests for services, `@SpringBootTest` integration tests, MockMvc controller tests, security tests, and ArchUnit architecture rules.
+28 test classes (as of 2026-09-16): Mockito unit tests for services, `@SpringBootTest` integration tests, MockMvc controller tests, security tests, and ArchUnit architecture rules.
 
 ## API Surface
 

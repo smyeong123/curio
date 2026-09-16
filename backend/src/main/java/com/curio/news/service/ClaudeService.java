@@ -3,6 +3,7 @@ package com.curio.news.service;
 import com.curio.news.dto.NewsSummary;
 import com.curio.news.dto.QuizGenerationResult;
 import com.curio.shared.concurrent.SingleFlight;
+import com.curio.shared.i18n.Language;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -57,9 +58,19 @@ public class ClaudeService extends AbstractAiProvider {
         return Duration.ofSeconds(120);
     }
 
+    /**
+     * Edition-aware entry point (the 1-/2-arg overloads in the base delegate here).
+     * Platform-key calls are cached per topic+date+language and single-flighted; BYOK
+     * calls skip the shared cache (a user's key must not populate or read platform
+     * content) and the platform circuit breaker (a flaky user key must not trip it).
+     */
     @Override
-    public List<NewsSummary> generateNewsSummaries(String topic) {
-        String cacheKey = "news:summaries:" + topic + ":" + java.time.LocalDate.now();
+    public List<NewsSummary> generateNewsSummaries(String topic, Language language, String overrideApiKey) {
+        Language edition = Language.orDefault(language);
+        if (overrideApiKey != null && !overrideApiKey.isBlank()) {
+            return generateByokSummaries(topic, edition, overrideApiKey);
+        }
+        String cacheKey = summariesCacheKey(topic, edition);
         // Fast path: a warm cache serves without taking the single-flight lock.
         List<NewsSummary> cached = readCachedSummaries(cacheKey, topic);
         if (cached != null) {
@@ -67,15 +78,15 @@ public class ClaudeService extends AbstractAiProvider {
         }
         // Cold cache: the digest job fans many users across the executor, so several
         // can reach this topic at once before anyone writes the cache. Serialize them
-        // per topic+date so the topic is generated ONCE; waiters re-check the cache
+        // per topic+date+language so it is generated ONCE; waiters re-check the cache
         // under the lock and hit it instead of firing their own API call.
         return singleFlight.call(cacheKey, () -> {
             List<NewsSummary> recheck = readCachedSummaries(cacheKey, topic);
-            return recheck != null ? recheck : generateAndCacheSummaries(topic, cacheKey);
+            return recheck != null ? recheck : generateAndCacheSummaries(topic, edition, cacheKey);
         });
     }
 
-    private List<NewsSummary> generateAndCacheSummaries(String topic, String cacheKey) {
+    private List<NewsSummary> generateAndCacheSummaries(String topic, Language language, String cacheKey) {
         List<Map<String, String>> sourceArticles = newsApiClient.fetchNewsArticles(topic);
         boolean hasSourceArticles = !sourceArticles.isEmpty();
         String sourceContext = newsApiClient.buildSourceContext(sourceArticles);
@@ -105,6 +116,8 @@ public class ClaudeService extends AbstractAiProvider {
             - Prefer first-party announcements (lab blogs) over commentary
             - MUST include a real, valid source_url and source_name for each summary
 
+            {LANGUAGE_INSTRUCTION}
+
             Output format (JSON array):
             [
               {
@@ -122,7 +135,8 @@ public class ClaudeService extends AbstractAiProvider {
                 .replace("{TOPIC_INSTRUCTION}",
                         "New & Emerging Models".equals(topic)
                                 ? "Scan for brand-new frontier or agentic model launches in the last 7 days — including models you may not have heard of. Prioritize launches from labs outside the big five (Anthropic, OpenAI, DeepMind, xAI, Meta) and any new agentic systems. Avoid repeating models already widely covered."
-                                : "Focus on the most recent news, features, and releases for this topic. Prefer changes that happened in the last 14 days.");
+                                : "Focus on the most recent news, features, and releases for this topic. Prefer changes that happened in the last 14 days.")
+                .replace("{LANGUAGE_INSTRUCTION}", summaryLanguageInstruction(language));
 
         if (hasSourceArticles) {
             prompt = prompt
@@ -136,10 +150,10 @@ public class ClaudeService extends AbstractAiProvider {
 
         List<NewsSummary> summaries;
         if (hasSourceArticles) {
-            log.info("Generating summaries for topic '{}' with {} source articles", topic, sourceArticles.size());
+            log.info("Generating {} summaries for topic '{}' with {} source articles", language.code(), topic, sourceArticles.size());
             summaries = callClaudeApi(prompt);
         } else {
-            log.info("Generating summaries for topic '{}' using web search (no source articles)", topic);
+            log.info("Generating {} summaries for topic '{}' using web search (no source articles)", language.code(), topic);
             summaries = callClaudeApiWithWebSearch(prompt);
         }
 
@@ -158,17 +172,12 @@ public class ClaudeService extends AbstractAiProvider {
     }
 
     /**
-     * BYOK overload — substitutes the user's Anthropic key for this call.
-     * Skips the Redis cache because cached summaries from one user's key
-     * shouldn't surface for another user's request, and skips the
-     * platform-level circuit breaker for the same reason (a flaky user key
-     * shouldn't trip the breaker for everyone else).
+     * BYOK path — substitutes the user's Anthropic key for this call. Skips the
+     * Redis cache because cached summaries from one user's key shouldn't surface
+     * for another user's request, and skips the platform-level circuit breaker for
+     * the same reason (a flaky user key shouldn't trip the breaker for everyone else).
      */
-    @Override
-    public List<NewsSummary> generateNewsSummaries(String topic, String overrideApiKey) {
-        if (overrideApiKey == null || overrideApiKey.isBlank()) {
-            return generateNewsSummaries(topic);
-        }
+    private List<NewsSummary> generateByokSummaries(String topic, Language language, String overrideApiKey) {
         List<Map<String, String>> sourceArticles = newsApiClient.fetchNewsArticles(topic);
         boolean hasSourceArticles = !sourceArticles.isEmpty();
         String sourceContext = newsApiClient.buildSourceContext(sourceArticles);
@@ -180,9 +189,12 @@ public class ClaudeService extends AbstractAiProvider {
             {TOPIC_INSTRUCTION}
             {SOURCE_INSTRUCTION}
             {SOURCE_CONTEXT_BLOCK}
+            {LANGUAGE_INSTRUCTION}
             Output a JSON array of objects with keys: headline, summary (50-80 word plain-language TL;DR),
             why_it_matters, source_url, source_name, topic. Return only JSON.
-            """.replace("{TOPIC}", topic).replace("{TOPIC_INSTRUCTION}", "");
+            """.replace("{TOPIC}", topic)
+                .replace("{TOPIC_INSTRUCTION}", "")
+                .replace("{LANGUAGE_INSTRUCTION}", summaryLanguageInstruction(language));
 
         prompt = hasSourceArticles
                 ? prompt.replace("{SOURCE_INSTRUCTION}", "Use the source articles below as primary evidence.")
@@ -199,85 +211,9 @@ public class ClaudeService extends AbstractAiProvider {
         }
     }
 
-    @Override
-    public QuizGenerationResult generateQuizQuestions(String digestContent, String overrideApiKey) {
-        return generateQuizQuestions(digestContent, DifficultyHint.NORMAL, overrideApiKey);
-    }
-
-    @Override
-    public QuizGenerationResult generateQuizQuestions(String digestContent, DifficultyHint hint, String overrideApiKey) {
-        if (overrideApiKey == null || overrideApiKey.isBlank()) {
-            return generateQuizQuestions(digestContent, hint);
-        }
-        // BYOK: bill the quiz to the user's key and skip the platform circuit breaker,
-        // mirroring the summaries BYOK path. Still honours the difficulty hint and the
-        // full comprehension prompt (the old BYOK path used a bare-bones prompt).
-        return generateQuizQuestionsInternal(digestContent, hint, overrideApiKey);
-    }
-
-    @Override
-    public QuizGenerationResult generateQuizQuestions(String digestContent, DifficultyHint hint) {
-        return generateQuizQuestionsInternal(digestContent, hint, null);
-    }
-
-    @Override
-    public QuizGenerationResult generateQuizQuestions(String digestContent) {
-        return generateQuizQuestionsInternal(digestContent, DifficultyHint.NORMAL, null);
-    }
-
-    private QuizGenerationResult generateQuizQuestionsInternal(String digestContent, DifficultyHint hint, String overrideApiKey) {
-        String difficultyMix = switch (hint == null ? DifficultyHint.NORMAL : hint) {
-            case EASIER  -> "3 easy, 2 medium, 0 challenging";
-            case HARDER  -> "0 easy, 2 medium, 3 challenging";
-            case NORMAL  -> "2 easy, 2 medium, 1 challenging";
-        };
-        String prompt = String.format("""
-            You are Curio's quiz generator. Based on this news digest, generate 5 multiple-choice questions to test reader comprehension.
-
-            Digest content:
-            %s
-
-            Requirements:
-            - Test factual recall and comprehension
-            - 4 options per question (A, B, C, D)
-            - Exactly one correct answer per question
-            - Mix difficulty: %s
-            - Questions should be clear and unambiguous
-
-            Output format (JSON):
-            {
-              "questions": [
-                {
-                  "id": 1,
-                  "question": "...",
-                  "options": {
-                    "A": "...",
-                    "B": "...",
-                    "C": "...",
-                    "D": "..."
-                  },
-                  "correct": "A",
-                  "explanation": "..."
-                }
-              ]
-            }
-
-            Return ONLY the JSON object, no additional text.
-            """, digestContent, difficultyMix);
-
-        try {
-            String response = (overrideApiKey == null || overrideApiKey.isBlank())
-                    ? callClaudeApiProtected(prompt, false)
-                    : callClaudeApiRaw(prompt, false, overrideApiKey);
-            return objectMapper.readValue(response, QuizGenerationResult.class);
-        } catch (CallNotPermittedException | BulkheadFullException e) {
-            log.warn("Claude call rejected by circuit breaker/bulkhead for quiz generation: {}", e.toString());
-            return QuizGenerationResult.builder().questions(List.of()).build();
-        } catch (Exception e) {
-            log.error("Failed to generate quiz questions", e);
-            return QuizGenerationResult.builder().questions(List.of()).build();
-        }
-    }
+    // Quiz generation: the shared AbstractAiProvider prompt is difficulty- and
+    // edition-aware and calls through callApi → callApiRaw (below), which is the
+    // same protected / BYOK routing Claude used to duplicate here.
 
     private List<NewsSummary> callClaudeApi(String prompt) {
         try {

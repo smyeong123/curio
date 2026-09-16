@@ -3,6 +3,7 @@ package com.curio.news.service;
 import com.curio.news.dto.NewsSummary;
 import com.curio.news.dto.QuizGenerationResult;
 import com.curio.shared.concurrent.SingleFlight;
+import com.curio.shared.i18n.Language;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.bulkhead.Bulkhead;
@@ -30,7 +31,8 @@ import java.util.function.Supplier;
  * Holds the pieces that were byte-identical across all three implementations — the injected
  * collaborators, cache read/write, the retry/backoff loop, the circuit-breaker/bulkhead wrapper,
  * and the markdown-fence + JSON extraction tail — plus the summary/quiz orchestration that Gemini
- * and OpenAI share verbatim (Claude overrides those with its web-search + difficulty-aware variants).
+ * and OpenAI share verbatim (Claude overrides the summaries with its web-search variant; the
+ * difficulty-aware, edition-aware quiz prompt is shared by all three).
  *
  * <p>Provider-specific wire format lives in the subclass hooks: {@link #providerName()},
  * {@link #callApiRaw(String, String)} (auth headers + request body + the network call) and
@@ -103,20 +105,52 @@ public abstract class AbstractAiProvider implements AiService {
      */
     protected abstract String extractResponseText(String responseBody) throws Exception;
 
-    // --- shared summary orchestration (Gemini/OpenAI; Claude overrides) ---
+    // --- shared summary orchestration (Gemini/OpenAI; Claude overrides the edition-aware entry point) ---
 
     @Override
     public List<NewsSummary> generateNewsSummaries(String topic) {
-        String cacheKey = "news:summaries:" + topic + ":" + java.time.LocalDate.now();
+        return generateNewsSummaries(topic, Language.EN, null);
+    }
+
+    /**
+     * BYOK overload: bill the call to the user's key. Bypasses the shared Redis
+     * cache (a user's key must not populate or read platform-cached content) and
+     * the circuit breaker, mirroring ClaudeService's BYOK path.
+     */
+    @Override
+    public List<NewsSummary> generateNewsSummaries(String topic, String overrideApiKey) {
+        return generateNewsSummaries(topic, Language.EN, overrideApiKey);
+    }
+
+    /**
+     * The single entry point every summary path funnels through. Platform-key calls
+     * are cached per topic+date+language and single-flighted, so when the digest job
+     * fans many users across the executor only the first generates an uncached
+     * (topic, language) — the rest wait and read the cache the winner just wrote
+     * (re-checked under the lock) instead of each firing an API call. BYOK calls
+     * skip both the cache and the lock.
+     */
+    @Override
+    public List<NewsSummary> generateNewsSummaries(String topic, Language language, String overrideApiKey) {
+        Language edition = Language.orDefault(language);
+        if (overrideApiKey != null && !overrideApiKey.isBlank()) {
+            return generateNewsSummariesInternal(topic, edition, overrideApiKey);
+        }
+        String cacheKey = summariesCacheKey(topic, edition);
         // Fast path: a warm cache serves without taking the single-flight lock.
         List<NewsSummary> cached = readCachedSummaries(cacheKey, topic);
         if (cached != null) {
             return cached;
         }
-        // Cold cache: when the digest job fans many users across the executor, only the
-        // first generates the (uncached) topic; the rest wait and read the cache the
-        // winner just wrote (re-checked under the lock), instead of each firing an API call.
-        return singleFlight.call(cacheKey, () -> generateNewsSummariesInternal(topic, null));
+        return singleFlight.call(cacheKey, () -> generateNewsSummariesInternal(topic, edition, null));
+    }
+
+    /**
+     * Redis key for a topic's platform-generated summaries. The language is part of
+     * the key: the Korean edition must never be served an English entry or vice versa.
+     */
+    protected static String summariesCacheKey(String topic, Language language) {
+        return "news:summaries:" + topic + ":" + java.time.LocalDate.now() + ":" + Language.orDefault(language).code();
     }
 
     /** Reads + deserializes cached summaries for the key, or null on miss/garbage. */
@@ -141,21 +175,35 @@ public abstract class AbstractAiProvider implements AiService {
     }
 
     /**
-     * BYOK overload: bill the call to the user's key. Bypasses the shared Redis
-     * cache (a user's key must not populate or read platform-cached content) and
-     * the circuit breaker, mirroring ClaudeService's BYOK path.
+     * Language block appended to every summary prompt. English is spelled out too, so
+     * a source article in another language never flips the output language.
      */
-    @Override
-    public List<NewsSummary> generateNewsSummaries(String topic, String overrideApiKey) {
-        if (overrideApiKey == null || overrideApiKey.isBlank()) {
-            return generateNewsSummaries(topic);
-        }
-        return generateNewsSummariesInternal(topic, overrideApiKey);
+    protected static String summaryLanguageInstruction(Language language) {
+        return switch (Language.orDefault(language)) {
+            case EN -> "Language: write the headline, summary and why_it_matters in English, even when a source article is in another language.";
+            case KO -> """
+                Language: write the headline, summary and why_it_matters in Korean (한국어), even though the sources are in English.
+                - Register: friendly, plain 해요체 (e.g. "출시했어요", "쓸 수 있어요"), the way a Korean newsletter editor writes for a general reader
+                - Keep company, product and model names in their original form (Anthropic, Claude, GPT-5, Gemini, Hugging Face); explain a technical term in plain Korean the first time it appears
+                - Length: the word limits above become 120-220 Korean characters per summary (never exceed 260), in short sentences
+                - JSON keys, source_url, source_name and topic stay exactly as specified below""";
+        };
     }
 
-    protected List<NewsSummary> generateNewsSummariesInternal(String topic, String overrideApiKey) {
+    /** Language block appended to every quiz prompt. */
+    protected static String quizLanguageInstruction(Language language) {
+        return switch (Language.orDefault(language)) {
+            case EN -> "Language: write every question, all four options and each explanation in English.";
+            case KO -> """
+                Language: write every question, all four options and each explanation in Korean (한국어), in friendly 해요체.
+                - Keep company, product and model names in their original form; the option letters A-D and all JSON keys stay exactly as specified
+                - The digest itself is in Korean — quiz the reader on what it says, using the same terms it uses""";
+        };
+    }
+
+    protected List<NewsSummary> generateNewsSummariesInternal(String topic, Language language, String overrideApiKey) {
         boolean useCache = (overrideApiKey == null || overrideApiKey.isBlank());
-        String cacheKey = "news:summaries:" + topic + ":" + java.time.LocalDate.now();
+        String cacheKey = summariesCacheKey(topic, language);
         if (useCache) {
             // Re-check under the single-flight lock so waiters return the winner's result.
             List<NewsSummary> cached = readCachedSummaries(cacheKey, topic);
@@ -203,6 +251,8 @@ public abstract class AbstractAiProvider implements AiService {
             - headline: plain and specific, no hype or clickbait
             - "why_it_matters": one concrete, plain-language sentence about the real-world impact
 
+            %s
+
             Output format (JSON array):
             [
               {
@@ -216,7 +266,7 @@ public abstract class AbstractAiProvider implements AiService {
             ]
 
             Return ONLY the JSON array, no additional text.
-            """, topic, topicInstruction, sourceInstruction, sourceContextBlock, topic);
+            """, topic, topicInstruction, sourceInstruction, sourceContextBlock, summaryLanguageInstruction(language), topic);
 
         try {
             String response = callApi(prompt, overrideApiKey);
@@ -239,30 +289,50 @@ public abstract class AbstractAiProvider implements AiService {
         }
     }
 
-    // --- shared quiz orchestration (Gemini/OpenAI; Claude overrides) ---
+    // --- shared quiz orchestration (all providers; the difficulty mix comes from the hint) ---
 
     @Override
     public QuizGenerationResult generateQuizQuestions(String digestContent) {
-        return generateQuizQuestionsInternal(digestContent, null);
+        return generateQuizQuestions(digestContent, Language.EN, DifficultyHint.NORMAL, null);
     }
 
     @Override
     public QuizGenerationResult generateQuizQuestions(String digestContent, String overrideApiKey) {
-        if (overrideApiKey == null || overrideApiKey.isBlank()) {
-            return generateQuizQuestions(digestContent);
-        }
-        return generateQuizQuestionsInternal(digestContent, overrideApiKey);
+        return generateQuizQuestions(digestContent, Language.EN, DifficultyHint.NORMAL, overrideApiKey);
+    }
+
+    @Override
+    public QuizGenerationResult generateQuizQuestions(String digestContent, DifficultyHint hint) {
+        return generateQuizQuestions(digestContent, Language.EN, hint, null);
     }
 
     @Override
     public QuizGenerationResult generateQuizQuestions(String digestContent, DifficultyHint hint, String overrideApiKey) {
-        // This provider's quiz prompt doesn't use the difficulty hint; just thread the BYOK
-        // key so a user with their own key isn't billed to the platform key. Null key
-        // routes to the platform path, preserving its circuit breaker.
-        return generateQuizQuestions(digestContent, overrideApiKey);
+        return generateQuizQuestions(digestContent, Language.EN, hint, overrideApiKey);
     }
 
-    protected QuizGenerationResult generateQuizQuestionsInternal(String digestContent, String overrideApiKey) {
+    /**
+     * The single entry point every quiz path funnels through. A null BYOK key routes to
+     * the platform path (keeping its circuit breaker); the language must be the one the
+     * digest was written in, so the questions quote the stories in their own words.
+     */
+    @Override
+    public QuizGenerationResult generateQuizQuestions(String digestContent, Language language, DifficultyHint hint, String overrideApiKey) {
+        return generateQuizQuestionsInternal(digestContent, Language.orDefault(language),
+                hint == null ? DifficultyHint.NORMAL : hint, overrideApiKey);
+    }
+
+    /** Difficulty mix line for the quiz prompt, from the user's recent-score hint. */
+    protected static String difficultyMix(DifficultyHint hint) {
+        return switch (hint == null ? DifficultyHint.NORMAL : hint) {
+            case EASIER -> "3 easy, 2 medium, 0 challenging";
+            case HARDER -> "0 easy, 2 medium, 3 challenging";
+            case NORMAL -> "2 easy, 2 medium, 1 challenging";
+        };
+    }
+
+    protected QuizGenerationResult generateQuizQuestionsInternal(String digestContent, Language language,
+                                                                 DifficultyHint hint, String overrideApiKey) {
         String prompt = String.format("""
             You are Curio's quiz generator. Based on this news digest, generate 5 multiple-choice questions to test reader comprehension.
 
@@ -273,8 +343,10 @@ public abstract class AbstractAiProvider implements AiService {
             - Test factual recall and comprehension
             - 4 options per question (A, B, C, D)
             - Exactly one correct answer per question
-            - Mix difficulty: 2 easy, 2 medium, 1 challenging
+            - Mix difficulty: %s
             - Questions should be clear and unambiguous
+
+            %s
 
             Output format (JSON):
             {
@@ -295,7 +367,7 @@ public abstract class AbstractAiProvider implements AiService {
             }
 
             Return ONLY the JSON object, no additional text.
-            """, digestContent);
+            """, digestContent, difficultyMix(hint), quizLanguageInstruction(language));
 
         try {
             String response = callApi(prompt, overrideApiKey);

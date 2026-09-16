@@ -12,6 +12,7 @@ import com.curio.quiz.entity.QuizAttempt;
 import com.curio.quiz.port.out.QuizAttemptPort;
 import com.curio.quiz.port.out.QuizPort;
 import com.curio.shared.exception.ResourceNotFoundException;
+import com.curio.shared.i18n.Language;
 import com.curio.user.entity.User;
 import com.curio.user.entity.UserApiKey;
 import com.curio.user.port.in.UserApiKeyUseCase;
@@ -131,7 +132,7 @@ class QuizServiceTest {
         when(digestPort.findById(digestId)).thenReturn(Optional.of(digest));
         when(userApiKeyService.resolveDecryptedKey(any(UUID.class), any(UserApiKey.Provider.class)))
                 .thenReturn(Optional.empty());
-        when(aiService.generateQuizQuestions(anyString(), any(AiService.DifficultyHint.class), nullable(String.class)))
+        when(aiService.generateQuizQuestions(anyString(), any(Language.class), any(AiService.DifficultyHint.class), nullable(String.class)))
                 .thenReturn(fiveQuestionResult());
         Quiz saved = Quiz.builder().id(quizId).digest(digest).questions(Map.of("questions", List.of())).build();
         when(quizPort.save(any(Quiz.class))).thenReturn(saved);
@@ -139,7 +140,7 @@ class QuizServiceTest {
         QuizResponse response = quizService.getQuizForDigest(digestId, userId);
 
         assertThat(response.getId()).isEqualTo(quizId);
-        verify(aiService).generateQuizQuestions(anyString(), any(AiService.DifficultyHint.class), nullable(String.class));
+        verify(aiService).generateQuizQuestions(anyString(), any(Language.class), any(AiService.DifficultyHint.class), nullable(String.class));
     }
 
     @Test
@@ -148,7 +149,7 @@ class QuizServiceTest {
         when(digestPort.findById(digestId)).thenReturn(Optional.of(digest));
         when(userApiKeyService.resolveDecryptedKey(any(UUID.class), any(UserApiKey.Provider.class)))
                 .thenReturn(Optional.of("user-byok-key"));
-        when(aiService.generateQuizQuestions(anyString(), any(AiService.DifficultyHint.class), eq("user-byok-key")))
+        when(aiService.generateQuizQuestions(anyString(), any(Language.class), any(AiService.DifficultyHint.class), eq("user-byok-key")))
                 .thenReturn(fiveQuestionResult());
         Quiz saved = Quiz.builder().id(quizId).digest(digest).questions(Map.of("questions", List.of())).build();
         when(quizPort.save(any(Quiz.class))).thenReturn(saved);
@@ -156,9 +157,28 @@ class QuizServiceTest {
         quizService.getQuizForDigest(digestId, userId);
 
         // The user's own key is threaded through; the platform-key overloads are never hit.
-        verify(aiService).generateQuizQuestions(anyString(), any(AiService.DifficultyHint.class), eq("user-byok-key"));
+        verify(aiService).generateQuizQuestions(anyString(), any(Language.class), any(AiService.DifficultyHint.class), eq("user-byok-key"));
         verify(aiService, never()).generateQuizQuestions(anyString());
         verify(aiService, never()).generateQuizQuestions(anyString(), any(AiService.DifficultyHint.class));
+    }
+
+    @Test
+    void getQuizForDigest_quizzesInTheLanguageTheDigestWasWrittenIn() {
+        Digest koreanDigest = Digest.builder().id(digestId).user(user)
+                .content(Map.of("language", "ko", "summaries", List.of())).build();
+        when(quizPort.findByDigestId(digestId)).thenReturn(Optional.empty());
+        when(digestPort.findById(digestId)).thenReturn(Optional.of(koreanDigest));
+        when(userApiKeyService.resolveDecryptedKey(any(UUID.class), any(UserApiKey.Provider.class)))
+                .thenReturn(Optional.empty());
+        when(aiService.generateQuizQuestions(anyString(), eq(Language.KO), any(AiService.DifficultyHint.class), nullable(String.class)))
+                .thenReturn(fiveQuestionResult());
+        Quiz saved = Quiz.builder().id(quizId).digest(koreanDigest).questions(Map.of("questions", List.of())).build();
+        when(quizPort.save(any(Quiz.class))).thenReturn(saved);
+
+        quizService.getQuizForDigest(digestId, userId);
+
+        verify(aiService).generateQuizQuestions(anyString(), eq(Language.KO), any(AiService.DifficultyHint.class), nullable(String.class));
+        verify(aiService, never()).generateQuizQuestions(anyString(), eq(Language.EN), any(AiService.DifficultyHint.class), nullable(String.class));
     }
 
     @Test

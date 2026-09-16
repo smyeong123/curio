@@ -5,6 +5,7 @@ import com.curio.news.dto.NewsSummary;
 import com.curio.news.entity.Digest;
 import com.curio.news.port.out.DigestPort;
 import com.curio.shared.exception.ResourceNotFoundException;
+import com.curio.shared.i18n.Language;
 import com.curio.user.entity.User;
 import com.curio.user.entity.UserPreferences;
 import com.curio.user.port.out.UserPort;
@@ -164,8 +165,8 @@ class NewsServiceTest {
 
         List<NewsSummary> summaries1 = List.of(NewsSummary.builder().headline("Safety News").build());
         List<NewsSummary> summaries2 = List.of(NewsSummary.builder().headline("DL News").build());
-        when(aiService.generateNewsSummaries("Reasoning & Context")).thenReturn(summaries1);
-        when(aiService.generateNewsSummaries("Multimodal (Vision, Audio, Video)")).thenReturn(summaries2);
+        when(aiService.generateNewsSummaries(eq("Reasoning & Context"), eq(Language.EN), isNull())).thenReturn(summaries1);
+        when(aiService.generateNewsSummaries(eq("Multimodal (Vision, Audio, Video)"), eq(Language.EN), isNull())).thenReturn(summaries2);
 
         Digest savedDigest = Digest.builder().id(UUID.randomUUID()).user(testUser).content(Map.of()).build();
         when(digestPort.save(any())).thenReturn(savedDigest);
@@ -196,8 +197,8 @@ class NewsServiceTest {
                 .build();
         when(userPreferencesPort.findByUserId(userId)).thenReturn(Optional.of(prefs));
 
-        when(aiService.generateNewsSummaries("topic1")).thenThrow(new RuntimeException("API error"));
-        when(aiService.generateNewsSummaries("topic2")).thenReturn(List.of(NewsSummary.builder().headline("News").build()));
+        when(aiService.generateNewsSummaries(eq("topic1"), eq(Language.EN), isNull())).thenThrow(new RuntimeException("API error"));
+        when(aiService.generateNewsSummaries(eq("topic2"), eq(Language.EN), isNull())).thenReturn(List.of(NewsSummary.builder().headline("News").build()));
 
         Digest savedDigest = Digest.builder().id(UUID.randomUUID()).user(testUser).content(Map.of()).build();
         when(digestPort.save(any())).thenReturn(savedDigest);
@@ -215,12 +216,46 @@ class NewsServiceTest {
                 .topics(new String[]{"topic1"})
                 .build();
         when(userPreferencesPort.findByUserId(userId)).thenReturn(Optional.of(prefs));
-        when(aiService.generateNewsSummaries("topic1")).thenThrow(new RuntimeException("fail"));
+        when(aiService.generateNewsSummaries(eq("topic1"), eq(Language.EN), isNull())).thenThrow(new RuntimeException("fail"));
 
         Digest result = newsService.generateDigestForUser(testUser);
 
         assertThat(result).isNull();
         verify(digestPort, never()).save(any());
+    }
+
+    @Test
+    void generateDigestForUser_writesInTheReadersEdition_andStampsItOnTheDigest() {
+        when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
+        UserPreferences prefs = UserPreferences.builder()
+                .topics(new String[]{"topic1"})
+                .language("ko")
+                .build();
+        when(userPreferencesPort.findByUserId(userId)).thenReturn(Optional.of(prefs));
+        when(aiService.generateNewsSummaries(eq("topic1"), eq(Language.KO), isNull()))
+                .thenReturn(List.of(NewsSummary.builder().headline("한국어 헤드라인").build()));
+        when(digestPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Digest result = newsService.generateDigestForUser(testUser);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getContent().get("language")).isEqualTo("ko");
+        verify(aiService, never()).generateNewsSummaries(eq("topic1"), eq(Language.EN), any());
+    }
+
+    @Test
+    void generateDigestForUser_threadsTheByokKeyWithTheEdition() {
+        when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
+        when(userPreferencesPort.findByUserId(userId))
+                .thenReturn(Optional.of(UserPreferences.builder().topics(new String[]{"topic1"}).build()));
+        when(userApiKeyService.resolveDecryptedKey(eq(userId), any())).thenReturn(Optional.of("user-byok-key"));
+        when(aiService.generateNewsSummaries(eq("topic1"), eq(Language.EN), eq("user-byok-key")))
+                .thenReturn(List.of(NewsSummary.builder().headline("News").build()));
+        when(digestPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Digest result = newsService.generateDigestForUser(testUser);
+
+        assertThat(result.getContent().get("language")).isEqualTo("en");
     }
 
     // The old generateDigestsForAllUsers bulk method was dead code (the real
