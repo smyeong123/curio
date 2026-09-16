@@ -1,0 +1,913 @@
+# Curio -- Complete Codebase Reference
+
+**Last updated:** 2026-07-18 (based on full audit of all source files)
+
+## Table of Contents
+
+1. [Project Overview](#project-overview)
+2. [Full Directory Tree](#full-directory-tree)
+3. [Backend](#backend)
+4. [Frontend](#frontend)
+5. [Integration](#integration)
+6. [Infrastructure & DevOps](#infrastructure--devops)
+7. [Testing](#testing)
+8. [Hexagonal Architecture (Implemented)](#hexagonal-architecture-implemented)
+
+> Open gaps, known issues, and coverage estimates that used to live in this file have moved to the private working notes (`docs-internal/CODEBASE_NOTES.md`) to keep this reference a description of what exists rather than a running to-do list.
+
+---
+
+## Project Overview
+
+Curio is an AI-powered personalized news service. Each day it fetches news articles, summarizes them using an AI model (Claude by default, with Gemini and OpenAI alternatives), and emails a digest to each user. A quiz is auto-generated per digest to improve content retention. The system is split into a **Vue 3 SPA frontend** and a **Java Spring Boot REST API backend**, communicating over HTTP with JWT authentication.
+
+### Technology Stack
+
+| Layer | Technologies |
+|---|---|
+| Frontend | Vue 3 (Composition API, `<script setup>`), Vite 7, Pinia, Vue Router 4, Tailwind CSS v4, Axios, TypeScript |
+| Backend | Java 21, Spring Boot 3.5, Spring Data JPA, Spring Security + JWT, Maven |
+| Database | PostgreSQL 16 (Flyway migrations) |
+| Cache | Redis 7 (12h TTL for AI-generated content) |
+| AI Providers | Claude (default), Gemini, OpenAI -- selected via `AI_PROVIDER` env var |
+| Email | Resend API + Thymeleaf templates |
+| News Source | News API (`/v2/everything`) |
+| Containers | Docker multi-stage builds, Docker Compose for local dev |
+
+---
+
+## Full Directory Tree
+
+```
+curio/
+├── .claude/                         # Claude Code AI assistant config
+│   ├── agents/
+│   │   └── docs-updater.md          # Custom subagent definition
+│   └── settings.local.json          # Per-project tool permissions
+│
+├── backend/                         # Spring Boot REST API (Java 21)
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   ├── pom.xml
+│   ├── .env / .env.example
+│   └── src/
+│       ├── main/
+│       │   ├── java/com/curio/                    # Hexagonal feature packages (2026-03-04)
+│       │   │   ├── CurioApplication.java
+│       │   │   ├── auth/
+│       │   │   │   ├── controller/   AuthController
+│       │   │   │   ├── service/      AuthService, UserDetailsServiceImpl, UnsubscribeTokenService
+│       │   │   │   ├── dto/          LoginRequest, RegisterRequest, GoogleLoginRequest,
+│       │   │   │   │                 ForgotPasswordRequest, ResetPasswordRequest, AuthResponse,
+│       │   │   │   │                 LoginResponse, VerifyCodeRequest, VerifyCodeResponse,
+│       │   │   │   │                 ResendCodeRequest, ResendCodeResponse   (email-2FA, V24)
+│       │   │   │   ├── entity/       RefreshToken, PasswordResetToken, EmailVerificationCode (V24)
+│       │   │   │   ├── repository/   RefreshTokenRepository, PasswordResetTokenRepository, EmailVerificationCodeRepository
+│       │   │   │   ├── port/in/      AuthUseCase
+│       │   │   │   ├── port/out/     RefreshTokenPort, PasswordResetTokenPort, EmailVerificationCodePort
+│       │   │   │   └── adapter/persistence/  RefreshTokenJpaAdapter, PasswordResetTokenJpaAdapter, EmailVerificationCodeJpaAdapter
+│       │   │   ├── user/
+│       │   │   │   ├── controller/   UserController, UserApiKeyController (BYOK)
+│       │   │   │   ├── service/      UserService, UserApiKeyService (BYOK)
+│       │   │   │   ├── dto/          PreferencesRequest, UserResponse, UpdateProfileRequest
+│       │   │   │   ├── entity/       User, UserPreferences, UserApiKey (V17)
+│       │   │   │   ├── repository/   UserRepository, UserPreferencesRepository, UserApiKeyRepository
+│       │   │   │   ├── port/in/      UserUseCase, UserApiKeyUseCase, ApiKeyValidator
+│       │   │   │   ├── port/out/     UserPort, UserPreferencesPort, UserApiKeyPort
+│       │   │   │   └── adapter/persistence/  UserJpaAdapter, UserPreferencesJpaAdapter, UserApiKeyJpaAdapter
+│       │   │   ├── news/
+│       │   │   │   ├── controller/   NewsController
+│       │   │   │   ├── service/      NewsService, AiService (interface),
+│       │   │   │   │                 AbstractAiProvider (shared AI orchestration base),
+│       │   │   │   │                 ClaudeService, GeminiService, OpenAiService, NewsApiClient,
+│       │   │   │   │                 LabBlogFetcher, LabBlogRegistry, LlmKeyValidator
+│       │   │   │   ├── dto/          DigestResponse, NewsSummary, QuizGenerationResult, QuizQuestionItem
+│       │   │   │   ├── entity/       Digest
+│       │   │   │   ├── repository/   DigestRepository
+│       │   │   │   ├── port/in/      NewsUseCase, DigestProgressListener
+│       │   │   │   ├── port/out/     DigestPort
+│       │   │   │   └── adapter/persistence/  DigestJpaAdapter
+│       │   │   ├── quiz/
+│       │   │   │   ├── controller/   QuizController
+│       │   │   │   ├── service/      QuizService, QuizAttemptRecorder (REQUIRES_NEW attempt persistence)
+│       │   │   │   ├── dto/          QuizSubmitRequest, QuizResponse
+│       │   │   │   ├── entity/       Quiz, QuizAttempt
+│       │   │   │   ├── repository/   QuizRepository, QuizAttemptRepository
+│       │   │   │   ├── port/in/      QuizUseCase
+│       │   │   │   ├── port/out/     QuizPort, QuizAttemptPort
+│       │   │   │   └── adapter/persistence/  QuizJpaAdapter, QuizAttemptJpaAdapter
+│       │   │   ├── studio/
+│       │   │   │   ├── controller/   StudioController
+│       │   │   │   ├── service/      StudioService, StudioTaskStatusService
+│       │   │   │   └── port/in/      StudioUseCase
+│       │   │   ├── admin/
+│       │   │   │   ├── controller/   AdminController
+│       │   │   │   ├── service/      AdminUserService, AdminDigestService, AdminStatsService, AdminOperationsService, AdminManualJobService, AuditLogService
+│       │   │   │   ├── dto/          StatsResponse, AdminDigestResponse, GenerateDigestsRequest, TopicStatusResponse, JobStatusResponse, AuditLogResponse
+│       │   │   │   ├── entity/       AuditLog (V18)
+│       │   │   │   ├── repository/   AuditLogRepository
+│       │   │   │   ├── port/in/      AdminUserUseCase, AdminDigestUseCase, AdminStatsUseCase, AdminOperationsUseCase, AdminManualJobUseCase
+│       │   │   │   └── adapter/persistence/  AuditLogJpaAdapter
+│       │   │   └── shared/
+│       │   │       ├── config/       SecurityConfig, CorsConfig, RedisConfig, OpenApiConfig, AsyncConfig, RequestLoggingConfig, ShedLockConfig, TopicConstants, WebhookSecretsValidator, JwtSecretsValidator, SentryTaggingConfig, WebConfig
+│       │   │       ├── security/     JwtTokenProvider, JwtAuthenticationFilter, WebhookSignatureVerifier, CookieUtils, UserDetailsAdapter, UserPrincipalResolver,
+│       │   │       │                 RateLimitingFilter, InMemoryRateLimiter, WebhookBodyLimitFilter, CorrelationIdFilter, ApiKeyCipher
+│       │   │       ├── concurrent/   SingleFlight
+│       │   │       ├── util/         EmailNormalizer
+│       │   │       ├── scheduler/    DigestGenerationJob, EmailSendJob, CleanupJob, ExpiredAuthRowReaper, JobStatusRegistry, JobFailureNotifier
+│       │   │       ├── exception/    GlobalExceptionHandler, ResourceNotFoundException, UnauthorizedException, RootCauses
+│       │   │       ├── email/        EmailService
+│       │   │       ├── webhook/      WebhookController
+│       │   │       └── port/in/      EmailUseCase
+│       │   └── resources/
+│       │       ├── application.yml
+│       │       ├── application-dev.yml
+│       │       ├── application-prod.yml
+│       │       ├── application-test.yml
+│       │       ├── db/migration/    # V1-V27 Flyway SQL scripts
+│       │       └── templates/
+│       │           └── digest-email.html   # Thymeleaf email template
+│       └── test/java/com/curio/
+│           ├── CurioApplicationTests.java
+│           ├── HexagonalArchitectureTest.java  # ArchUnit rules (4 rules)
+│           ├── admin/controller/    AdminControllerSecurityIntegrationTest
+│           ├── admin/service/       AdminOperationsServiceTest, AdminStatsServiceTest, AuditLogServiceTest
+│           ├── auth/controller/     AuthControllerIntegrationTest
+│           ├── auth/service/        AuthServiceTest, UnsubscribeTokenServiceTest
+│           ├── user/controller/     UserControllerPasswordIntegrationTest, UserControllerUnsubscribeIntegrationTest
+│           ├── user/service/        UserServicePasswordTest, UserApiKeyServiceTest
+│           ├── quiz/service/        QuizServiceTest, QuizAttemptRecorderTest
+│           ├── news/service/        ClaudeServiceTest, GeminiServiceTest, OpenAiServiceTest, NewsApiClientTest, NewsServiceTest
+│           ├── shared/webhook/      WebhookControllerSignatureIntegrationTest
+│           ├── shared/scheduler/    DigestGenerationJobTest
+│           ├── shared/concurrent/   SingleFlightTest
+│           ├── shared/config/       JwtSecretsValidatorTest
+│           └── shared/security/     ApiKeyCipherTest
+│
+├── frontend/                        # Vue 3 SPA (TypeScript + Vite)
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   ├── nginx.conf
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── tailwind.config.js           # v3-style config, still used for darkMode:'class' + content globs
+│   ├── cypress.config.ts
+│   ├── tsconfig*.json
+│   └── src/
+│       ├── main.ts
+│       ├── App.vue                  # Root: router-view + ToastContainer
+│       ├── assets/
+│       │   ├── styles/main.css      # Tailwind v4 import + @theme + base styles
+│       │   └── vue.svg              # Unused Vite asset
+│       ├── router/index.ts          # Routes + auth/admin guards
+│       ├── stores/                  # auth, user, news, quiz (Pinia)
+│       ├── services/
+│       │   ├── api.ts               # Single Axios client + all endpoint methods
+│       │   └── sentry.ts            # Optional Sentry init (VITE_SENTRY_DSN)
+│       ├── utils/                   # apiError.ts, safeUrl.ts, timezone.ts
+│       ├── composables/
+│       │   ├── useEnsureTimezone.ts # Device-timezone auto-follow (wired in DashboardLayout)
+│       │   ├── useFocusOnEnter.ts
+│       │   ├── useFocusTrap.ts
+│       │   ├── useTheme.ts          # Light/dark theme toggle
+│       │   └── useToast.ts          # Actively used
+│       ├── types/                   # user.ts, news.ts, quiz.ts
+│       ├── components/
+│       │   ├── ui/                  # BaseButton, BaseInput, BaseModal, BaseSpinner, ToastContainer, AppIcon
+│       │   ├── auth/                # LoginForm, RegisterForm
+│       │   ├── layout/              # DashboardLayout, LegalLayout
+│       │   ├── quiz/                # QuizQuestion, QuizResults
+│       │   ├── settings/            # ApiKeyManager (BYOK key UI)
+│       │   └── ErrorBoundary.vue    # Global error boundary
+│       └── views/
+│           ├── HomeView.vue
+│           ├── OnboardingView.vue
+│           ├── NotFoundView.vue     # 404 catchall route
+│           ├── auth/                # LoginView, RegisterView, VerifyCodeView, ResetPasswordView
+│           ├── legal/               # PrivacyView, TermsView, ContactView
+│           ├── dashboard/           # ArchiveView, QuizView, QuizHistoryView, SettingsView, StudioView
+│           └── admin/               # AdminDashboardView, AdminDigestsView, StatsView, UsersView, UserDetailView, AuditLogView
+│
+├── docs/                            # Public project documentation
+│   ├── CODEBASE.md                  # This file
+│   ├── ARCHITECTURE.md              # System architecture overview
+│   ├── SETUP.md                     # Local development setup
+│   ├── ENV_VARIABLES.md             # Environment variable reference
+│   ├── SETUP_API_KEYS.md            # API key signup guide
+│   ├── DEPLOY.md                    # Production deploy checklist (moved from repo root)
+│   └── architecture/               # Hexagonal architecture docs (ADR, package design, test strategy)
+│
+├── docs-internal/                   # Private maintainer docs (gitignored, not in the published repo)
+│
+├── README.md
+├── docker-compose.infra.yml              # Local dev: PostgreSQL + Redis only
+├── docker-compose.yml                    # Prod/staging: full containerized stack
+├── docker-compose.tls.yml                # Optional Caddy TLS overlay
+└── .env.prod.example                     # Prod env var template
+```
+
+---
+
+## Backend
+
+### Architecture
+
+The backend uses **hexagonal (ports & adapters) architecture** (implemented 2026-03-04). Files are organized into feature packages (`auth`, `user`, `news`, `quiz`, `studio`, `admin`, `shared`), each containing `controller`, `service`, `port/in`, `port/out`, `adapter/persistence`, `entity`, `dto`, and `repository` subpackages. See the [Hexagonal Architecture section](#hexagonal-architecture-implemented) for details.
+
+### REST API Endpoints
+
+Base URL: `/api/v1`
+
+#### AuthController (`/api/v1/auth`)
+
+| Method | Path | Auth | Request Body | Response |
+|--------|------|------|-------------|----------|
+| POST | `/register` | Public | `RegisterRequest { email, password, fullName }` | `AuthResponse` |
+| POST | `/login` | Public | `LoginRequest { email, password }` | `{ challengeId, ... }` (emails 2FA code) |
+| POST | `/verify-code` | Public | `{ challengeId, code }` | `AuthResponse` (issues session) |
+| POST | `/resend-code` | Public | `{ challengeId }` | `{ challengeId, ... }` (issues a fresh code) |
+| POST | `/google` | Public | `GoogleLoginRequest { token }` | `AuthResponse` |
+| POST | `/refresh` | Public | `{ refreshToken }` | `AuthResponse` |
+| POST | `/logout` | Public | `{ refreshToken }` (optional) | 200 empty |
+| POST | `/forgot-password` | Public | `ForgotPasswordRequest { email }` | `{ message }` |
+| POST | `/reset-password` | Public | `ResetPasswordRequest { token, newPassword }` | `{ message }` |
+
+**Google OAuth implementation:** The frontend sends a Google ID token via `POST /auth/google`. The backend verifies it by calling Google's tokeninfo REST API directly (`AuthService`, checking audience + issuer). There is NO Spring OAuth2 callback flow and no `OAuth2SuccessHandler` class — the `spring-boot-starter-oauth2-client` dependency was dropped, so the flow needs only `GOOGLE_CLIENT_ID` (no client secret).
+
+#### UserController (`/api/v1/user`)
+
+| Method | Path | Auth | Request Body | Response |
+|--------|------|------|-------------|----------|
+| GET | `/me` | JWT | - | `UserResponse` |
+| PUT | `/me` | JWT | `{ fullName?, deliveryEnabled? }` | `UserResponse` |
+| GET | `/preferences` | JWT | - | `{ topics: string[] }` |
+| PUT | `/preferences` | JWT | `PreferencesRequest { topics }` | `{ topics }` |
+| DELETE | `/me` | JWT | - | 200 empty |
+| GET | `/unsubscribe?token=` | Public | - | HTML string |
+
+#### NewsController (`/api/v1/news`)
+
+| Method | Path | Auth | Request Body | Response |
+|--------|------|------|-------------|----------|
+| GET | `/digests?page=0&size=10` | JWT | - | `Page<DigestResponse>` |
+| GET | `/digests/{id}` | JWT | - | `DigestResponse` |
+| GET | `/search?q=&page=0&size=10` | JWT | - | `Page<DigestResponse>` (full-text digest search, V21) |
+
+#### QuizController (`/api/v1/quiz`)
+
+| Method | Path | Auth | Request Body | Response |
+|--------|------|------|-------------|----------|
+| GET | `/digest/{digestId}` | JWT | - | `QuizResponse` (questions + options only — correct answers/explanations withheld until submit) |
+| POST | `/{quizId}/submit` | JWT | `QuizSubmitRequest { answers }` | `{ score, totalQuestions, results[], bestScore, improved }` |
+| GET | `/history?page=0` | JWT | - | `Page<QuizAttempt>` (page size hardcoded to 10) |
+
+**Note:** `GET /quiz/digest/{digestId}` no longer returns correct answers or explanations before submission — scoring is server-side. Submit returns this attempt's score plus `bestScore` and `improved` ("better score wins", backed by the V25 unique constraint); a concurrent first submit recovers instead of 500ing via `QuizAttemptRecorder` (REQUIRES_NEW). Exactly 5 questions per quiz; empty AI results are rejected (not persisted).
+
+#### AdminController (`/api/v1/admin`)
+
+| Method | Path | Auth | Request Body | Response |
+|--------|------|------|-------------|----------|
+| GET | `/users?page=&size=&search=` | ADMIN | - | `Page<Map>` |
+| GET | `/users/{id}` | ADMIN | - | `{ user, topics, metrics, recentDigests, recentQuizAttempts }` |
+| GET | `/stats` | ADMIN | - | `StatsResponse { totalUsers, emailsSentToday, quizCompletionsToday }` |
+| GET | `/stats/topics` | ADMIN | - | `Map<String, Long>` |
+| POST | `/generate-digests` | ADMIN | `GenerateDigestsRequest { topics? }` (optional) | 202 `{ status: "started" \| "already_running" }` (async — runs on a background executor; poll `/jobs/status` for counts) |
+| POST | `/send-emails` | ADMIN | - | 202 `{ status: "started" \| "already_running" }` (async — runs on a background executor; poll `/jobs/status` for counts) |
+| POST | `/cleanup` | ADMIN | - | `{ deleted, orphaned }` |
+| GET | `/digests?page=&size=&topic=&userEmail=` | ADMIN | - | `Page<AdminDigestResponse>` |
+| GET | `/topics/status` | ADMIN | - | `List<TopicStatusResponse>` |
+| GET | `/jobs/status` | ADMIN | - | `List<JobStatusResponse>` |
+| GET | `/audit-log?page=&size=` | ADMIN | - | `Page<AuditLogResponse>` (most-recent-first) |
+
+Admin protection is defense-in-depth: a URL pattern in `SecurityConfig` (`.requestMatchers("/api/v1/admin/**").hasRole("ADMIN")`) **plus** `@PreAuthorize` annotations (READ/WRITE/SUPER expressions) on the individual `AdminController` methods.
+
+#### UserApiKeyController (`/api/v1/user/api-keys`)
+
+| Method | Path | Auth | Request Body | Response |
+|--------|------|------|-------------|----------|
+| GET | `` | JWT | - | `List<ApiKeySummary>` (metadata only) |
+| POST | `` | JWT | `SaveApiKeyRequest { provider, apiKey, currentPassword }` | `ApiKeySummary` |
+| DELETE | `/{provider}` | JWT | `DeleteApiKeyRequest { currentPassword }` | 204 No Content |
+| POST | `/validate` | JWT | `ValidateRequest { provider, apiKey }` | `{ valid: boolean }` |
+
+This is a BYOK (Bring Your Own Key) store — users supply their own LLM provider key; it is **not** a Curio-generated API key, so there is no key-generation endpoint and no full key is ever returned. Notes:
+
+- **Write re-auth:** `POST` (add/replace) and `DELETE` require the account's `currentPassword` in the body (defense-in-depth: a stolen JWT alone can't drain someone's LLM credit). These write paths are rate-limited **5 attempts / 5 min per user**; `/validate` is limited **5 / min per user**.
+- **`ApiKeySummary`** (never includes the plaintext or encrypted bytes): `provider`, `keyPreview` (masked, e.g. `sk-ant-...XYZW`), `validated`, `validatedAt`, `lastUsedAt`, `updatedAt`, `rotatedAt`, `stale` (true when not rotated in 90+ days).
+- On `POST`, the key is **always** validated against the provider before storage (the old opt-out `validate` flag was removed).
+- `provider` is a `UserApiKey.Provider` enum (claude / gemini / openai).
+
+#### StudioController (`/api/v1/studio`)
+
+| Method | Path | Auth | Request Body | Response |
+|--------|------|------|-------------|----------|
+| POST | `/generate` | JWT | - | Starts digest generation (live task) |
+| POST | `/send-email` | JWT | - | Emails the latest unsent digest |
+| GET | `/status` | JWT | - | Live task status + context |
+
+#### WebhookController (`/api/v1/webhooks`)
+
+| Method | Path | Auth | Request Body | Response |
+|--------|------|------|-------------|----------|
+| POST | `/email` | Svix signature | Raw JSON | 200/400 |
+
+### Database Schema (Actual Entity Fields)
+
+#### `users` table
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK, auto-generated | |
+| `email` | VARCHAR | UNIQUE, NOT NULL | |
+| `password_hash` | VARCHAR | nullable | Null for Google OAuth users |
+| `google_id` | VARCHAR | UNIQUE, nullable | No `oauth_provider` column exists |
+| `full_name` | VARCHAR | nullable | |
+| `is_admin` | BOOLEAN | DEFAULT false | No `role` column -- admin status is a boolean |
+| `delivery_enabled` | BOOLEAN | DEFAULT true | |
+| `email_verified` | BOOLEAN | DEFAULT false | Auto-set `true` on register |
+| `created_at` | TIMESTAMP | @PrePersist | |
+| `updated_at` | TIMESTAMP | @PrePersist, @PreUpdate | |
+
+User implements Spring Security's `UserDetails`. `isEnabled()` returns `emailVerified`. Authorities: `ROLE_ADMIN` if `isAdmin`, else `ROLE_USER`.
+
+#### `user_preferences` table
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK | |
+| `user_id` | UUID | FK -> users, NOT NULL | @ManyToOne LAZY |
+| `topics` | TEXT[] | PostgreSQL array | |
+| `created_at` | TIMESTAMP | @PrePersist | |
+| `updated_at` | TIMESTAMP | @PrePersist, @PreUpdate | |
+
+#### `digests` table
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK | |
+| `user_id` | UUID | FK -> users, NOT NULL | |
+| `content` | JSONB | NOT NULL | Contains `summaries` array and `generatedFor` topics |
+| `generated_at` | TIMESTAMP | @PrePersist | NOT `created_at` |
+| `email_sent_at` | TIMESTAMP | nullable | Set when email sent |
+| `email_provider_id` | VARCHAR | UNIQUE, nullable | Resend message ID |
+| `email_opened_at` | TIMESTAMP | nullable | Set by webhook |
+| `email_clicked_at` | TIMESTAMP | nullable | Set by webhook |
+
+#### `quizzes` table
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK | |
+| `digest_id` | UUID | FK -> digests, UNIQUE, NOT NULL | @OneToOne LAZY |
+| `questions` | JSONB | NOT NULL | Contains `questions` array |
+| `created_at` | TIMESTAMP | @PrePersist | |
+
+#### `quiz_attempts` table
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK | |
+| `quiz_id` | UUID | FK -> quizzes, NOT NULL | UNIQUE(user_id, quiz_id) via `uq_quiz_attempts_user_quiz` (V25) |
+| `user_id` | UUID | FK -> users, NOT NULL | One attempt row per (user, quiz); "better score wins" |
+| `answers` | JSONB | NOT NULL | |
+| `score` | INTEGER | NOT NULL | |
+| `completed_at` | TIMESTAMP | @PrePersist | NOT `submitted_at` |
+
+#### `refresh_tokens` table
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK | |
+| `user_id` | UUID | FK -> users, NOT NULL | |
+| `token_hash` | VARCHAR | UNIQUE, NOT NULL | SHA-256 hash of JWT refresh token (V9 migration) |
+| `expires_at` | TIMESTAMP | NOT NULL | |
+| `created_at` | TIMESTAMP | @PrePersist | |
+
+#### `password_reset_tokens` table
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK | |
+| `user_id` | UUID | FK -> users, NOT NULL | |
+| `token_hash` | VARCHAR | UNIQUE, NOT NULL | SHA-256 hash (NOT raw token) |
+| `expires_at` | TIMESTAMP | NOT NULL | 1 hour from creation |
+| `used_at` | TIMESTAMP | nullable | NOT a boolean `used` flag |
+| `created_at` | TIMESTAMP | @PrePersist | |
+
+#### `user_api_keys` table (V17, V19)
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK | |
+| `user_id` | UUID | FK -> users, NOT NULL | UNIQUE(user_id, provider) — one key per provider per user |
+| `provider` | VARCHAR(32) | NOT NULL, CHECK | `CLAUDE` / `GEMINI` / `OPENAI` |
+| `encrypted_key` | BYTEA | NOT NULL | AES-256-GCM ciphertext (master key = env `API_KEY_ENCRYPTION_KEY`) |
+| `key_iv` | BYTEA | NOT NULL | GCM nonce |
+| `key_preview` | VARCHAR(64) | NOT NULL | `prefix...last4` (e.g. `sk-ant-...XYZW`) — the only part any HTTP response includes |
+| `validated_at` | TIMESTAMPTZ | nullable | Set after a successful live validation |
+| `last_used_at` | TIMESTAMPTZ | nullable | |
+| `rotated_at` | TIMESTAMP | nullable | V19 — backs the 90-day stale warning |
+| `created_at` / `updated_at` | TIMESTAMPTZ | NOT NULL | |
+
+#### `audit_log` table (V18)
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | BIGSERIAL | PK | Not a UUID |
+| `actor_id` | UUID | nullable | Admin who performed the action |
+| `actor_email` | VARCHAR(255) | nullable | Denormalized actor email at action time |
+| `action` | VARCHAR(128) | NOT NULL | Action type (e.g. GENERATE_DIGESTS, SEND_EMAILS, CLEANUP) |
+| `target_type` | VARCHAR(64) | nullable | Entity the action targeted (e.g. USER, DIGEST) |
+| `target_id` | VARCHAR(255) | nullable | Identifier of the target |
+| `request_id` | VARCHAR(128) | nullable | Correlation id of the originating request |
+| `metadata` | JSONB | nullable | Structured action detail |
+| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | |
+
+Indexes: `idx_audit_log_actor_id` (actor_id), `idx_audit_log_action` (action), `idx_audit_log_created_at` (created_at DESC).
+
+### Flyway Migrations
+
+| Version | Description |
+|---------|------------|
+| V1 | `create_users` |
+| V2 | `create_preferences` |
+| V3 | `create_refresh_tokens` |
+| V4 | `create_digests` |
+| V5 | `create_quizzes` |
+| V6 | `add_email_provider_id_to_digests` |
+| V7 | `create_password_reset_tokens` |
+| V8 | `add_performance_indexes` |
+| V9 | `rename_refresh_token_to_token_hash` (SHA-256 hashing, truncates old tokens) |
+| V10 | `create_subscriptions` (subscription table, later dropped by V22) |
+| V11 | `migrate_legacy_topics` |
+| V12 | `add_gin_index_digest_content` |
+| V13 | `create_shedlock` (ShedLock table for distributed scheduling) |
+| V14 | `add_performance_indexes_v2` |
+| V15 | `digest_content_projection` |
+| V16 | `rewrite_topics_for_model_focus` (AI model-centric 3-level hierarchy) |
+| V17 | `create_user_api_keys` (BYOK support) |
+| V18 | `create_audit_log` (Admin action audit trail) |
+| V19 | `add_user_api_key_rotation` (Adds rotated_at column to user_api_keys for key rotation tracking) |
+| V20 | `add_user_delivery_time` (Per-user custom delivery time) |
+| V21 | `create_digest_content_fts` (Full-text search index) |
+| V22 | `drop_subscriptions` (Removed Stripe integration) |
+| V23 | `digest_unique_per_user_day` (one digest per user per UTC day; idempotency backstop) |
+| V24 | `email_verification_codes` (Email/password login 2FA codes: challenge_hash + code_hash SHA-256, attempts_remaining) |
+| V25 | `quiz_attempt_unique_per_user` (adds `uq_quiz_attempts_user_quiz` UNIQUE(user_id, quiz_id): one attempt row per (user, quiz), "better score wins") |
+| V26 | `add_timezone_auto` (Adds timezone_auto column to user_preferences for device-based timezone auto-follow) |
+| V27 | `normalize_emails_lowercase` (Folds existing emails to trimmed-lowercase and adds a `lower(email)` unique index — one account per real mailbox regardless of case; backs `EmailNormalizer`) |
+
+### Service Layer
+
+#### AiService Interface
+
+```java
+// Platform-key calls
+List<NewsSummary> generateNewsSummaries(String topic);
+QuizGenerationResult generateQuizQuestions(String digestContent);
+
+// BYOK overloads — substitute a user-supplied key for a single call (null/blank
+// falls back to the platform-key path). BYOK calls skip the shared cache and circuit breaker.
+default List<NewsSummary> generateNewsSummaries(String topic, String overrideApiKey);
+default QuizGenerationResult generateQuizQuestions(String digestContent, String overrideApiKey);
+
+// Difficulty-aware quiz generation (implementations may ignore the hint; Claude honors it)
+enum DifficultyHint { EASIER, NORMAL, HARDER }
+default QuizGenerationResult generateQuizQuestions(String digestContent, DifficultyHint hint);
+default QuizGenerationResult generateQuizQuestions(String digestContent, DifficultyHint hint, String overrideApiKey);
+```
+
+Provider selected via `AI_PROVIDER` env var:
+- `claude` (default, `matchIfMissing=true`) -> `ClaudeService` (`@Service`)
+- `gemini` -> `GeminiService` (`@Component`)
+- `openai` -> `OpenAiService` (`@Component`)
+
+All providers: Redis cache check first, call NewsApiClient for articles, call AI API, cache result. Retry: MAX_RETRIES=2, RETRY_DELAY_MS=2000 (linear: `delay * attempt`).
+
+#### Other Services
+
+| Service | Responsibilities |
+|---------|-----------------|
+| `NewsApiClient` | Shared `@Component`. Fetches articles from News API, parses responses, builds context strings for AI prompts. Gracefully returns empty list if API key is blank. |
+| `AuthService` | Register (BCrypt, auto-sets `emailVerified=true`; duplicate-email race caught as clean 400), login (AuthenticationManager), Google login (verifies via Google tokeninfo REST API with aud/iss checks; merging into a password-only account found by email clears the unproven password and revokes sessions — pre-account-hijack defense), token refresh (hashes tokens before lookup), logout, password reset (SHA-256 hashed tokens). |
+| `UserService` | Profile CRUD, preferences upsert, account deletion, unsubscribe (sets `deliveryEnabled=false`). |
+| `NewsService` | Digest retrieval (paginated, ownership check), digest generation per user (iterates topics, calls AiService). The old `generateDigestsForAllUsers()` bulk method was dead code and removed — the scheduled path is `DigestGenerationJob`'s chunked run. |
+| `QuizService` | Quiz retrieval by digest ID, quiz generation via AI (if not exists), quiz submission scoring, paginated history (hardcoded page size 10). |
+| `AdminUserService` | User listing with search, user detail with metrics (topics, digest count, quiz stats). |
+| `AdminDigestService` | Digest listing with pagination and filters (topic, userEmail), manual trigger of digest generation. |
+| `AdminStatsService` | Stats aggregation (total users, emails sent, quiz completions), topic distribution, topic status per-topic stats, job status retrieval. |
+| `AdminOperationsService` | Manual trigger of email send batch and 30-day cleanup job. |
+| `AdminManualJobService` | Backs the async admin triggers (`POST /admin/generate-digests`, `/admin/send-emails`): returns 202 `started`/`already_running` immediately and runs the batch on a background executor. |
+| `EmailService` | Sends digest emails via Resend API + Thymeleaf templates, password reset emails (inline HTML), webhook event processing (open/click/bounce/complaint). Retry: 3 attempts. |
+| `UnsubscribeTokenService` | HMAC-SHA256 signed tokens with configurable TTL (default 720 hours / 30 days). |
+| `UserDetailsServiceImpl` | Implements Spring Security `UserDetailsService`, loads users by email. |
+| `StudioService` | Manual, user-driven digest generation and emailing of the latest unsent digest (Studio dashboard). |
+| `StudioTaskStatusService` | Tracks live Studio task status and context for `GET /studio/status`. |
+| `LabBlogFetcher` | Fetches lab/company blog (RSS) content for digest sourcing. |
+| `LabBlogRegistry` | Registry of lab blog feed URLs consumed by `LabBlogFetcher`. |
+| `LlmKeyValidator` | Validates user-supplied (BYOK) provider API keys. |
+
+### Scheduled Jobs
+
+| Job | Schedule (UTC) | What it Does |
+|-----|---------------|--------------|
+| `DigestGenerationJob` | 6:00 AM | Pre-generates digests for users with `deliveryEnabled=true` and preferences set (plus a bounded generate-if-missing at send time) |
+| `EmailSendJob` | Hourly (`:00`) | Runs every hour and emails each user whose local hour is at or past their delivery hour (catch-up gate — DST spring-forward cannot skip a day; only a digest generated today UTC is sent; claim-before-send prevents doubles; default 08:00 local) — NOT a fixed daily send. Also generates quizzes (`quizService.generateQuizForDigest()`) |
+| `CleanupJob` | Midnight | Deletes digests/quizzes older than 30 days via `digestRepository.deleteByGeneratedAtBefore()` |
+| `ExpiredAuthRowReaper` | - | Reaps expired refresh tokens, password-reset tokens, and email-verification codes |
+| `JobFailureNotifier` | - | Surfaces/notifies on scheduled-job failures (alongside `JobStatusRegistry`) |
+
+**Note on CleanupJob:** Deletes digests directly; quiz and quiz_attempt rows are removed via the database `ON DELETE CASCADE` constraints.
+
+**Note on EmailSendJob:** Quiz generation happens here, not in DigestGenerationJob. This means quizzes are generated just before email sending, not during digest generation.
+
+### Security Configuration
+
+- CSRF: disabled (stateless JWT API)
+- Sessions: STATELESS
+- JWT: HMAC-SHA256 access tokens (15 min) + refresh tokens (3-hour sliding idle timeout, single-use rotation, stored SHA-256-hashed in DB). Lifetime derives from `jwt.refresh-expiration` (env `JWT_REFRESH_EXPIRATION`, default 10800000 ms = 3h); the DB row, cookie max-age, and JWT expiry share this one source of truth
+- `JwtAuthenticationFilter` extracts Bearer token from Authorization header
+- Public paths: `/api/v1/auth/**`, `/api/v1/webhooks/**`, `/api/v1/user/unsubscribe`, `/actuator/health`, `/actuator/info`, `/api-docs/**`, `/swagger-ui/**`
+- Admin paths: `/api/v1/admin/**` requires `ROLE_ADMIN` (via SecurityConfig URL matcher)
+- Auth provider: `DaoAuthenticationProvider` with BCrypt
+- CORS: configured via `CorsConfig` bean (dev: `localhost:5173`, prod: via `FRONTEND_URL` env var)
+- Webhook security: HMAC-SHA256 Svix signature verification
+- Redis caching uses `RedisTemplate` directly (manual get/set), NOT `@Cacheable` annotations
+
+### Repository Methods
+
+| Repository | Key Methods |
+|------------|-------------|
+| `UserRepository` | `findByEmail`, `findByGoogleId`, `existsByEmail`, `findByEmailContainingIgnoreCase`, `findByDeliveryEnabledTrue` |
+| `UserPreferencesRepository` | `findByUserId`, `findByUserIdIn` |
+| `DigestRepository` | `findByUserIdOrderByGeneratedAtDesc`, `findTop5ByUserIdOrderByGeneratedAtDesc`, `findByEmailProviderId`, `countByUserId`, `countByEmailSentAtAfter`, `deleteByGeneratedAtBefore`, pagination/filtering support |
+| `QuizRepository` | `findByDigestId` |
+| `QuizAttemptRepository` | `findByUserIdWithQuiz` (JPQL JOIN FETCH), `findByUserIdOrderByCompletedAtDesc`, `findTop5ByUserIdOrderByCompletedAtDesc`, `countByUserId`, `countByCompletedAtAfter`, `findAverageScoreByUserId` (JPQL AVG) |
+| `RefreshTokenRepository` | `findByTokenHash`, `deleteByUserId` (V9: changed from `findByToken` to hash-based lookup) |
+| `PasswordResetTokenRepository` | `findByTokenHash`, `deleteByUserId` |
+
+### Configuration Profiles
+
+| File | Active When | Key Behavior |
+|------|-------------|-------------|
+| `application.yml` | Always (base) | Port 8080, DDL=validate, Flyway on, Actuator health+info, Swagger on. Default active profile is `${SPRING_PROFILES_ACTIVE:prod}` — an UNSET profile boots the fail-fast `prod` profile (requires real secrets), so local dev must pass `-Dspring-boot.run.profiles=dev` (or `SPRING_PROFILES_ACTIVE=dev`) |
+| `application-dev.yml` | `dev` profile | Localhost DB/Redis, debug logging, `ai.provider=${AI_PROVIDER:claude}` |
+| `application-prod.yml` | `prod` profile | All values from env vars, Swagger off, INFO logging |
+| `application-test.yml` | `test` profile | H2 in-memory DB, Flyway disabled, hardcoded test keys |
+
+### Global Exception Handler
+
+`@RestControllerAdvice` with handlers for: `ResourceNotFoundException`, `UnauthorizedException`, `IllegalArgumentException`, `MethodArgumentNotValidException`, `AccessDeniedException`, and catch-all `Exception`. Returns `ErrorResponse` with `status`, `message`, `errors` (Map), and `timestamp` fields.
+
+---
+
+## Frontend
+
+### Package Dependencies
+
+| Package | Version | Status |
+|---|---|---|
+| Vue | ^3.5.24 | Active |
+| Vite | ^7.2.4 | Active |
+| Pinia | ^3.0.4 | Active (no persistedstate plugin) |
+| Vue Router | ^4.6.4 | Active |
+| Axios | ^1.13.5 | Active |
+| Tailwind CSS | ^4.1.18 | Active (v4 with CSS-based config) |
+| TypeScript | ~5.9.3 | Active |
+| `@headlessui/vue` | ^1.7.23 | **INSTALLED BUT NEVER USED** |
+| Cypress | ^15.10.0 | Dev dependency |
+| Vitest | ^4.0.18 | Dev dependency |
+
+### Build Scripts
+
+```json
+"dev": "vite",
+"build": "vue-tsc -b && vite build",
+"preview": "vite preview",
+"test:unit": "vitest",
+"test:e2e": "cypress open",
+"lint": "vue-tsc --noEmit"
+```
+
+**Note:** No `format` script and no ESLint/Prettier config — `lint` is type-checking only (`vue-tsc --noEmit`).
+
+### Routing
+
+| Path | Name | Component | Auth | Admin |
+|------|------|-----------|------|-------|
+| `/` | `home` | `HomeView` | No | No |
+| `/login` | `login` | `LoginView` | No | No |
+| `/register` | `register` | `RegisterView` | No | No |
+| `/verify` | `verify-code` | `VerifyCodeView` | No | No | (email 2FA for email/password login) |
+| `/reset-password` | `reset-password` | `ResetPasswordView` | No | No |
+| `/onboarding` | `onboarding` | `OnboardingView` | Yes | No |
+| `/dashboard/archive` | `archive` | `ArchiveView` | Yes | No |
+| `/dashboard/quiz/:digestId` | `quiz` | `QuizView` | Yes | No |
+| `/dashboard/quiz-history` | `quiz-history` | `QuizHistoryView` | Yes | No |
+| `/dashboard/settings` | `settings` | `SettingsView` | Yes | No |
+| `/admin` | - | - | Yes | Yes | (redirects to `/admin/dashboard`) |
+| `/admin/dashboard` | `admin-dashboard` | `AdminDashboardView` | Yes | Yes |
+| `/admin/digests` | `admin-digests` | `AdminDigestsView` | Yes | Yes |
+| `/admin/users` | `admin-users` | `UsersView` | Yes | Yes |
+| `/admin/users/:id` | `admin-user-detail` | `UserDetailView` | Yes | Yes |
+| `/admin/stats` | `admin-stats` | `StatsView` | Yes | Yes |
+| `/admin/audit` | `admin-audit` | `AuditLogView` | Yes | Yes |
+| `/:pathMatch(.*)* ` | `not-found` | `NotFoundView` | No | No | (404 catchall) |
+
+**Navigation guard:** `requiresAuth` redirects to `/login` if no token. `requiresAdmin` redirects to `/home` if `user.isAdmin` is falsy.
+
+**404 route:** Catch-all route `/:pathMatch(.*)* ` redirects to `NotFoundView` component.
+
+### Pinia Stores
+
+#### `auth` Store
+
+| State | Type |
+|-------|------|
+| `accessToken` | `string \| null` (in-memory only — never persisted) |
+| `refreshTokenValue` | `string \| null` (the refresh token proper lives in an httpOnly cookie, not readable by JS) |
+| `user` | `AuthUser \| null` (id, email, fullName, isAdmin) |
+
+Actions: `login()`, `register()`, `googleLogin()`, `logout()`, `refreshToken()`, `setTokens()`, `clearTokens()`
+
+Computed: `isAuthenticated` (derived from accessToken presence)
+
+**Note:** The access token lives in memory only; the refresh token is an HTTP-only cookie (not readable by JS). On page refresh the in-memory token is gone, so the app re-establishes the session via a silent single-flight `POST /auth/refresh` on boot (covered by the App.vue splash).
+
+#### `user` Store
+
+State: `profile` (User | null), `preferences` (string[])
+Actions: `fetchProfile()`, `updateProfile()`, `fetchPreferences()`, `updatePreferences()`
+
+#### `news` Store
+
+State: `digests` (Digest[]), `currentDigest`, `totalPages`, `currentPage`
+Actions: `fetchDigests(page, size)`, `fetchDigest(id)`
+
+#### `quiz` Store
+
+State: `currentQuiz`, `quizHistory` (QuizAttempt[]), `currentScore`
+Actions: `fetchQuiz(digestId)`, `submitQuiz(quizId, answers)`, `fetchHistory(page)`
+
+#### `persistence` Store
+
+State: `lastVisitedPage` (string), `selectedTopics` (string[])
+Actions: `saveState()`, `restoreState()`
+
+Note: Manages client-side session state for UI recovery (e.g., last visited archive page, onboarding selections).
+
+No `admin` store exists. Admin views call their API endpoints directly. All features are unlocked for all users (subscription and tiers were removed in V22).
+
+### API Service (`services/api.ts`)
+
+Single Axios instance with:
+- `baseURL`: `/api/v1` (relative path — routed by Vite dev proxy or nginx)
+- 30s timeout
+- **Request interceptor:** attaches `Authorization: Bearer <token>` from auth store
+- **Response interceptor:** handles 401 with token refresh queue (prevents infinite loops via `_retry` flag and `failedQueue`). On refresh failure, clears tokens and redirects to login.
+
+#### Endpoint Map
+
+| Method | Frontend Call | Backend Endpoint |
+|---|---|---|
+| POST | `api.auth.login(email, password)` | `/auth/login` |
+| POST | `api.auth.verifyCode(challengeId, code)` | `/auth/verify-code` |
+| POST | `api.auth.resendCode(challengeId)` | `/auth/resend-code` |
+| POST | `api.auth.register(data)` | `/auth/register` |
+| POST | `api.auth.googleLogin(token)` | `/auth/google` |
+| POST | `api.auth.forgotPassword(email)` | `/auth/forgot-password` |
+| POST | `api.auth.resetPassword(token, newPassword)` | `/auth/reset-password` |
+| POST | `api.auth.refresh()` | `/auth/refresh` (refresh token rides the httpOnly cookie, not an arg) |
+| POST | `api.auth.logout()` | `/auth/logout` |
+| GET | `api.user.getProfile()` | `/user/me` |
+| PUT | `api.user.updateProfile(data)` | `/user/me` |
+| GET | `api.user.getPreferences()` | `/user/preferences` |
+| PUT | `api.user.updatePreferences(topics, delivery?)` | `/user/preferences` |
+| DELETE | `api.user.deleteAccount()` | `/user/me` |
+| PUT | `api.user.changePassword(currentPassword, newPassword)` | `/user/me/password` |
+| GET | `api.apiKeys.list()` | `/user/api-keys` |
+| POST | `api.apiKeys.save(provider, apiKey, currentPassword)` | `/user/api-keys` |
+| DELETE | `api.apiKeys.delete(provider, currentPassword)` | `/user/api-keys/{provider}` |
+| POST | `api.apiKeys.validate(provider, apiKey)` | `/user/api-keys/validate` |
+| GET | `api.news.getDigests(page, size)` | `/news/digests` |
+| GET | `api.news.getDigest(id)` | `/news/digests/{id}` |
+| GET | `api.news.search(q, page, size)` | `/news/search` |
+| GET | `api.quiz.getQuiz(digestId)` | `/quiz/digest/{digestId}` |
+| POST | `api.quiz.submitQuiz(quizId, answers)` | `/quiz/{quizId}/submit` |
+| GET | `api.quiz.getHistory(page)` | `/quiz/history` |
+| GET | `api.studio.getStatus()` | `/studio/status` |
+| POST | `api.studio.generate()` | `/studio/generate` |
+| POST | `api.studio.sendEmail()` | `/studio/send-email` |
+| GET | `api.admin.getUsers(page, search)` | `/admin/users` |
+| GET | `api.admin.getUser(id)` | `/admin/users/{id}` |
+| GET | `api.admin.getStats()` | `/admin/stats` |
+| GET | `api.admin.getTopicDistribution()` | `/admin/stats/topics` |
+| GET | `api.admin.getTopicsStatus()` | `/admin/topics/status` |
+| GET | `api.admin.getDigests(params)` | `/admin/digests` |
+| POST | `api.admin.generateDigests(topics)` | `/admin/generate-digests` |
+| POST | `api.admin.sendEmails()` | `/admin/send-emails` |
+| POST | `api.admin.runCleanup()` | `/admin/cleanup` |
+| GET | `api.admin.getJobsStatus()` | `/admin/jobs/status` |
+| GET | `api.admin.getAuditLog(page, size)` | `/admin/audit-log` |
+
+All 39 frontend API calls (across the `auth`, `user`, `apiKeys`, `news`, `quiz`, `studio`, and `admin` groups) have matching backend endpoints. Admin API responses are **partially typed** in TypeScript (digest endpoints are typed).
+
+### Components
+
+**UI (6):** `BaseButton`, `BaseInput`, `BaseModal`, `BaseSpinner`, `ToastContainer`, `AppIcon` (custom inline SVG icon system with 18+ icons)
+
+**Auth (2):** `LoginForm`, `RegisterForm`
+
+**Layout (2):** `DashboardLayout` (sidebar nav for desktop, slide-out drawer for mobile), `LegalLayout` (wrapper for the legal/privacy/terms/contact pages)
+
+**Quiz (2):** `QuizQuestion`, `QuizResults`
+
+**Settings (1):** `ApiKeyManager` (BYOK key management UI, embedded in Studio/Settings)
+
+**Error Handling (1):** `ErrorBoundary` (global error boundary component, wraps App.vue)
+
+**Note:** Admin views (`UsersView`, `UserDetailView`, `StatsView`, `AdminDashboardView`, `AdminDigestsView`) do NOT use `DashboardLayout` -- they have their own standalone layouts with no shared admin navigation.
+
+### Composables
+
+| Composable | Status | Notes |
+|---|---|---|
+| `useToast()` | Active | Module-level singleton. Used throughout views for notifications. |
+| `useEnsureTimezone()` | Active | Captures/re-syncs the device timezone on authenticated app entry (wired in `DashboardLayout`) for timezone auto-follow. |
+| `useTheme()` | Active | Light/dark theme state + toggle. |
+| `useFocusTrap()` | Active | Traps focus within modals/drawers for keyboard accessibility. |
+| `useFocusOnEnter()` | Active | Moves focus to a target element on mount/enter. |
+
+### TypeScript Types
+
+Defined in `types/user.ts`, `types/news.ts`, `types/quiz.ts`. Admin API responses for digests and topics are typed; user list responses use inline local interfaces (`AdminUser`, `UserDetail`).
+
+Unused type: `LoginRequest` (defined in `types/user.ts` but never imported).
+
+### Styling
+
+The design system is an editorial "newsprint" theme, not the old indigo/Manrope scaffold.
+
+- **Tailwind CSS v4**, imported via `@import "tailwindcss"` in `src/assets/styles/main.css` (loaded by `main.ts`). Design tokens live in an `@theme inline` block that maps Tailwind color utilities (`bg-paper`, `text-ink`, `text-signal`, …) onto runtime CSS variables, so the palette flips between light and dark by redefining those variables under `:root[data-theme='dark']` / `:root.dark` (kept in sync by `useTheme.ts`).
+- **Palette:** warm paper (`--paper #f3ede1`) / ink (`--ink #14130f`) neutrals with a signal-orange accent (`--signal #ff4a1c`) and a leaf green — no indigo primary. Components use these editorial tokens throughout.
+- **Fonts** load from Google Fonts in `index.html`: **Fraunces** (display, `--font-display`), **Inter Tight** (body, `--font-body`), and **JetBrains Mono** (kickers/metadata, `--font-mono`). There is no Manrope.
+- `tailwind.config.js` (v3-style) is still present and in use for `darkMode: 'class'` and the `content` globs; its `primary #6366F1` / `secondary #F59E0B` colors are legacy leftovers that no component references.
+
+---
+
+## Integration
+
+### API Contract Alignment
+
+**All frontend API calls have matching backend endpoints.** Zero mismatches in paths, HTTP methods, or DTO field names.
+
+All typed DTOs (`AuthResponse`, `UserResponse`, `DigestResponse`, `QuizResponse`) are field-compatible between TypeScript and Java (Jackson serializes UUID as string, LocalDateTime as ISO string).
+
+### Authentication Flow
+
+1. Frontend keeps the `accessToken` in memory only; the refresh token is held in an HTTP-only cookie (not readable by JS)
+2. Every API request attaches `Authorization: Bearer <token>` via Axios interceptor
+3. On 401, the response interceptor triggers token refresh via `POST /auth/refresh`
+4. Concurrent 401s are batched via a `failedQueue` to prevent duplicate refresh calls
+5. On refresh failure, tokens are cleared and user is redirected to login
+
+### Google OAuth Flow
+
+1. Frontend uses Google Identity Services (`window.google.accounts.id`) to get an ID token
+2. Frontend sends the token via `POST /api/v1/auth/google`
+3. Backend verifies the token by calling Google's `tokeninfo` REST API
+4. Backend upserts the user and returns JWT tokens
+
+There is NO Spring OAuth2 callback flow (`/oauth2/callback`) and no `OAuth2SuccessHandler` class.
+
+### Pagination
+
+Backend uses Spring Data `Page` format (`content`, `totalPages`, `totalElements`, `number`, `size`). Frontend types correctly match this structure.
+
+### Backend-Only Endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/v1/user/unsubscribe?token=` | Email unsubscribe link -- returns HTML directly |
+| `POST /api/v1/webhooks/email` | Resend server-to-server webhook |
+
+These are correctly not consumed by the frontend SPA.
+
+---
+
+## Infrastructure & DevOps
+
+### Docker
+
+**Frontend Dockerfile:** Multi-stage (`node:22-alpine` build -> `nginx:alpine` runtime). Non-root `nginx` user. Port 80. Build arg `VITE_GOOGLE_CLIENT_ID` only (`VITE_API_URL` is no longer used — the frontend uses relative `/api/v1` paths).
+
+**Backend Dockerfile:** Multi-stage (`eclipse-temurin:21-jdk-alpine` build -> `eclipse-temurin:21-jre-alpine` runtime). Exploded JAR layout. Non-root `appuser` (UID 1001). Port 8080.
+
+**nginx.conf:** Gzip enabled, 1-year immutable cache for `/assets/`, SPA fallback, API reverse proxy to `backend:8080`. This eliminates CORS in Docker/prod since frontend and API share the same origin.
+
+### Docker Compose (Split Architecture)
+
+Infrastructure is split into two compose files for local dev vs production:
+
+**`docker-compose.infra.yml` — Local dev (infra only):**
+
+| Service | Image | Host Port | Health Check |
+|---------|-------|-----------|-------------|
+| postgres | `postgres:16-alpine` | 5432 | `pg_isready` every 10s |
+| redis | `redis:7-alpine` | 6379 | `redis-cli ping` every 10s |
+
+Run app code natively (`npm run dev` + `mvn spring-boot:run`) for HMR and fast iteration. No Docker network — services exposed to localhost.
+
+**`docker-compose.yml` — Production/staging (full stack):**
+
+| Service | Image | Exposed Port | Health Check | Resource Limits | Notes |
+|---------|-------|-------------|-------------|-----------------|-------|
+| postgres | `postgres:16-alpine` | Internal only | `pg_isready` every 10s | 512M / 1 CPU | Requires `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` env vars |
+| redis | `redis:7-alpine` | Internal only | `redis-cli -a $REDIS_PASSWORD ping` every 10s | 256M / 0.5 CPU | Password required for authentication |
+| backend | `curio-backend:latest` | Internal only | `wget /actuator/health` every 30s | 1G / 2 CPU | `SPRING_PROFILES_ACTIVE=prod` |
+| frontend | `curio-frontend:latest` | 80 (configurable) | `wget /` every 30s | 128M / 0.5 CPU | Nginx reverse proxy |
+
+Production features: Redis password required, resource limits on all services, `prod` Spring profile, supports pre-built images via `BACKEND_IMAGE`/`FRONTEND_IMAGE` env vars. Only the frontend port is exposed to the host.
+
+Named volumes for postgres and redis data. Shared `curio-network` bridge. Environment variables required: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CLAUDE_API_KEY`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `NEWS_API_KEY`, `FRONTEND_URL`, `BACKEND_URL`, `UNSUBSCRIBE_SECRET`, `API_KEY_ENCRYPTION_KEY`. Optional passthroughs: `GOOGLE_CLIENT_ID` (Google sign-in; ID-token flow needs no client secret — there is no `GOOGLE_CLIENT_SECRET`, and the `spring-boot-starter-oauth2-client` dependency has been dropped), `AI_PROVIDER` (default `claude`) plus `GEMINI_API_KEY`/`OPENAI_API_KEY`, and `SENTRY_DSN` / `SENTRY_ENVIRONMENT` / `SENTRY_TRACES_SAMPLE_RATE` (the backend service passes these through so `.env.prod` can wire Sentry).
+
+### Environment Variables
+
+The full variable reference (what each var is, why it's needed, prod-required vs optional) lives in **[`ENV_VARIABLES.md`](ENV_VARIABLES.md)** — the single source of truth. In brief, how the profiles consume them:
+
+- **Backend dev (`application-dev.yml`):** hardcoded localhost DB/Redis and placeholder secret defaults (labeled "change-in-production"); almost no env vars needed to boot.
+- **Backend prod (`application-prod.yml`):** every value comes from env vars with no secret defaults, so a missing required secret fails fast at boot.
+- **Frontend:** `VITE_GOOGLE_CLIENT_ID` (Docker build arg / `.env.local`) and optional `VITE_SENTRY_DSN`. `VITE_API_URL` is not used — the SPA calls relative `/api/v1` paths routed by the Vite dev proxy (local) or nginx (Docker/prod).
+
+---
+
+## Testing
+
+### Backend Test Inventory
+
+25 test classes (as of 2026-07-18) including unit, integration, and architecture tests. All tests pass, including ArchUnit enforcement of hexagonal architecture rules.
+
+| Test Class | Type | What It Tests |
+|---|---|---|
+| `CurioApplicationTests` | Smoke | Spring context loads |
+| `HexagonalArchitectureTest` | Architecture | ArchUnit rules (ports ≠ adapters, services ≠ repos, controllers depend on inbound ports, adapters isolated) |
+| `AuthServiceTest` | Unit | Register/login/refresh/logout/password-reset paths, token rotation, used-token rejection |
+| `ClaudeServiceTest` | Unit | Cache hit/miss, API calls, JSON parsing, code-fence stripping, error handling, retry, quiz generation |
+| `GeminiServiceTest` | Unit | Same matrix as Claude + API-key-in-URL verification |
+| `OpenAiServiceTest` | Unit | Same matrix as Claude + Bearer auth header verification |
+| `NewsApiClientTest` | Unit | Blank API key guard, article parsing, error handling, context building |
+| `NewsServiceTest` | Unit | Digest generation, filtering, pagination |
+| `QuizServiceTest` | Unit | Quiz fetch/generate, ownership enforcement, scoring, per-question feedback |
+| `QuizAttemptRecorderTest` | Unit | REQUIRES_NEW attempt persistence, concurrent-first-submit recovery, "better score wins" |
+| `UnsubscribeTokenServiceTest` | Unit | HMAC-SHA256 token roundtrip, expiry enforcement, tampering detection |
+| `UserApiKeyServiceTest` | Unit | BYOK key save (encrypt + live-validate), masked preview, rotation staleness |
+| `UserServicePasswordTest` | Unit | In-session password change, session revocation on change |
+| `AuthControllerIntegrationTest` | API | Forgot password, reset password, Google login |
+| `AdminControllerSecurityIntegrationTest` | Security | Anonymous rejected, regular user rejected, admin user allowed |
+| `AdminOperationsServiceTest` | Unit | Manual email-send batch + 30-day cleanup trigger |
+| `AdminStatsServiceTest` | Unit | Stats aggregation, topic distribution, topic status |
+| `AuditLogServiceTest` | Unit | Admin-action audit record write + paginated read |
+| `UserControllerPasswordIntegrationTest` | API | Password change functionality |
+| `UserControllerUnsubscribeIntegrationTest` | API | Valid/invalid unsubscribe token |
+| `WebhookControllerSignatureIntegrationTest` | Security | Invalid/valid HMAC signature verification |
+| `ApiKeyCipherTest` | Unit | API key encryption/decryption |
+| `JwtSecretsValidatorTest` | Unit | Boot-time JWT secret validation (length, distinctness, non-placeholder) |
+| `SingleFlightTest` | Unit | In-process per-key single-flight lock (one cold-cache call per topic+date) |
+| `DigestGenerationJobTest` | Job | Scheduled job execution, digest generation, idempotency |
+
+### Frontend Test Inventory
+
+**Unit tests (Vitest): 13 test files** in `src/__tests__/` (as of 2026-07-18)
+- Components: Various component logic tests
+- Stores: Pinia store tests (auth, user, news, quiz)
+- Composables: Reusable composable tests
+
+**E2E tests (Cypress): 9 spec files** (as of 2026-07-18)
+
+| Spec | Coverage |
+|---|---|
+| `auth.cy.ts` | Authentication flows (login, register, token refresh) |
+| `onboarding.cy.ts` | Onboarding flow (topic selection, preferences) |
+| `archive.cy.ts` | Digest archive view, pagination, full-text search, digest detail |
+| `quiz.cy.ts` | Quiz view, question navigation, submission, scoring |
+| `settings.cy.ts` | Settings page, profile updates, preferences |
+| `not-found.cy.ts` | 404 catchall route, navigation |
+| `admin.cy.ts` | Admin dashboard, users list, user detail, stats, digest browser, audit log |
+| `reset-password.cy.ts` | Password reset flow |
+| `ui-screenshots.cy.ts` | Visual screenshots (7 pages desktop, 3 mobile) -- no assertions, screenshot capture only |
+
+Coverage gaps and test to-dos are tracked in the private working notes (`docs-internal/CODEBASE_NOTES.md`).
+
+---
+
+## Hexagonal Architecture (Implemented)
+
+The backend was migrated to hexagonal (ports & adapters) architecture on 2026-03-04 across four phases. Architecture documents in `docs/architecture/`:
+
+| Document | Content |
+|----------|---------|
+| `ADR-001-hexagonal-architecture.md` | Decision record, rationale, and as-built caveat |
+
+**Implementation Status:** COMPLETE (as of 2026-03-04)
+
+The backend has been refactored into hexagonal (ports & adapters) architecture with 7 feature packages (auth, user, news, quiz, studio, admin, shared). Each package contains its own controller, services (implementing inbound ports), entities, repositories, DTOs, and adapters. All inbound ports are defined as interfaces in `port/in/`, all outbound ports in `port/out/`, and all JPA adapters in `adapter/persistence/`. ArchUnit tests enforce four key rules: ports cannot depend on adapters, services cannot import repositories directly, controllers must depend on inbound port interfaces, and adapters cannot depend on each other. All backend tests pass including ArchUnit validation.
