@@ -1,0 +1,43 @@
+{
+  "strip": {
+    "title": "Curio · New subscriber setup",
+    "logOut": "Log out ↗"
+  },
+  "header": {
+    "kicker": "Section I — Pick your beats",
+    "headline": "What's {beat} this morning?",
+    "beat": "your beat",
+    "lede": "Curio writes a different paper for every reader. Pick at least three beats and we'll file your first issue at 08:00 tomorrow. You can change them whenever you like."
+  },
+  "counter": {
+    "selected": "Selected",
+    "minimum": "{min} minimum · pick as many as you like",
+    "moreToGo": "{count} more to go",
+    "allSet": "you're all set"
+  },
+  "presets": {
+    "kicker": "— Or grab a preset bundle —",
+    "frontierWatcher": "Frontier Watcher",
+    "openSource": "Open Source",
+    "agentBuilder": "Agent Builder",
+    "capabilityTracker": "Capability Tracker"
+  },
+  "hierarchy": {
+    "chapter": "Chapter",
+    "onTheBeat": "{count} on the beat"
+  },
+  "summary": {
+    "kicker": "Your beats",
+    "remove": "Remove {topic}"
+  },
+  "cta": {
+    "filing": "Filing…",
+    "start": "Start reading",
+    "moreToPublish": "{count} more beat to publish | {count} more beats to publish",
+    "skip": "Skip for now —"
+  },
+  "toasts": {
+    "saved": "Beats saved! Your first issue is on its way.",
+    "saveFailed": "Failed to save preferences. Please try again."
+  }
+}

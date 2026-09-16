@@ -8,15 +8,14 @@
       </router-link>
 
       <div class="my-auto max-w-[420px]">
-        <p class="kicker mb-5" style="color: var(--signal);">Welcome back</p>
-        <h2 class="display-headline text-[clamp(40px,5vw,68px)] leading-[0.96] mb-8">
-          The press is
-          <em class="italic-display" style="color: var(--signal);">running</em>
-          for you.
-        </h2>
+        <p class="kicker mb-5" style="color: var(--signal);">{{ t('auth.login.aside.kicker') }}</p>
+        <i18n-t scope="global" keypath="auth.login.aside.headline" tag="h2" class="display-headline text-[clamp(40px,5vw,68px)] leading-[0.96] mb-8">
+          <template #running>
+            <em class="italic-display" style="color: var(--signal);">{{ t('auth.login.aside.running') }}</em>
+          </template>
+        </i18n-t>
         <p class="font-body-curio text-[15px] opacity-80 leading-relaxed mb-10">
-          Tomorrow's edition is being typeset right now — your beats, your reading order,
-          your five-question quiz. Sign in to pick up where you left off.
+          {{ t('auth.login.aside.body') }}
         </p>
 
         <div class="space-y-4 border-t border-[color:var(--paper)]/20 pt-6">
@@ -28,30 +27,36 @@
       </div>
 
       <div class="flex items-end justify-between">
-        <p class="kicker" style="color: var(--paper); opacity: 0.5;">© 2026 — set in Fraunces</p>
-        <p class="kicker" style="color: var(--paper); opacity: 0.5;">{{ todayShort }}</p>
+        <p class="kicker" style="color: var(--paper); opacity: 0.5;">{{ t('auth.common.colophon') }}</p>
+        <div class="flex items-baseline gap-5">
+          <LanguageToggle class="text-[11px]" style="color: var(--paper); opacity: 0.6;" />
+          <p class="kicker" style="color: var(--paper); opacity: 0.5;">{{ todayShort }}</p>
+        </div>
       </div>
     </aside>
 
     <!-- ── Form panel ─────────────────────────────────────────── -->
     <section class="flex items-center justify-center px-6 py-14">
       <div class="w-full max-w-[460px]">
-        <router-link to="/" class="mb-10 flex items-baseline gap-3 lg:hidden">
-          <span class="display-headline text-[28px] leading-none">Curio</span>
-          <span class="kicker">Vol. 047</span>
-        </router-link>
+        <div class="mb-10 flex items-baseline justify-between gap-4 lg:hidden">
+          <router-link to="/" class="flex items-baseline gap-3">
+            <span class="display-headline text-[28px] leading-none">Curio</span>
+            <span class="kicker">Vol. 047</span>
+          </router-link>
+          <LanguageToggle class="text-[12px]" />
+        </div>
 
         <header class="mb-10">
-          <p class="kicker kicker-signal mb-3">Sign in</p>
-          <h1 class="display-headline text-[clamp(40px,5vw,64px)] leading-[0.96] mb-4">
-            Welcome
-            <em class="italic-display">back</em>.
-          </h1>
-          <p class="font-body-curio text-[15px] text-[color:var(--ink-soft)] leading-relaxed">
-            Continue your daily briefing.<br />
-            Forgot your password?
-            <router-link to="/reset-password" class="ink-link">Reset it →</router-link>
-          </p>
+          <p class="kicker kicker-signal mb-3">{{ t('auth.login.kicker') }}</p>
+          <i18n-t scope="global" keypath="auth.login.headline" tag="h1" class="display-headline text-[clamp(40px,5vw,64px)] leading-[0.96] mb-4">
+            <template #back><em class="italic-display">{{ t('auth.login.back') }}</em></template>
+          </i18n-t>
+          <i18n-t scope="global" keypath="auth.login.lede" tag="p" class="font-body-curio text-[15px] text-[color:var(--ink-soft)] leading-relaxed">
+            <template #br><br /></template>
+            <template #link>
+              <router-link to="/reset-password" class="ink-link">{{ t('auth.login.resetLink') }}</router-link>
+            </template>
+          </i18n-t>
         </header>
 
         <LoginForm
@@ -62,9 +67,9 @@
         />
 
         <div class="mt-8 pt-6 border-t border-[color:var(--rule)] flex items-baseline justify-between">
-          <span class="kicker">No account yet?</span>
+          <span class="kicker">{{ t('auth.login.noAccount') }}</span>
           <router-link to="/register" class="ink-link font-mono-curio text-[12px] uppercase tracking-[0.14em]">
-            Subscribe →
+            {{ t('auth.login.subscribeLink') }}
           </router-link>
         </div>
       </div>
@@ -74,13 +79,18 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { useLocale } from '@/composables/useLocale'
 import LoginForm from '@/components/auth/LoginForm.vue'
+import LanguageToggle from '@/components/ui/LanguageToggle.vue'
 import { safeRedirectPath } from '@/utils/safeUrl'
 import { getApiErrorMessage } from '@/utils/apiError'
 
+const { t, tm, rt } = useI18n()
+const { intlLocale } = useLocale()
 const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
@@ -89,15 +99,11 @@ const { success, error } = useToast()
 const loading = ref(false)
 const serverError = ref('')
 
-const features = [
-  'A daily five-minute brief on AI model news',
-  'Summaries written by Claude, not aggregated',
-  'A five-question quiz — built for retention',
-] as const
+const features = computed(() => (tm('auth.login.aside.features') as string[]).map((line) => rt(line)))
 
 const todayShort = computed(() => {
   const d = new Date()
-  return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase()
+  return d.toLocaleDateString(intlLocale.value, { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase()
 })
 
 const handleLogin = async (email: string, password: string) => {
@@ -109,14 +115,14 @@ const handleLogin = async (email: string, password: string) => {
     // or protocol-relative URL (open-redirect defense).
     const redirect = safeRedirectPath(route.query.redirect)
     if (result.status === 'AUTHENTICATED') {
-      success('Welcome back!')
+      success(t('auth.login.toast.welcome'))
       router.push(redirect || { name: 'archive' })
     } else {
       // A one-time code was emailed — finish on the verify-code step.
       router.push({ name: 'verify-code', query: redirect ? { redirect } : {} })
     }
   } catch (err: unknown) {
-    serverError.value = getApiErrorMessage(err, 'Invalid email or password')
+    serverError.value = getApiErrorMessage(err, t('auth.login.errors.invalidCredentials'))
   } finally {
     loading.value = false
   }
@@ -143,12 +149,12 @@ const handleGoogleLogin = () => {
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
   if (!googleClientId || googleClientId === 'your-google-client-id') {
-    error('Google login is not configured.')
+    error(t('auth.login.errors.googleNotConfigured'))
     return
   }
 
   if (!window.google?.accounts?.id) {
-    error('Google SDK did not load. Refresh and try again.')
+    error(t('auth.login.errors.googleSdk'))
     return
   }
 
@@ -159,15 +165,15 @@ const handleGoogleLogin = () => {
       const credential = response.credential
       if (!credential) {
         loading.value = false
-        serverError.value = 'Google sign-in failed'
+        serverError.value = t('auth.login.errors.googleFailed')
         return
       }
       try {
         await authStore.googleLogin(credential)
-        success('Welcome back!')
+        success(t('auth.login.toast.welcome'))
         router.push(safeRedirectPath(route.query.redirect) || { name: 'archive' })
       } catch (err: unknown) {
-        serverError.value = getApiErrorMessage(err, 'Google sign-in failed')
+        serverError.value = getApiErrorMessage(err, t('auth.login.errors.googleFailed'))
       } finally {
         loading.value = false
       }

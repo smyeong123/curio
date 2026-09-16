@@ -7,10 +7,10 @@
     <div
       v-if="!routerReady"
       class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-paper text-[color:var(--ink)]"
-      aria-label="Loading Curio"
+      :aria-label="t('common.app.loading')"
     >
       <span class="display-headline text-[42px] leading-none">Curio</span>
-      <span class="kicker">Opening today's edition…</span>
+      <span class="kicker">{{ t('common.app.opening') }}</span>
     </div>
     <ErrorBoundary>
       <router-view v-slot="{ Component, route }">
@@ -29,11 +29,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import ToastContainer from '@/components/ui/ToastContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import { focusPageHeading } from '@/composables/useFocusOnEnter'
 // Session initialization is handled in the router guard (router/index.ts)
 
+const { t } = useI18n()
 const routerReady = ref(false)
 void useRouter().isReady().then(() => { routerReady.value = true })
 </script>

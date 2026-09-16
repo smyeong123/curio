@@ -1,0 +1,41 @@
+{
+  "masthead": {
+    "vol": "Vol. 047",
+    "tagline": "— AI 모델 뉴스 일간지"
+  },
+  "today": "오늘의 에디션",
+  "sections": "섹션",
+  "newsroom": "뉴스룸",
+  "nav": {
+    "today": "오늘",
+    "quizHistory": "퀴즈 기록",
+    "studio": "다이제스트 스튜디오",
+    "settings": "설정"
+  },
+  "adminNav": {
+    "dashboard": "대시보드",
+    "digests": "전체 다이제스트",
+    "users": "사용자",
+    "stats": "통계",
+    "audit": "감사 로그"
+  },
+  "theme": {
+    "label": "조명",
+    "day": "낮",
+    "night": "밤",
+    "toggle": "테마 전환"
+  },
+  "signOut": "로그아웃",
+  "menu": {
+    "open": "메뉴 열기",
+    "close": "메뉴 닫기",
+    "main": "메인 메뉴"
+  },
+  "notice": {
+    "label": "서비스 안내",
+    "lead": "안내 —",
+    "body": "Curio는 2026년 7월 말까지, 테스트 기간 동안 무료예요. 8–9월부터 결제가 열리고 추가 기능이 담긴 유료 플랜이 도입돼요 — 무료 다이제스트는 그대로예요. 궁금한 점은 {contact}에게 메일로 문의해 주세요.",
+    "contactName": "이상명",
+    "dismiss": "안내 닫기"
+  }
+}

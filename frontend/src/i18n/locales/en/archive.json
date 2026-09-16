@@ -1,0 +1,75 @@
+{
+  "header": {
+    "kicker": "Your edition",
+    "headline": "Today on {brand}.",
+    "issuesInArchive": "Issues in archive",
+    "intro": "Your complete archive of personalized digests. Each issue files the day's model-news stories on the topics you've picked, then quizzes you on what stuck."
+  },
+  "error": {
+    "kicker": "— Press jam —",
+    "headline": "The morning press wouldn't run.",
+    "body": "We couldn't load your digests. Please retry, or try again in a moment.",
+    "retry": "Retry"
+  },
+  "empty": {
+    "kicker": "— No issues yet —",
+    "headline": "Tomorrow's edition is {tail}",
+    "headlineTail": "already on the press.",
+    "body": "Curio files your first issue at 08:00. To make sure it knows what to write, set your beats now.",
+    "cta": "Set my beats"
+  },
+  "search": {
+    "label": "Search the archive",
+    "placeholder": "Search headlines and stories…",
+    "clear": "Clear",
+    "searching": "Searching…",
+    "matchCount": "{count} story matches | {count} stories match",
+    "fullArchive": "full 30-day archive",
+    "hint": "Searches your full 30-day archive, beyond the 7-day view below"
+  },
+  "filter": {
+    "a11yRegion": "Filter digests by topic",
+    "label": "Filter",
+    "all": "All beats",
+    "beatCount": "{count} beats",
+    "activeCount": "{count} active",
+    "other": "Other",
+    "a11yActive": "Filter: {topic}",
+    "a11yNone": "No topic filter"
+  },
+  "noMatches": {
+    "kicker": "— No matches —",
+    "body": "Nothing in your archive matches {query}.",
+    "bodyOnTopic": "Nothing in your archive matches {query} on {topic}.",
+    "clear": "Clear search"
+  },
+  "noBeat": {
+    "kicker": "— No issues on this beat —",
+    "body": "None of your archived editions cover {topic} yet.",
+    "showAll": "Show all beats"
+  },
+  "paging": {
+    "dayOf": "Day {page} of {total}",
+    "searchResults": "search results",
+    "lastDays": "last 7 days",
+    "newer": "Newer",
+    "older": "Older"
+  },
+  "issue": {
+    "label": "Issue {number}",
+    "delivered": "Delivered {time}",
+    "takeQuiz": "Take quiz",
+    "beats": "Beats",
+    "end": "— End of issue —"
+  },
+  "story": {
+    "fallbackKicker": "Story",
+    "whyItMatters": "Why it matters",
+    "source": "Source: {name}",
+    "linkFallback": "link"
+  },
+  "errors": {
+    "search": "Search failed",
+    "load": "Failed to load digests"
+  }
+}

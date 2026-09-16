@@ -1,0 +1,53 @@
+{
+  "header": {
+    "kicker": "섹션 VI — 인쇄실",
+    "headline": "나만의 {edition}을 직접 발행하세요.",
+    "edition": "에디션",
+    "lede": "아침 배달을 기다리기 싫다면 직접 찍어내세요. API 키를 직접 연결하고(선택), 고른 모든 토픽으로 오늘의 다이제스트를 생성한 뒤 바로 내 받은편지함으로 보내요. 무료 테스트 기간에는 모든 토픽이 열려 있어요."
+  },
+  "key": {
+    "kicker": "§ I — 내 키",
+    "optional": "선택",
+    "fallback": "키가 없어도 괜찮아요 — Curio의 키로 대신 생성해요."
+  },
+  "generate": {
+    "kicker": "§ II — 오늘의 다이제스트 생성",
+    "topicCount": "토픽 {count}개",
+    "noTopics": "아직 고른 토픽이 없어요. 먼저 토픽을 골라 주세요.",
+    "pickTopics": "설정에서 토픽 고르기",
+    "working": "작업 중…",
+    "button": "오늘의 다이제스트 생성"
+  },
+  "send": {
+    "kicker": "§ III — 받은편지함으로 보내기",
+    "body": "아직 보내지 않은 가장 최근 다이제스트를 이메일로 보내요. 보낼 에디션이 없다면 위에서 먼저 생성해 주세요.",
+    "ready": "● 보낼 준비가 된 다이제스트가 있어요",
+    "none": "○ 보내지 않은 다이제스트가 없어요",
+    "sending": "보내는 중…",
+    "button": "{target} 앞으로 보내기",
+    "myInbox": "내 받은편지함"
+  },
+  "latest": {
+    "kicker": "§ IV — 최신 에디션",
+    "generated": "{time} 생성",
+    "emailed": "{time} 발송",
+    "notEmailed": "아직 발송 전",
+    "open": "열기"
+  },
+  "progress": {
+    "working": "작업 중…",
+    "state": {
+      "queued": "대기 중",
+      "running": "실행 중",
+      "success": "완료",
+      "failed": "실패",
+      "skipped": "건너뜀"
+    }
+  },
+  "errors": {
+    "lostConnection": "스튜디오와 연결이 끊겼어요 — 새로고침해서 상태를 다시 확인해 주세요",
+    "lostConnectionShort": "연결 끊김",
+    "generateFailed": "다이제스트 생성을 시작할 수 없어요",
+    "sendFailed": "이메일 발송을 시작할 수 없어요"
+  }
+}

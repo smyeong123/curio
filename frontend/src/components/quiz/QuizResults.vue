@@ -5,17 +5,17 @@
   >
     <!-- Score masthead -->
     <header class="border-t-2 border-b-2 border-[color:var(--rule)] py-10 mb-8" role="status" aria-live="polite">
-      <p class="kicker kicker-signal mb-3">— Returns are in —</p>
+      <p class="kicker kicker-signal mb-3">{{ t('quiz.results.kicker') }}</p>
       <div class="flex items-end justify-between flex-wrap gap-4 mb-4">
         <h2 id="quiz-result-heading" class="display-headline text-[clamp(48px,8vw,108px)] leading-[0.92]">
           {{ message.lead }}
           <em class="italic-display">{{ message.tail }}</em>.
         </h2>
         <div class="text-right">
-          <span class="deco-num text-[80px] leading-none" :class="scoreColor" :aria-label="`${score} out of ${total} correct`">
+          <span class="deco-num text-[80px] leading-none" :class="scoreColor" :aria-label="t('quiz.results.a11yScore', { score, total })">
             {{ score }}<span class="text-[color:var(--mute)]">/</span>{{ total }}
           </span>
-          <p class="kicker mt-2">{{ percentage }}% correct</p>
+          <p class="kicker mt-2">{{ t('quiz.results.percentCorrect', { percent: percentage }) }}</p>
         </div>
       </div>
 
@@ -23,7 +23,7 @@
       <div
         class="flex items-center gap-1.5 mt-6"
         role="img"
-        :aria-label="`Score bar: ${score} filled out of ${total}`"
+        :aria-label="t('quiz.results.a11yBar', { score, total })"
       >
         <span
           v-for="i in total"
@@ -38,14 +38,15 @@
 
     <!-- Actions -->
     <div class="flex flex-wrap gap-3">
-      <button class="btn-editorial-ghost flex-1 justify-center" @click="$emit('review')">Review answers</button>
-      <button class="btn-editorial flex-1 justify-center" @click="$emit('back')">Back to today's edition →</button>
+      <button class="btn-editorial-ghost flex-1 justify-center" @click="$emit('review')">{{ t('quiz.results.review') }}</button>
+      <button class="btn-editorial flex-1 justify-center" @click="$emit('back')">{{ t('quiz.nav.backToEdition') }} →</button>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   score: number
@@ -56,6 +57,8 @@ defineEmits<{
   review: []
   back: []
 }>()
+
+const { t } = useI18n()
 
 const percentage = computed(() =>
   props.total > 0 ? Math.round((props.score / props.total) * 100) : 0
@@ -91,14 +94,12 @@ const scoreBarColor = computed(() => {
   }
 })
 
+// Headline is split lead/tail so the tail can carry the italic display face.
 const message = computed(() => {
-  switch (tier.value) {
-    case 'excellent':
-      return { lead: 'Excellent', tail: 'work!' }
-    case 'good':
-      return { lead: 'Good', tail: 'job!' }
-    default:
-      return { lead: 'Keep', tail: 'reading!' }
+  const key = tier.value === 'keep-reading' ? 'keepReading' : tier.value
+  return {
+    lead: t(`quiz.results.tiers.${key}.lead`),
+    tail: t(`quiz.results.tiers.${key}.tail`),
   }
 })
 </script>

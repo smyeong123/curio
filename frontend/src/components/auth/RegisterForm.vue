@@ -2,32 +2,32 @@
   <form @submit.prevent="handleSubmit" class="space-y-7">
     <BaseInput
       v-model="fullName"
-      label="Full name"
-      placeholder="Jane Reader"
+      :label="t('auth.form.fullNameLabel')"
+      :placeholder="t('auth.register.fullNamePlaceholder')"
       :error="errors.fullName"
       id="register-name"
     />
     <BaseInput
       v-model="email"
-      label="Email"
+      :label="t('auth.form.emailLabel')"
       type="email"
-      placeholder="you@example.com"
+      :placeholder="t('auth.form.emailPlaceholder')"
       :error="errors.email"
       id="register-email"
     />
     <BaseInput
       v-model="password"
-      label="Password"
+      :label="t('auth.form.passwordLabel')"
       type="password"
-      placeholder="At least 8 characters"
+      :placeholder="t('auth.form.passwordMinPlaceholder')"
       :error="errors.password"
       id="register-password"
     />
     <BaseInput
       v-model="confirmPassword"
-      label="Confirm password"
+      :label="t('auth.form.confirmPasswordLabel')"
       type="password"
-      placeholder="Type it again"
+      :placeholder="t('auth.form.confirmPasswordPlaceholder')"
       :error="errors.confirmPassword"
       id="register-confirm"
     />
@@ -35,7 +35,7 @@
       <template #trailing>
         <span aria-hidden="true">→</span>
       </template>
-      Create account
+      {{ t('auth.register.submit') }}
     </BaseButton>
     <p
       v-if="serverError"
@@ -49,9 +49,12 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
+import { useI18n } from 'vue-i18n'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   submit: [data: { email: string; password: string; fullName: string }]
@@ -74,11 +77,11 @@ const handleSubmit = () => {
   errors.password = ''
   errors.confirmPassword = ''
 
-  if (!fullName.value) errors.fullName = 'Full name is required'
-  if (!email.value) errors.email = 'Email is required'
-  if (!password.value) errors.password = 'Password is required'
-  else if (password.value.length < 8) errors.password = 'Password must be at least 8 characters'
-  if (password.value !== confirmPassword.value) errors.confirmPassword = 'Passwords do not match'
+  if (!fullName.value) errors.fullName = t('auth.form.errors.fullNameRequired')
+  if (!email.value) errors.email = t('auth.form.errors.emailRequired')
+  if (!password.value) errors.password = t('auth.form.errors.passwordRequired')
+  else if (password.value.length < 8) errors.password = t('auth.form.errors.passwordTooShort')
+  if (password.value !== confirmPassword.value) errors.confirmPassword = t('auth.form.errors.passwordMismatch')
 
   if (errors.fullName || errors.email || errors.password || errors.confirmPassword) return
 

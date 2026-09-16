@@ -7,6 +7,8 @@ import { useToast } from './composables/useToast'
 import { initSentry } from './services/sentry'
 import { persistencePlugin } from './stores/persistence'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { i18n } from './i18n'
+import { syncDocumentLocale } from './composables/useLocale'
 
 // Honor a stored theme preference before the first paint so logged-out pages
 // (e.g. Home) match the dashboard theme the user picked previously. Without
@@ -24,6 +26,10 @@ import { getApiErrorMessage } from '@/utils/apiError'
   }
 })()
 
+// Same idea for the edition: stamp <html lang> and the title with the detected
+// (or previously chosen) locale before anything renders.
+syncDocumentLocale()
+
 const app = createApp(App)
 const pinia = createPinia()
 pinia.use(persistencePlugin)
@@ -32,14 +38,12 @@ void initSentry(app, router)
 
 const { error: toastError } = useToast()
 
-const GENERIC_ERROR = 'Something went wrong. Please try again.'
-
 app.config.errorHandler = (err, _instance, info) => {
   console.error('[Vue Error]', err, info)
   // Render/lifecycle errors are internal — their raw message is a debugging
   // aid, not user copy. Surface it in dev; show a generic message in prod
   // (Sentry still receives the full error).
-  toastError(readableMessage(err) ?? GENERIC_ERROR)
+  toastError(readableMessage(err) ?? i18n.global.t('common.errors.generic'))
 }
 
 window.addEventListener('unhandledrejection', (event) => {
@@ -71,4 +75,5 @@ function readableMessage(err: unknown): string | null {
 
 app.use(pinia)
 app.use(router)
+app.use(i18n)
 app.mount('#app')

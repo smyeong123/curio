@@ -64,13 +64,20 @@ export interface PreferencesResponse {
   deliveryHour?: number | null
   /** true = timezone auto-follows the device; false = pinned to a chosen zone. */
   timezoneAuto?: boolean
+  /** Edition the digest, quiz and daily email are written in. Defaults to "en". */
+  language?: DigestLanguage
 }
+
+/** Edition codes the backend accepts — the same codes as the UI locale. */
+export type DigestLanguage = 'en' | 'ko'
 
 /** Optional per-user delivery-time settings sent with a preferences update. */
 export interface DeliverySettings {
   timezone?: string | null
   deliveryHour?: number | null
   timezoneAuto?: boolean
+  /** Edition for the digest, quiz and email; omit to leave it unchanged. */
+  language?: DigestLanguage
 }
 
 export interface UpdateProfileRequest {

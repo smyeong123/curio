@@ -1,0 +1,174 @@
+{
+  "layout": {
+    "backHome": "Back to home",
+    "lastUpdated": "Last updated {date}",
+    "copyright": "© 2026 Curio"
+  },
+  "nav": {
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "contact": "Contact"
+  },
+  "privacy": {
+    "kicker": "Privacy",
+    "title": "Privacy Policy",
+    "updated": "May 2026",
+    "intro": "This policy explains what Curio collects, why, and the choices you have. We keep it short and specific — we only collect what the service genuinely needs to deliver your daily digest.",
+    "sections": [
+      {
+        "heading": "What we collect",
+        "bullets": [
+          "**Account details** — your email address, and either a password (stored only as a salted hash, never in plain text) or your Google account identifier if you sign in with Google.",
+          "**Your interests** — the AI-model topics you select during onboarding, used to tailor each digest.",
+          "**Quiz activity** — your answers and scores, so we can show your history and track retention.",
+          "**Email engagement** — whether a digest email was delivered, opened, or clicked, reported back to us by our email provider."
+        ]
+      },
+      {
+        "heading": "How we use it",
+        "bullets": [
+          "To generate and send your personalized news digest each morning at 08:00 in your local timezone (we detect it from your device, or you can pin one in Settings).",
+          "To build the recall quiz attached to each digest and remember your results.",
+          "To operate your account, secure it, and respond when you contact us."
+        ]
+      },
+      {
+        "heading": "Service providers",
+        "paragraphs": [
+          "We share the minimum necessary data with trusted providers who process it on our behalf:"
+        ],
+        "bullets": [
+          "**Anthropic (Claude)** — summarizes source articles into your digest. We send article text, not your identity.",
+          "**News API** — supplies the source articles we summarize.",
+          "**Resend** — delivers your digest emails and reports delivery, open, and click events."
+        ]
+      },
+      {
+        "heading": "Cookies & sessions",
+        "paragraphs": [
+          "We use authentication tokens to keep you signed in — a short-lived access token (15 minutes) and a refresh token stored on our side only as a hash. The refresh token is a sliding session: it stays valid while you use Curio and expires after about 3 hours of inactivity. We do not use third-party advertising or tracking cookies."
+        ]
+      },
+      {
+        "heading": "How long we keep it",
+        "paragraphs": [
+          "Generated digests and quizzes are automatically deleted after **30 days** on a rolling basis. Your account information is retained until you delete your account, after which it is removed."
+        ]
+      },
+      {
+        "heading": "Your choices",
+        "bullets": [
+          "**Unsubscribe anytime** — every email includes a one-click unsubscribe link; you can also turn delivery off in your settings.",
+          "**Delete your account** — this removes your profile, preferences, and history.",
+          "**Reach us** — for any privacy request, email Sangmyeong Lee at [{email}](mailto:{email})."
+        ]
+      },
+      {
+        "heading": "Changes",
+        "paragraphs": [
+          "If we update this policy, we'll revise the date above and, for material changes, notify you by email. Questions? [Contact us](/contact)."
+        ]
+      }
+    ],
+    "notice": ""
+  },
+  "terms": {
+    "kicker": "Terms",
+    "title": "Terms of Service",
+    "updated": "July 2026",
+    "intro": "These terms govern your use of Curio. By creating an account or reading a digest, you agree to them. If you don't agree, please don't use the service.",
+    "sections": [
+      {
+        "heading": "The service",
+        "paragraphs": [
+          "Curio is a daily email digest of AI-model news, tailored to topics you choose, with an optional recall quiz. Digests are delivered each morning at 08:00 in your local timezone (detected from your device, or pinned in Settings). We may add, change, or remove features as the product evolves."
+        ]
+      },
+      {
+        "heading": "Your account",
+        "bullets": [
+          "Provide accurate information and keep your login credentials secure.",
+          "You're responsible for activity under your account.",
+          "You must be old enough to form a binding contract in your jurisdiction."
+        ]
+      },
+      {
+        "heading": "Acceptable use",
+        "bullets": [
+          "Don't resell, scrape, or redistribute digest content at scale without permission.",
+          "Don't attempt to disrupt, reverse-engineer, or gain unauthorized access to the service.",
+          "Don't use Curio for anything unlawful."
+        ]
+      },
+      {
+        "heading": "AI-generated content",
+        "paragraphs": [
+          "Digests and quizzes are produced with AI summarization of third-party sources. While we aim for accuracy, summaries **may contain errors or omissions** and are provided for general information only — not professional, financial, or legal advice. Always verify against the linked original sources before relying on anything."
+        ]
+      },
+      {
+        "heading": "Pricing",
+        "paragraphs": [
+          "Curio is in a **free testing period through 31 July 2026** — the full daily digest, complete archive, and all topics at no cost. From **August–September 2026** we plan to enable payments and introduce paid plans with additional features for paid subscribers. We'll give clear notice here and by email before any paid plan launches, and you will never be charged unless you explicitly subscribe to one — the existing free tier isn't going away without notice."
+        ]
+      },
+      {
+        "heading": "Intellectual property",
+        "paragraphs": [
+          "The Curio name, design, and original editorial framing are ours. Source articles remain the property of their respective publishers; we link back to every original."
+        ]
+      },
+      {
+        "heading": "Termination",
+        "paragraphs": [
+          "You may delete your account at any time. We may suspend or terminate access if these terms are violated or if required to protect the service or other users."
+        ]
+      },
+      {
+        "heading": "Disclaimer & liability",
+        "paragraphs": [
+          "The service is provided \"as is\" without warranties of any kind. To the extent permitted by law, Curio is not liable for indirect or consequential damages arising from your use of the service."
+        ]
+      },
+      {
+        "heading": "Changes & contact",
+        "paragraphs": [
+          "We'll update the date above when these terms change. Questions about them? Email Sangmyeong Lee at [{email}](mailto:{email}) or visit our [contact page](/contact)."
+        ]
+      }
+    ],
+    "notice": ""
+  },
+  "contact": {
+    "kicker": "Contact",
+    "title": "Get in touch",
+    "intro": "Curio is run by **Sangmyeong Lee**. Email is the fastest way to reach me — I read every message and typically reply within two business days.",
+    "sections": [
+      {
+        "heading": "Email",
+        "bullets": [
+          "**All enquiries** — general feedback, help & account issues, and privacy or data requests: [{email}](mailto:{email})"
+        ]
+      },
+      {
+        "heading": "Pricing & upcoming paid plans",
+        "paragraphs": [
+          "Curio is **free while we test, through the end of July 2026** — every feature is open to everyone. From **August–September 2026** we'll enable payments and introduce paid plans with additional features. See the [terms](/terms) for details."
+        ]
+      },
+      {
+        "heading": "Before you write",
+        "bullets": [
+          "**Want to stop emails?** Use the unsubscribe link at the bottom of any digest, or turn delivery off in your settings — no need to email us.",
+          "**Found an error in a digest?** Tell us which issue and topic — it helps us improve the summaries."
+        ]
+      },
+      {
+        "heading": "New here?",
+        "paragraphs": [
+          "Curio sends one tailored AI-model news digest every morning at 08:00 your local time, with a quick quiz to help it stick. [Subscribe free](/register) or [sign in](/login) to your account."
+        ]
+      }
+    ]
+  }
+}

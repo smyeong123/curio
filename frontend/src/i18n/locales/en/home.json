@@ -1,0 +1,115 @@
+{
+  "strip": {
+    "vol": "Vol.",
+    "issue": "Issue ∞ — Daily, 08:00 your time",
+    "readIt": "Read it"
+  },
+  "ticker": {
+    "breaking": "Breaking",
+    "lines": [
+      "Anthropic ships extended reasoning · longer tool-use sessions on Claude",
+      "OpenAI tweaks GPT pricing · realtime API drops latency floor",
+      "Mistral releases a 24B open model — early benchmarks inside",
+      "DeepSeek-V4 lands on Hugging Face — five things to try",
+      "Browser-use agents cross 80% on WebArena, says new eval",
+      "Gemini multimodal: video token rate halved overnight"
+    ]
+  },
+  "masthead": {
+    "signIn": "Sign in",
+    "subscribe": "Subscribe"
+  },
+  "hero": {
+    "number": "No. 01",
+    "kicker": "Daily · model releases · agents · benchmarks",
+    "headline": "The AI beat, {curated} before {coffee}.",
+    "curated": "curated",
+    "coffee": "coffee",
+    "lede": "Every morning at 08:00, Curio reads the lab blogs, the pricing pages, the release notes and the bench charts — and writes you a five-minute brief on the AI model news that actually matters. Then it quizzes you on it, because we don't trust ourselves to remember it either.",
+    "cta": "Read tomorrow's edition",
+    "signIn": "Sign in",
+    "fineprint": "Free · 5 min/day · unsubscribe any time",
+    "stats": {
+      "topics": "Topics, model-specific",
+      "minutes": "Editorial brief, daily",
+      "min": "min",
+      "quiz": "Quiz, so it sticks"
+    }
+  },
+  "sample": {
+    "stamp": "Tomorrow · 08:00",
+    "kicker": "Sample edition · Vol. {vol}",
+    "headline": "What shipped while you were {asleep}.",
+    "asleep": "asleep",
+    "then": "Then: 5 questions",
+    "quizLink": "/quiz →",
+    "stories": [
+      {
+        "topic": "Claude (Anthropic)",
+        "title": "Anthropic turns on long-horizon tool use by default",
+        "dek": "What changed in the API — and the setting most teams will want to flip on."
+      },
+      {
+        "topic": "New & Emerging Models",
+        "title": "A new open mixture-of-experts model posts strong early numbers",
+        "dek": "Who shipped it, how big it is, and where it lands against the incumbents."
+      },
+      {
+        "topic": "Pricing & Availability",
+        "title": "Another round of API price cuts reshuffles the cost table",
+        "dek": "The new per-million rates, lined up against last month's."
+      }
+    ]
+  },
+  "method": {
+    "kicker": "Section II — Method",
+    "headline": "Built like a newsroom, {tail}",
+    "tail": "runs like a newsletter.",
+    "body": "We don't aggregate. We summarize first-party announcements — Anthropic, OpenAI, DeepMind, Meta AI, Mistral, Hugging Face — and stitch them into a single edition tuned to the topics you've picked. Three steps, every morning, for as long as you want it.",
+    "chapter": "Chapter",
+    "steps": [
+      {
+        "title": "You pick the beats",
+        "body": "Choose from 18 model-specific topics — Claude, GPT, Gemini, Llama, agentic frameworks, benchmarks. Pick at least three. Change them whenever."
+      },
+      {
+        "title": "We file by 06:00",
+        "body": "Curio scans first-party feeds and lab blogs, asks Claude Sonnet to summarize like a senior editor, then files an issue tuned to your beats."
+      },
+      {
+        "title": "You read by 08:00",
+        "body": "Five-minute brief in your inbox. Five-question quiz on the web. We track what you remember — and what to revisit."
+      }
+    ]
+  },
+  "beat": {
+    "kicker": "Section III — On the beat",
+    "headline": "The labs we {cover}",
+    "cover": "cover.",
+    "body": "Anthropic, OpenAI, DeepMind, xAI, Meta AI, DeepSeek, Alibaba, Mistral — plus the agentic swarm (Cursor, Devin, Claude Code, browser-use). Pick your topics, drop the rest.",
+    "pickYours": "Pick yours →"
+  },
+  "quote": {
+    "kicker": "Our promise",
+    "text": "“Everything that mattered in AI yesterday — {br} in {minutes}, not fifty tabs.”",
+    "minutes": "five minutes",
+    "attribution": "— The Curio editorial desk"
+  },
+  "subscribe": {
+    "kicker": "Subscribe",
+    "headline": "Read tomorrow's {edition}.",
+    "edition": "edition",
+    "body": "Free while we test — full archive, all topics, daily editions through July 2026, no credit card. Paid plans with extra features arrive August–September.",
+    "startFree": "Start free",
+    "signIn": "Sign in"
+  },
+  "footer": {
+    "tagline": "— A daily for AI model news · Vol. {vol}",
+    "signIn": "Sign in",
+    "subscribe": "Subscribe",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "contact": "Contact",
+    "copyright": "© 2026 Curio"
+  }
+}

@@ -23,9 +23,11 @@
   --color-signal-deep: var(--signal-deep);
   --color-leaf: var(--leaf);
 
-  --font-display: 'Fraunces', 'Times New Roman', serif;
-  --font-body: 'Inter Tight', 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+  /* Korean glyphs fall through to the Noto KR faces (Google Fonts serves them
+     as unicode-range subsets, so English readers never download them). */
+  --font-display: 'Fraunces', 'Noto Serif KR', 'Times New Roman', serif;
+  --font-body: 'Inter Tight', 'Inter', 'Noto Sans KR', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Noto Sans KR', monospace;
 }
 
 :root {
@@ -496,4 +498,30 @@
       transform: rotate(3deg);
     }
   }
+}
+
+/* ── Korean edition typography ─────────────────────────────────────────────
+ * Keyed off <html lang="ko"> (set by useLocale). Unlayered on purpose so it
+ * outranks the utilities layer above. Hangul has no italic — the synthesized
+ * oblique looks broken — so emphasis keeps its colour and gains weight instead,
+ * and the Latin-tuned negative tracking is loosened.
+ * ────────────────────────────────────────────────────────────────────────── */
+/* Hangul breaks between any two syllables by default, which splits words
+   ("소식" → "소" / "식"); keep-all breaks only at spaces, as Korean sites do. */
+:root:lang(ko) {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+:root:lang(ko) .display-headline {
+  letter-spacing: -0.01em;
+  line-height: 1.08;
+}
+:root:lang(ko) .display-headline em,
+:root:lang(ko) .display-headline .italic-display,
+:root:lang(ko) .italic-display {
+  font-style: normal;
+  font-weight: 600;
+}
+:root:lang(ko) .kicker {
+  letter-spacing: 0.08em;
 }

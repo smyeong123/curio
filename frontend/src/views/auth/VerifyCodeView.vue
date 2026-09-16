@@ -1,35 +1,36 @@
 <template>
   <div class="min-h-screen bg-paper text-[color:var(--ink)] flex items-center justify-center px-6 py-14">
     <div class="w-full max-w-[480px]">
-      <router-link to="/" class="mb-10 flex items-baseline gap-3">
-        <span class="display-headline text-[28px] leading-none">Curio</span>
-        <span class="kicker">Vol. 047</span>
-      </router-link>
+      <div class="mb-10 flex items-baseline justify-between gap-4">
+        <router-link to="/" class="flex items-baseline gap-3">
+          <span class="display-headline text-[28px] leading-none">Curio</span>
+          <span class="kicker">Vol. 047</span>
+        </router-link>
+        <LanguageToggle class="text-[12px]" />
+      </div>
 
       <!-- ── Locked: out of attempts, offer a reset ─────────────── -->
       <template v-if="locked">
         <header class="mb-8">
-          <p class="kicker mb-3" style="color: var(--signal);">Too many tries</p>
-          <h1 class="display-headline text-[clamp(36px,5vw,52px)] leading-[0.96] mb-3">
-            Let's <em class="italic-display">reset</em> instead.
-          </h1>
+          <p class="kicker mb-3" style="color: var(--signal);">{{ t('auth.verify.locked.kicker') }}</p>
+          <i18n-t scope="global" keypath="auth.verify.locked.headline" tag="h1" class="display-headline text-[clamp(36px,5vw,52px)] leading-[0.96] mb-3">
+            <template #reset><em class="italic-display">{{ t('auth.verify.locked.reset') }}</em></template>
+          </i18n-t>
           <p class="font-body-curio text-[15px] text-[color:var(--ink-soft)] leading-relaxed">
-            You've used all {{ maxAttempts }} verification attempts. For your security we've
-            paused this sign-in. Reset your password and you'll be back in shortly.
+            {{ t('auth.verify.locked.body', { max: maxAttempts }) }}
           </p>
         </header>
 
         <section v-if="resetSent" class="border border-[color:var(--leaf)] bg-paper-deep p-6">
-          <p class="kicker mb-3" style="color: var(--leaf);">— Mail's away —</p>
-          <p class="display-headline text-[22px] leading-tight mb-2">
-            Check your <em class="italic-display">inbox</em>.
-          </p>
-          <p class="font-body-curio text-[14px] text-[color:var(--ink-soft)] mb-6 leading-relaxed">
-            If an account exists for <strong class="font-semibold text-[color:var(--ink)]">{{ email }}</strong>,
-            a password reset link is on its way.
-          </p>
+          <p class="kicker mb-3" style="color: var(--leaf);">{{ t('auth.common.mailSentKicker') }}</p>
+          <i18n-t scope="global" keypath="auth.common.mailSentHeadline" tag="p" class="display-headline text-[22px] leading-tight mb-2">
+            <template #inbox><em class="italic-display">{{ t('auth.common.inbox') }}</em></template>
+          </i18n-t>
+          <i18n-t scope="global" keypath="auth.verify.locked.sentBody" tag="p" class="font-body-curio text-[14px] text-[color:var(--ink-soft)] mb-6 leading-relaxed">
+            <template #email><strong class="font-semibold text-[color:var(--ink)]">{{ email }}</strong></template>
+          </i18n-t>
           <router-link to="/login" class="ink-link font-mono-curio text-[12px] uppercase tracking-[0.14em]">
-            ← Back to sign in
+            {{ t('auth.common.backToSignIn') }}
           </router-link>
         </section>
 
@@ -41,11 +42,11 @@
             @click="handleSendReset"
           >
             <template #trailing><span aria-hidden="true">→</span></template>
-            Send password reset email
+            {{ t('auth.verify.locked.sendReset') }}
           </BaseButton>
           <p class="text-center">
             <router-link to="/login" class="ink-link font-mono-curio text-[12px] uppercase tracking-[0.14em]">
-              ← Back to sign in
+              {{ t('auth.common.backToSignIn') }}
             </router-link>
           </p>
         </div>
@@ -54,38 +55,36 @@
       <!-- ── Expired: challenge gone, sign in again ─────────────── -->
       <template v-else-if="expired">
         <header class="mb-8">
-          <p class="kicker mb-3" style="color: var(--signal);">Session expired</p>
-          <h1 class="display-headline text-[clamp(36px,5vw,52px)] leading-[0.96] mb-3">
-            That code <em class="italic-display">timed out</em>.
-          </h1>
+          <p class="kicker mb-3" style="color: var(--signal);">{{ t('auth.verify.expired.kicker') }}</p>
+          <i18n-t scope="global" keypath="auth.verify.expired.headline" tag="h1" class="display-headline text-[clamp(36px,5vw,52px)] leading-[0.96] mb-3">
+            <template #timedOut><em class="italic-display">{{ t('auth.verify.expired.timedOut') }}</em></template>
+          </i18n-t>
           <p class="font-body-curio text-[15px] text-[color:var(--ink-soft)] leading-relaxed">
-            For your security the code is only valid for a short while, and it must be opened in the
-            same browser where you started signing in. Sign in again to get a fresh code.
+            {{ t('auth.verify.expired.body') }}
           </p>
         </header>
         <router-link to="/login" class="btn-editorial w-full justify-center py-4">
-          Back to sign in →
+          {{ t('auth.verify.expired.backToSignIn') }}
         </router-link>
       </template>
 
       <!-- ── Enter code ─────────────────────────────────────────── -->
       <template v-else>
         <header class="mb-10">
-          <p class="kicker kicker-signal mb-3">Verify it's you</p>
-          <h1 class="display-headline text-[clamp(36px,5vw,52px)] leading-[0.96] mb-4">
-            Check your <em class="italic-display">email</em>.
-          </h1>
-          <p class="font-body-curio text-[15px] text-[color:var(--ink-soft)] leading-relaxed">
-            We sent a {{ codeLength }}-digit code to
-            <strong class="font-semibold text-[color:var(--ink)]">{{ email }}</strong>.
-            Enter it below to finish signing in.
-          </p>
+          <p class="kicker kicker-signal mb-3">{{ t('auth.verify.kicker') }}</p>
+          <i18n-t scope="global" keypath="auth.verify.headline" tag="h1" class="display-headline text-[clamp(36px,5vw,52px)] leading-[0.96] mb-4">
+            <template #email><em class="italic-display">{{ t('auth.verify.email') }}</em></template>
+          </i18n-t>
+          <i18n-t scope="global" keypath="auth.verify.lede" tag="p" class="font-body-curio text-[15px] text-[color:var(--ink-soft)] leading-relaxed">
+            <template #length>{{ codeLength }}</template>
+            <template #email><strong class="font-semibold text-[color:var(--ink)]">{{ email }}</strong></template>
+          </i18n-t>
         </header>
 
         <form @submit.prevent="handleVerify" class="space-y-7">
           <div>
             <div class="flex items-baseline justify-between">
-              <label for="verify-code" class="kicker mb-2 block">Verification code</label>
+              <label for="verify-code" class="kicker mb-2 block">{{ t('auth.verify.codeLabel') }}</label>
               <!-- Pull the code straight from the clipboard (the click is the
                    user-gesture the browser needs to read it). -->
               <button
@@ -94,7 +93,7 @@
                 :disabled="pasting"
                 @click="handlePaste"
               >
-                {{ pasting ? 'Pasting…' : 'Paste code' }}
+                {{ pasting ? t('auth.verify.pasting') : t('auth.verify.paste') }}
               </button>
             </div>
             <!-- Native input (not BaseInput) so the OTP autofill hints land on the
@@ -128,12 +127,12 @@
 
           <!-- Attempts remaining -->
           <p class="kicker" :style="attemptsRemaining <= 2 ? 'color: var(--signal);' : ''">
-            {{ attemptsRemaining }} {{ attemptsRemaining === 1 ? 'attempt' : 'attempts' }} remaining
+            {{ t('auth.verify.attemptsRemaining', attemptsRemaining) }}
           </p>
 
           <BaseButton type="submit" :loading="loading" class="w-full justify-center py-4" size="lg">
             <template #trailing><span aria-hidden="true">→</span></template>
-            Verify &amp; sign in
+            {{ t('auth.verify.submit') }}
           </BaseButton>
         </form>
 
@@ -144,9 +143,9 @@
             :disabled="resendLoading"
             @click="handleResend"
           >
-            {{ resendLoading ? 'Sending…' : 'Resend code' }}
+            {{ resendLoading ? t('auth.verify.resending') : t('auth.verify.resend') }}
           </button>
-          <router-link to="/login" class="kicker">← Back to sign in</router-link>
+          <router-link to="/login" class="kicker">{{ t('auth.common.backToSignIn') }}</router-link>
         </div>
       </template>
     </div>
@@ -155,6 +154,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
@@ -162,7 +162,9 @@ import { api } from '@/services/api'
 import { safeRedirectPath } from '@/utils/safeUrl'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import LanguageToggle from '@/components/ui/LanguageToggle.vue'
 
+const { t } = useI18n()
 const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
@@ -211,7 +213,7 @@ onMounted(() => {
     // Deliberately NO clipboard write here: silently copying an OTP without a
     // user gesture parks a security code in the OS clipboard (and clipboard
     // managers) for no benefit — the field is already prefilled.
-    success('Code filled in from your link.')
+    success(t('auth.verify.toast.filledFromLink'))
   }
 })
 
@@ -219,7 +221,7 @@ onMounted(() => {
 // digits and trims to the code length, so pasting "Your code: 123456" still works.
 const handlePaste = async () => {
   if (!navigator.clipboard?.readText) {
-    error('Clipboard access isn\'t available — paste manually with ⌘V / Ctrl+V.')
+    error(t('auth.verify.errors.clipboardUnavailable'))
     return
   }
   pasting.value = true
@@ -227,16 +229,16 @@ const handlePaste = async () => {
     const text = await navigator.clipboard.readText()
     const digits = (text.match(/\d/g) ?? []).join('').slice(0, codeLength)
     if (!digits) {
-      error('No code found on your clipboard.')
+      error(t('auth.verify.errors.clipboardEmpty'))
       return
     }
     code.value = digits
     codeError.value = ''
     if (digits.length === codeLength) {
-      success('Code pasted.')
+      success(t('auth.verify.toast.pasted'))
     }
   } catch {
-    error('Couldn\'t read the clipboard — paste manually with ⌘V / Ctrl+V.')
+    error(t('auth.verify.errors.clipboardRead'))
   } finally {
     pasting.value = false
   }
@@ -249,11 +251,11 @@ const syncAttempts = () => {
 const handleVerify = async () => {
   codeError.value = ''
   if (!code.value) {
-    codeError.value = 'Code is required'
+    codeError.value = t('auth.verify.errors.codeRequired')
     return
   }
   if (!codeRegex.test(code.value.trim())) {
-    codeError.value = `Enter the ${codeLength}-digit code from your email`
+    codeError.value = t('auth.verify.errors.codeFormat', { length: codeLength })
     return
   }
 
@@ -262,12 +264,12 @@ const handleVerify = async () => {
     const result = await authStore.verifyCode(code.value.trim())
     switch (result.status) {
       case 'VERIFIED':
-        success('Welcome back!')
+        success(t('auth.login.toast.welcome'))
         router.push(safeRedirectPath(route.query.redirect) || { name: 'archive' })
         break
       case 'INVALID_CODE':
         syncAttempts()
-        codeError.value = result.message || 'That code isn\'t right.'
+        codeError.value = result.message || t('auth.verify.errors.wrongCode')
         code.value = ''
         break
       case 'LOCKED':
@@ -280,7 +282,7 @@ const handleVerify = async () => {
         break
     }
   } catch {
-    error('Something went wrong. Please try again.')
+    error(t('common.errors.generic'))
   } finally {
     loading.value = false
   }
@@ -294,12 +296,12 @@ const handleResend = async () => {
       syncAttempts()
       code.value = ''
       codeError.value = ''
-      success('A new code is on its way.')
+      success(t('auth.verify.toast.resent'))
     } else {
       expired.value = true
     }
   } catch {
-    error('Couldn\'t resend the code. Please try again.')
+    error(t('auth.verify.errors.resendFailed'))
   } finally {
     resendLoading.value = false
   }
@@ -312,7 +314,7 @@ const handleSendReset = async () => {
     authStore.clearPendingVerification()
     resetSent.value = true
   } catch {
-    error('Failed to send reset link. Please try again.')
+    error(t('auth.reset.errors.sendFailed'))
   } finally {
     resetLoading.value = false
   }

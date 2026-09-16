@@ -17,7 +17,7 @@
             </svg>
           </div>
           <span class="flex-1 font-medium">{{ toast.message }}</span>
-          <button aria-label="Dismiss notification" class="text-[color:var(--mute)] hover:text-[color:var(--ink)] transition-colors flex-shrink-0" @click="removeToast(toast.id)">
+          <button :aria-label="t('common.a11y.dismissNotification')" class="text-[color:var(--mute)] hover:text-[color:var(--ink)] transition-colors flex-shrink-0" @click="removeToast(toast.id)">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -56,7 +56,7 @@
           </svg>
         </div>
         <span class="flex-1 font-medium">{{ toast.message }}</span>
-        <button aria-label="Dismiss notification" class="text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0" @click="removeToast(toast.id)">
+        <button :aria-label="t('common.a11y.dismissNotification')" class="text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0" @click="removeToast(toast.id)">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -69,8 +69,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
 
+const { t } = useI18n()
 const { toasts, removeToast } = useToast()
 
 // Errors go in the assertive region; success/info in the polite region.

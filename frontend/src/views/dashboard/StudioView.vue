@@ -2,16 +2,13 @@
   <div class="mx-auto max-w-[920px] px-5 py-10 sm:px-8 lg:px-12">
     <!-- ── Header ─────────────────────────────────────── -->
     <header class="mb-10">
-      <p class="kicker kicker-signal mb-3">Section VI — The Press Room</p>
-      <h1 class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
-        Run your own
-        <em class="italic-display">edition</em>.
-      </h1>
+      <p class="kicker kicker-signal mb-3">{{ t('studio.header.kicker') }}</p>
+      <i18n-t scope="global" keypath="studio.header.headline" tag="h1" class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
+        <template #edition><em class="italic-display">{{ t('studio.header.edition') }}</em></template>
+      </i18n-t>
       <div class="rule-double w-full"></div>
       <p class="font-body-curio text-[15px] text-[color:var(--ink-soft)] leading-relaxed mt-6 max-w-[68ch]">
-        Don't want to wait for the morning delivery? Drive it yourself. Bring your own
-        API key (optional), generate today's digest across every topic you've picked,
-        then send it straight to your inbox. Every topic is open during the free testing period.
+        {{ t('studio.header.lede') }}
       </p>
     </header>
 
@@ -19,29 +16,29 @@
       <!-- ── § I — Your key ─────────────────────────── -->
       <section>
         <div class="flex items-baseline justify-between mb-5 border-b border-[color:var(--rule)] pb-2">
-          <p class="kicker kicker-signal">§ I — Your key</p>
-          <span class="kicker">Optional</span>
+          <p class="kicker kicker-signal">{{ t('studio.key.kicker') }}</p>
+          <span class="kicker">{{ t('studio.key.optional') }}</span>
         </div>
         <ApiKeyManager />
         <p class="kicker mt-4 text-[color:var(--mute)]">
-          No key? No problem — generation falls back to Curio's own key.
+          {{ t('studio.key.fallback') }}
         </p>
       </section>
 
       <!-- ── § II — Generate ───────────────────────── -->
       <section>
         <div class="flex items-baseline justify-between mb-5 border-b border-[color:var(--rule)] pb-2">
-          <p class="kicker">§ II — Generate today's digest</p>
-          <span class="kicker">{{ overview?.topicCount ?? 0 }} topics</span>
+          <p class="kicker">{{ t('studio.generate.kicker') }}</p>
+          <span class="kicker">{{ t('studio.generate.topicCount', { count: overview?.topicCount ?? 0 }) }}</span>
         </div>
 
         <!-- No topics yet -->
         <div v-if="overview && overview.topicCount === 0" class="border-t border-b border-[color:var(--rule)] py-5 mb-6">
           <p class="font-body-curio text-[14px] text-[color:var(--ink-soft)] mb-3">
-            You haven't picked any topics yet. Choose your beats first.
+            {{ t('studio.generate.noTopics') }}
           </p>
           <router-link to="/dashboard/settings" class="btn-editorial-ghost">
-            Pick topics in Settings <span aria-hidden="true">→</span>
+            {{ t('studio.generate.pickTopics') }} <span aria-hidden="true">→</span>
           </router-link>
         </div>
 
@@ -51,7 +48,7 @@
             v-for="topic in overview.topics"
             :key="topic"
             class="px-3 py-1.5 border border-[color:var(--rule)] bg-paper font-display text-[13px]"
-          >{{ topic }}</span>
+          >{{ topicLabel(topic) }}</span>
         </div>
 
         <!-- Progress -->
@@ -62,8 +59,8 @@
           :disabled="generateDisabled"
           @click="generate"
         >
-          <span v-if="isActive(digestTask)">Working…</span>
-          <span v-else>Generate today's digest</span>
+          <span v-if="isActive(digestTask)">{{ t('studio.generate.working') }}</span>
+          <span v-else>{{ t('studio.generate.button') }}</span>
           <span aria-hidden="true">→</span>
         </button>
       </section>
@@ -71,20 +68,19 @@
       <!-- ── § III — Send ──────────────────────────── -->
       <section>
         <div class="flex items-baseline justify-between mb-5 border-b border-[color:var(--rule)] pb-2">
-          <p class="kicker">§ III — Send to your inbox</p>
+          <p class="kicker">{{ t('studio.send.kicker') }}</p>
           <span class="kicker">{{ overview?.email }}</span>
         </div>
 
         <p class="font-body-curio text-[14px] text-[color:var(--ink-soft)] leading-relaxed mb-2 max-w-[64ch]">
-          Emails the most recent digest you haven't sent yet. Generate one above first if
-          you don't have an unsent edition waiting.
+          {{ t('studio.send.body') }}
         </p>
         <p
           v-if="overview"
           class="kicker mb-6"
           :style="overview.hasUnsentDigest ? 'color: var(--leaf)' : 'color: var(--mute)'"
         >
-          {{ overview.hasUnsentDigest ? '● An unsent digest is ready to send' : '○ No unsent digest waiting' }}
+          {{ overview.hasUnsentDigest ? t('studio.send.ready') : t('studio.send.none') }}
         </p>
 
         <!-- Progress -->
@@ -95,8 +91,8 @@
           :disabled="isActive(emailTask)"
           @click="sendEmail"
         >
-          <span v-if="isActive(emailTask)">Sending…</span>
-          <span v-else>Send to {{ overview?.email || 'my inbox' }}</span>
+          <span v-if="isActive(emailTask)">{{ t('studio.send.sending') }}</span>
+          <span v-else>{{ t('studio.send.button', { target: overview?.email || t('studio.send.myInbox') }) }}</span>
           <span aria-hidden="true">→</span>
         </button>
       </section>
@@ -104,23 +100,23 @@
       <!-- ── Latest edition ────────────────────────── -->
       <section v-if="overview?.latestDigest">
         <div class="flex items-baseline justify-between mb-5 border-b border-[color:var(--rule)] pb-2">
-          <p class="kicker">§ IV — Latest edition</p>
+          <p class="kicker">{{ t('studio.latest.kicker') }}</p>
         </div>
         <div class="flex items-baseline justify-between gap-4 flex-wrap">
           <div>
             <p class="font-display text-[16px] mb-1">
-              Generated {{ formatDateTime(overview.latestDigest.generatedAt) }}
+              {{ t('studio.latest.generated', { time: formatDateTime(overview.latestDigest.generatedAt) }) }}
             </p>
             <p class="kicker">
               {{ overview.latestDigest.emailSentAt
-                ? `Emailed ${formatDateTime(overview.latestDigest.emailSentAt)}`
-                : 'Not yet emailed' }}
+                ? t('studio.latest.emailed', { time: formatDateTime(overview.latestDigest.emailSentAt) })
+                : t('studio.latest.notEmailed') }}
             </p>
           </div>
           <router-link
             :to="`/dashboard/quiz/${overview.latestDigest.id}`"
             class="btn-editorial-ghost"
-          >Open <span aria-hidden="true">→</span></router-link>
+          >{{ t('studio.latest.open') }} <span aria-hidden="true">→</span></router-link>
         </div>
       </section>
     </div>
@@ -129,11 +125,17 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, h, type PropType } from 'vue'
+import { useI18n } from 'vue-i18n'
 import ApiKeyManager from '@/components/settings/ApiKeyManager.vue'
 import { useToast } from '@/composables/useToast'
-import { api, type StudioStatus, type StudioTask } from '@/services/api'
+import { useLocale } from '@/composables/useLocale'
+import { useTopicLabels } from '@/composables/useTopicLabels'
+import { api, type StudioStatus, type StudioTask, type StudioTaskState } from '@/services/api'
 import { getApiErrorMessage } from '@/utils/apiError'
 
+const { t } = useI18n()
+const { intlLocale } = useLocale()
+const { topicLabel } = useTopicLabels()
 const { error } = useToast()
 
 const status = ref<StudioStatus | null>(null)
@@ -185,15 +187,16 @@ const fetchStatus = async () => {
     consecutiveFailures += 1
     if (consecutiveFailures >= MAX_POLL_FAILURES) {
       stopPolling()
-      error('Lost connection to Studio — reload to refresh status')
+      error(t('studio.errors.lostConnection'))
       // Release the stuck in-flight tasks so isActive() clears and the
       // buttons re-enable for a manual retry.
       if (status.value) {
+        const message = t('studio.errors.lostConnectionShort')
         if (isActive(status.value.digest)) {
-          status.value.digest = { ...status.value.digest, state: 'FAILED', message: 'Lost connection' }
+          status.value.digest = { ...status.value.digest, state: 'FAILED', message }
         }
         if (isActive(status.value.email)) {
-          status.value.email = { ...status.value.email, state: 'FAILED', message: 'Lost connection' }
+          status.value.email = { ...status.value.email, state: 'FAILED', message }
         }
       }
     }
@@ -227,7 +230,7 @@ const generate = async () => {
     if (status.value) status.value.digest = res.data
     startPolling()
   } catch (err: unknown) {
-    error(getApiErrorMessage(err, 'Could not start digest generation'))
+    error(getApiErrorMessage(err, t('studio.errors.generateFailed')))
   }
 }
 
@@ -237,16 +240,29 @@ const sendEmail = async () => {
     if (status.value) status.value.email = res.data
     startPolling()
   } catch (err: unknown) {
-    error(getApiErrorMessage(err, 'Could not start email send'))
+    error(getApiErrorMessage(err, t('studio.errors.sendFailed')))
   }
 }
 
 const formatDateTime = (iso: string | null) => {
   if (!iso) return '—'
   const d = new Date(iso)
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString(intlLocale.value, {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   })
+}
+
+// Bare task states (shown only when the backend sends no message) render
+// through the catalog so the Korean edition doesn't leak "SUCCESS"/"FAILED".
+const stateLabel = (state: StudioTaskState): string => {
+  switch (state) {
+    case 'QUEUED': return t('studio.progress.state.queued')
+    case 'RUNNING': return t('studio.progress.state.running')
+    case 'SUCCESS': return t('studio.progress.state.success')
+    case 'FAILED': return t('studio.progress.state.failed')
+    case 'SKIPPED': return t('studio.progress.state.skipped')
+    default: return state
+  }
 }
 
 onMounted(async () => {
@@ -265,13 +281,15 @@ onBeforeUnmount(stopPolling)
 
 // ── Inline progress sub-component ───────────────────────────────────
 // Renders a task's live state: a status line + a determinate/indeterminate bar.
+// Reads the parent's `t` (same global i18n scope) so the label re-renders on
+// an edition switch.
 const TaskProgress = {
   props: { task: { type: Object as PropType<StudioTask | undefined>, default: undefined } },
   setup(props: { task?: StudioTask }) {
-    const t = () => props.task
-    const running = () => t()?.state === 'QUEUED' || t()?.state === 'RUNNING'
+    const current = () => props.task
+    const running = () => current()?.state === 'QUEUED' || current()?.state === 'RUNNING'
     const stateColor = () => {
-      switch (t()?.state) {
+      switch (current()?.state) {
         case 'SUCCESS': return 'var(--leaf)'
         case 'FAILED': return 'var(--signal-deep)'
         case 'SKIPPED': return 'var(--mute)'
@@ -281,7 +299,7 @@ const TaskProgress = {
       }
     }
     const pct = () => {
-      const task = t()
+      const task = current()
       if (!task) return 0
       if (task.total && task.total > 0 && typeof task.current === 'number') {
         return Math.max(6, Math.round((task.current / task.total) * 100))
@@ -289,16 +307,16 @@ const TaskProgress = {
       return 0
     }
     const label = (): string => {
-      const task = t()
+      const task = current()
       if (!task || task.state === 'IDLE') return ''
       if (running()) {
         const sub = task.total && task.total > 0 ? ` (${task.current}/${task.total})` : ''
-        return (task.phase || 'Working…') + sub
+        return (task.phase || t('studio.progress.working')) + sub
       }
-      return task.message || task.state
+      return task.message || stateLabel(task.state)
     }
     return () => {
-      const task = t()
+      const task = current()
       if (!task || task.state === 'IDLE') return null
       const showBar = running()
       const determinate = (task.total ?? 0) > 0
