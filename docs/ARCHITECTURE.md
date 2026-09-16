@@ -24,7 +24,7 @@ flowchart TB
             Svc --> Fetch
         end
 
-        PG[("PostgreSQL · curio-postgres<br/>Flyway V1–V27<br/>users, prefs, digests(JSONB),<br/>quizzes, quiz_attempts,<br/>refresh/reset tokens,<br/>user_api_keys, audit_log, email_verification_codes")]
+        PG[("PostgreSQL · curio-postgres<br/>Flyway V1–V28<br/>users, prefs, digests(JSONB),<br/>quizzes, quiz_attempts,<br/>refresh/reset tokens,<br/>user_api_keys, audit_log, email_verification_codes")]
         Redis[("Redis · curio-redis<br/>AI cache 12h · ShedLock locks")]
     end
 
