@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Your Curio Daily Digest</title>
+</head>
+<body style="margin:0; padding:0; background-color:#e7ddc9; color:#14130f; font-family:'Helvetica Neue', Arial, sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#e7ddc9; padding:32px 16px;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background-color:#f3ede1; border:1px solid #14130f;">
+
+                    <!-- Top bar -->
+                    <tr>
+                        <td style="background-color:#14130f; padding:10px 28px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td style="font-family:'Courier New', monospace; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#f3ede1;">Curio &middot; Daily digest</td>
+                                    <td align="right" style="font-family:'Courier New', monospace; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#ff7a52;" th:text="${#temporals.format(#temporals.createNow(), 'MMM d, yyyy')}">Today</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Masthead -->
+                    <tr>
+                        <td style="padding:32px 28px 20px 28px; border-bottom:1px solid #14130f;">
+                            <div style="font-family:Georgia, 'Times New Roman', serif; font-size:40px; line-height:1; font-weight:600; color:#14130f; letter-spacing:-1px;">Curio</div>
+                            <div style="font-family:'Courier New', monospace; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#6e695b; margin-top:8px;">&mdash; A daily for AI model news</div>
+                            <div style="margin-top:18px; font-family:'Courier New', monospace; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#c4290a;">Your briefing</div>
+                            <h1 style="margin:10px 0 0 0; font-family:Georgia, 'Times New Roman', serif; font-size:26px; line-height:1.2; font-weight:600; color:#14130f;">
+                                Good morning, <span th:text="${userName}">reader</span>. Here's what moved in AI today.
+                            </h1>
+                            <p style="margin:14px 0 0 0;">
+                                <a th:href="${frontendUrl + '/dashboard'}" style="font-family:'Courier New', monospace; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#c4290a; text-decoration:none;">Open today's digest in Curio &rarr;</a>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Articles -->
+                    <tr>
+                        <td style="padding:0 28px;">
+                            <div th:each="summary, iterStat : ${summaries}">
+
+                                <!-- Article block -->
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 0;" th:style="${iterStat.last ? 'padding:24px 0 28px 0;' : 'padding:24px 0; border-bottom:1px solid #ece4d2;'}">
+                                    <tr>
+                                        <td>
+                                            <!-- Topic kicker -->
+                                            <div th:text="${summary['topic']}" style="font-family:'Courier New', monospace; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#c4290a; margin-bottom:10px;">Topic</div>
+
+                                            <!-- Headline -->
+                                            <h2 th:text="${summary['headline']}" style="margin:0 0 10px 0; font-family:Georgia, 'Times New Roman', serif; font-size:19px; line-height:1.25; font-weight:600; color:#14130f;">Headline</h2>
+
+                                            <!-- TL;DR summary -->
+                                            <p th:text="${summary['summary']}" style="margin:0 0 10px 0; font-size:15px; line-height:1.6; color:#2c2a23;">Summary text</p>
+
+                                            <!-- Why it matters (one compact line) -->
+                                            <p style="margin:0 0 14px 0; font-size:13px; line-height:1.55; color:#6e695b;">
+                                                <span style="font-family:'Courier New', monospace; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:#c4290a;">Why it matters &middot;</span>
+                                                <span th:text="${summary['why_it_matters']}">Why it matters text</span>
+                                            </p>
+
+                                            <!-- Read full story -->
+                                            <p style="margin:0;">
+                                                <!-- source_url is AI-generated / not fully trusted. Only allow http(s);
+                                                     anything else (javascript:, data:, missing) falls back to the dashboard. -->
+                                                <a th:with="rawUrl=${summary['source_url']}"
+                                                   th:href="${rawUrl != null and (#strings.startsWith(#strings.toLowerCase(rawUrl), 'http://') or #strings.startsWith(#strings.toLowerCase(rawUrl), 'https://')) ? rawUrl : frontendUrl + '/dashboard'}" style="font-family:'Courier New', monospace; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#c4290a; text-decoration:none;">
+                                                    Read full story &rarr; <span th:text="${summary['source_name']}" style="color:#6e695b;">Publisher</span>
+                                                </a>
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Quiz CTA — only when the quiz actually generated (hasQuiz),
+                         so the email never links to a 404. -->
+                    <tr th:if="${hasQuiz}">
+                        <td style="padding:0 28px 28px 28px; border-top:1px solid #14130f;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px; background-color:#14130f; padding:24px;">
+                                <tr>
+                                    <td>
+                                        <div style="font-family:'Courier New', monospace; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#ff7a52; margin-bottom:10px;">Test your recall</div>
+                                        <p style="margin:0 0 20px 0; font-family:Georgia, 'Times New Roman', serif; font-size:18px; color:#f3ede1; line-height:1.3;">Five questions. Two minutes.<br/>Lock in what you just read.</p>
+                                        <table role="presentation" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="background-color:#ff4a1c;">
+                                                    <a th:href="${frontendUrl + '/dashboard/quiz/' + digestId}"
+                                                       style="display:inline-block; padding:13px 28px; font-family:'Courier New', monospace; font-size:12px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#f3ede1; text-decoration:none;">Take the quiz &rarr;</a>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding:20px 28px; border-top:1px solid #14130f; background-color:#f3ede1;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td style="font-family:'Courier New', monospace; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:#6e695b;">&copy; 2026 Curio</td>
+                                    <td align="right">
+                                        <a th:href="${frontendUrl + '/dashboard/settings'}" style="font-family:'Courier New', monospace; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:#6e695b; text-decoration:none; margin-right:16px;">Preferences</a>
+                                        <a th:href="${backendUrl + '/api/v1/user/unsubscribe?token=' + unsubscribeToken}" style="font-family:'Courier New', monospace; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:#6e695b; text-decoration:none;">Unsubscribe</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" style="padding-top:12px; font-family:'Courier New', monospace; font-size:11px; letter-spacing:1px; color:#6e695b;">
+                                        Questions or feedback? Email Sangmyeong Lee &mdash; <a href="mailto:sangmyeonglee123@gmail.com" style="color:#6e695b; text-decoration:underline;">sangmyeonglee123@gmail.com</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
