@@ -1,0 +1,499 @@
+@import "tailwindcss";
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Curio — editorial brutalist theme.
+ * Newsprint paper, ink, signal orange. Fraunces for display, JetBrains Mono
+ * for kickers/metadata, Inter Tight for body.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/* `inline` makes the generated utilities (bg-paper, text-ink, …) emit
+ * `var(--paper)` directly instead of freezing the hex at build time. That is
+ * what lets the Tailwind color utilities flip with the theme — the runtime
+ * `--paper`/`--ink`/… variables below are redefined under [data-theme='dark'].
+ * Without `inline`, these tokens stayed on their light values in dark mode
+ * (the long-standing "two parallel color systems" bug). */
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-mute: var(--mute);
+  --color-rule: var(--rule);
+  --color-signal: var(--signal);
+  --color-signal-deep: var(--signal-deep);
+  --color-leaf: var(--leaf);
+
+  --font-display: 'Fraunces', 'Times New Roman', serif;
+  --font-body: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+}
+
+:root {
+  color-scheme: light;
+  --paper: #f3ede1;
+  --paper-deep: #ece4d2;
+  --ink: #14130f;
+  --ink-soft: #2c2a23;
+  --mute: #6e695b;
+  --rule: #1a1812;
+  --signal: #ff4a1c;
+  --signal-deep: #c4290a;
+  --leaf: #2a5d3c;
+}
+
+:root[data-theme='dark'],
+:root.dark {
+  color-scheme: dark;
+  --paper: #14130f;
+  --paper-deep: #0c0b08;
+  --ink: #f3ede1;
+  --ink-soft: #d6d0c2;
+  --mute: #8a8576;
+  --rule: #f3ede1;
+  --signal: #ff5e36;
+  --signal-deep: #ff8862;
+  --leaf: #6cc18a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --paper: #14130f;
+    --paper-deep: #0c0b08;
+    --ink: #f3ede1;
+    --ink-soft: #d6d0c2;
+    --mute: #8a8576;
+    --rule: #f3ede1;
+    --signal: #ff5e36;
+    --signal-deep: #ff8862;
+    --leaf: #6cc18a;
+  }
+}
+
+@layer base {
+  html {
+    background-color: var(--paper);
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-feature-settings: 'ss01', 'ss02', 'cv11';
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Subtle paper grain — applied to body via a fixed pseudo-element so
+     it never scrolls and never costs render. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.35;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.45 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  :root.dark body::before,
+  :root[data-theme='dark'] body::before {
+    opacity: 0.18;
+    mix-blend-mode: screen;
+  }
+
+  #app {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background-color: var(--signal);
+    color: var(--paper);
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Editorial primitives — utilities used across views to keep the look
+ * consistent. Plain CSS classes (Tailwind v4 + @layer utilities pattern).
+ * ────────────────────────────────────────────────────────────────────────── */
+@layer utilities {
+  /* Typography */
+  .font-display { font-family: var(--font-display); font-optical-sizing: auto; }
+  .font-mono-curio { font-family: var(--font-mono); }
+  .font-body-curio { font-family: var(--font-body); }
+
+  /* Display headline — Fraunces with high opsz, low SOFT, slight WONK */
+  .display-headline {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-variation-settings: 'opsz' 144, 'SOFT' 30, 'WONK' 1;
+    letter-spacing: -0.025em;
+    line-height: 0.95;
+  }
+  .display-headline em,
+  .display-headline .italic-display {
+    font-style: italic;
+    font-weight: 400;
+    font-variation-settings: 'opsz' 144, 'SOFT' 50, 'WONK' 1;
+    color: var(--signal-deep);
+  }
+
+  /* Editorial kicker — small caps, mono, with bullet rule */
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--mute);
+  }
+  .kicker-ink { color: var(--ink); }
+  .kicker-signal { color: var(--signal-deep); }
+
+  /* Horizontal newsprint rule */
+  .rule { border-bottom: 1px solid var(--rule); }
+  .rule-strong { border-bottom: 2px solid var(--rule); }
+  .rule-double {
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    height: 5px;
+    box-sizing: content-box;
+  }
+
+  /* Vertical rule */
+  .rule-l { border-left: 1px solid var(--rule); }
+  .rule-r { border-right: 1px solid var(--rule); }
+
+  /* Paper backgrounds */
+  .bg-paper { background-color: var(--paper); }
+  .bg-paper-deep { background-color: var(--paper-deep); }
+  .bg-ink { background-color: var(--ink); color: var(--paper); }
+  .bg-signal { background-color: var(--signal); color: var(--paper); }
+
+  /* Ink-on-paper card — sharp corners, single-stroke border */
+  .card-ink {
+    background-color: var(--paper-deep);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+  }
+  .card-paper {
+    background-color: var(--paper);
+    border: 1px solid var(--rule);
+  }
+
+  /* Dropcap — first letter of paragraph, oversized Fraunces */
+  .dropcap::first-letter {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-variation-settings: 'opsz' 144, 'SOFT' 0, 'WONK' 0;
+    font-size: 4.25em;
+    line-height: 0.85;
+    float: left;
+    margin: 0.05em 0.08em -0.05em 0;
+    color: var(--signal-deep);
+  }
+
+  /* Decorative numeral (Vol. 047, etc.) */
+  .deco-num {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-variation-settings: 'opsz' 144, 'SOFT' 0, 'WONK' 0;
+    font-feature-settings: 'tnum';
+    letter-spacing: -0.02em;
+  }
+
+  /* Tabular monospace counter */
+  .num-tab {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+  }
+
+  /* Ink button (primary CTA in editorial system) */
+  .btn-editorial {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    white-space: nowrap;
+    background: var(--ink);
+    color: var(--paper);
+    border: 1px solid var(--ink);
+    padding: 0.875rem 1.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
+  }
+  .btn-editorial:hover {
+    background: var(--signal);
+    border-color: var(--signal);
+    color: var(--paper);
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 var(--rule);
+  }
+  .btn-editorial:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .btn-editorial:disabled:hover {
+    background: var(--ink);
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* Ghost editorial button */
+  .btn-editorial-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--rule);
+    padding: 0.875rem 1.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    transition: all 0.18s ease;
+  }
+  .btn-editorial-ghost:hover {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  /* Animated underline — for inline links */
+  .ink-link {
+    position: relative;
+    color: var(--ink);
+    text-decoration: none;
+    background-image: linear-gradient(var(--signal), var(--signal));
+    background-size: 100% 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    transition: background-size 0.25s ease;
+  }
+  .ink-link:hover {
+    background-size: 100% 38%;
+    color: var(--ink);
+  }
+
+  /* Stagger animation helpers (CSS only) */
+  @keyframes risefade {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .rise { animation: risefade 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .rise-d-1 { animation-delay: 0.05s; }
+  .rise-d-2 { animation-delay: 0.12s; }
+  .rise-d-3 { animation-delay: 0.2s; }
+  .rise-d-4 { animation-delay: 0.3s; }
+  .rise-d-5 { animation-delay: 0.42s; }
+  .rise-d-6 { animation-delay: 0.55s; }
+
+  /* Page (route) transitions — subtle fade + rise, matches .rise vibe */
+  .page-enter-active {
+    transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .page-leave-active {
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .page-enter-from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  .page-leave-to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .page-enter-active,
+    .page-leave-active {
+      transition: none;
+    }
+    .page-enter-from,
+    .page-leave-to {
+      transform: none;
+    }
+  }
+
+  /* Suppress the focus ring only when we programmatically focus a page heading
+     after navigation (see useFocusOnEnter). Real keyboard focus is untouched. */
+  .no-focus-ring:focus,
+  .no-focus-ring:focus-visible {
+    outline: none;
+  }
+
+  /* Marquee for the "BREAKING" strip */
+  @keyframes ticker {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+  .ticker-track {
+    display: inline-flex;
+    gap: 3rem;
+    white-space: nowrap;
+    animation: ticker 38s linear infinite;
+  }
+  .ticker-pause:hover .ticker-track {
+    animation-play-state: paused;
+  }
+
+  /* Live indicator dot — sits next to the "Breaking" kicker */
+  @keyframes livepulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+  }
+  .live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--signal);
+    animation: livepulse 1.8s ease-in-out infinite;
+  }
+
+  /* Scroll-triggered reveal — elements with [data-reveal] start lowered and
+     faded; the view's IntersectionObserver toggles .is-inview as they enter
+     and leave the viewport, so the reveal replays on re-entry (both scroll
+     directions). Stagger siblings with an inline --reveal-delay — it applies
+     only on the way in; hiding is immediate. */
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(18px);
+    transition:
+      opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+      transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  [data-reveal].is-inview {
+    opacity: 1;
+    transform: none;
+    transition-delay: var(--reveal-delay, 0s);
+  }
+
+  /* A rule that draws itself in from the left once its [data-reveal]
+     ancestor (or itself) is revealed; retracts immediately on exit so the
+     redraw replays on re-entry. */
+  .rule-draw {
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+  }
+  .is-inview .rule-draw,
+  .rule-draw.is-inview {
+    transform: scaleX(1);
+    transition: transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.2s;
+  }
+
+  /* Ink sweep — a translucent signal wash that sweeps in behind the hero's
+     italic display words shortly after the headline rises. A real .hl-sweep-band
+     span scaled in via transform; the word sits in .hl-sweep-text one layer up.
+     NOTE: Cypress cy.screenshot() restarts CSS animations mid-capture, so this
+     delayed one-shot sweep is usually missing from screenshots — that's a
+     capture artifact, not a rendering bug. */
+  @keyframes inksweep {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+  }
+  .hl-sweep {
+    display: inline-block;
+    position: relative;
+  }
+  .hl-sweep-band {
+    position: absolute;
+    left: -0.03em;
+    right: -0.03em;
+    bottom: 0.16em;
+    height: 0.3em;
+    /* explicit two-layer stack (band 0, text 1) instead of a negative
+       z-index, so the band can never fall behind an ancestor background */
+    z-index: 0;
+    background: color-mix(in srgb, var(--signal) 35%, transparent);
+    transform: scaleX(0);
+    transform-origin: left;
+    animation: inksweep 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .hl-sweep-text {
+    position: relative;
+    z-index: 1;
+  }
+  .hl-sweep-1 .hl-sweep-band { animation-delay: 0.95s; }
+  .hl-sweep-2 .hl-sweep-band { animation-delay: 1.2s; }
+
+  /* Hoverable paper card — lifts off the page, newsprint hard shadow */
+  .card-lift {
+    transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.25s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .card-lift:hover {
+    transform: translate(-3px, -3px);
+    box-shadow: 6px 6px 0 var(--rule);
+  }
+
+  /* Edition stamp — tilted at rest, straightens when its card is hovered */
+  .stamp-tilt {
+    transform: rotate(3deg);
+    transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .card-lift:hover .stamp-tilt {
+    transform: rotate(0deg) scale(1.05);
+  }
+
+  /* Beat-topic rows — nudge right, numeral turns signal */
+  .beat-row {
+    transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+  .beat-row:hover {
+    transform: translateX(6px);
+    border-color: color-mix(in srgb, var(--signal) 60%, transparent);
+  }
+  .beat-row .num-tab {
+    transition: color 0.2s ease;
+  }
+  .beat-row:hover .num-tab {
+    color: var(--signal-deep);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rise {
+      animation: none;
+    }
+    .ticker-track,
+    .live-dot {
+      animation: none;
+    }
+    [data-reveal] {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+    .rule-draw {
+      transform: scaleX(1);
+      transition: none;
+    }
+    .hl-sweep-band {
+      animation: none;
+      transform: scaleX(1);
+    }
+    .card-lift,
+    .stamp-tilt,
+    .beat-row {
+      transition: none;
+    }
+    .card-lift:hover,
+    .beat-row:hover {
+      transform: none;
+    }
+    .card-lift:hover .stamp-tilt {
+      transform: rotate(3deg);
+    }
+  }
+}
