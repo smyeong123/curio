@@ -51,6 +51,14 @@ public class UserPreferences {
     @Builder.Default
     private boolean timezoneAuto = true;
 
+    /**
+     * Edition code ("en" | "ko") the digest, quiz and daily email are written in.
+     * See {@link com.curio.shared.i18n.Language}; the frontend UI locale uses the same codes.
+     */
+    @Column(name = "language", nullable = false, length = 8)
+    @Builder.Default
+    private String language = "en";
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

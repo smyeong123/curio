@@ -2,17 +2,17 @@
   <form @submit.prevent="handleSubmit" class="space-y-7">
     <BaseInput
       v-model="email"
-      label="Email"
+      :label="t('auth.form.emailLabel')"
       type="email"
-      placeholder="you@example.com"
+      :placeholder="t('auth.form.emailPlaceholder')"
       :error="errors.email"
       id="login-email"
     />
     <BaseInput
       v-model="password"
-      label="Password"
+      :label="t('auth.form.passwordLabel')"
       type="password"
-      placeholder="Your password"
+      :placeholder="t('auth.login.passwordPlaceholder')"
       :error="errors.password"
       id="login-password"
     />
@@ -20,14 +20,14 @@
       <template #trailing>
         <span aria-hidden="true">→</span>
       </template>
-      Sign in
+      {{ t('auth.login.submit') }}
     </BaseButton>
     <div class="relative py-1">
       <div class="absolute inset-0 flex items-center">
         <span class="w-full border-t border-[color:var(--rule)]" />
       </div>
       <div class="relative flex justify-center">
-        <span class="bg-paper px-3 kicker">or</span>
+        <span class="bg-paper px-3 kicker">{{ t('auth.login.or') }}</span>
       </div>
     </div>
     <button
@@ -41,7 +41,7 @@
         <path fill="#4A90E2" d="M6.5 14.2a6 6 0 0 1 0-3.8L3.3 8A10 10 0 0 0 2 12c0 1.5.3 2.9.9 4.2l3.6-2Z" />
         <path fill="#FBBC05" d="M12 5.8c1.4 0 2.6.5 3.6 1.4l2.7-2.7C16.7 3 14.5 2 12 2a10 10 0 0 0-8.7 5l3.2 2.5c.8-2.4 3-4 5.5-4Z" />
       </svg>
-      Continue with Google
+      {{ t('auth.login.google') }}
     </button>
     <p
       v-if="serverError"
@@ -55,9 +55,12 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
+import { useI18n } from 'vue-i18n'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   submit: [email: string, password: string]
@@ -77,8 +80,8 @@ const handleSubmit = () => {
   errors.email = ''
   errors.password = ''
 
-  if (!email.value) errors.email = 'Email is required'
-  if (!password.value) errors.password = 'Password is required'
+  if (!email.value) errors.email = t('auth.form.errors.emailRequired')
+  if (!password.value) errors.password = t('auth.form.errors.passwordRequired')
 
   if (errors.email || errors.password) return
 

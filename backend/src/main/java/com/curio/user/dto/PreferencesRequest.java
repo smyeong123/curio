@@ -3,6 +3,7 @@ package com.curio.user.dto;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -28,4 +29,12 @@ public class PreferencesRequest {
      * pinned a fixed timezone. Null leaves the current setting unchanged.
      */
     private Boolean timezoneAuto;
+
+    /**
+     * Optional edition for the digest, quiz and daily email: "en" or "ko". Null leaves
+     * the current setting unchanged. Validated strictly here; UserService normalizes
+     * the case before storing.
+     */
+    @Pattern(regexp = "(?i)en|ko", message = "language must be 'en' or 'ko'")
+    private String language;
 }

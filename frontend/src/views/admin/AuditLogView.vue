@@ -1,30 +1,29 @@
 <template>
   <div class="mx-auto max-w-[1100px] px-5 py-10 sm:px-8 lg:px-12">
     <header class="mb-10">
-      <p class="kicker kicker-signal mb-3">Newsroom — Ledger</p>
-      <h1 class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
-        The paper
-        <em class="italic-display">trail</em>.
-      </h1>
+      <p class="kicker kicker-signal mb-3">{{ t('admin.audit.kicker') }}</p>
+      <i18n-t scope="global" keypath="admin.audit.headline" tag="h1" class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
+        <template #trail><em class="italic-display">{{ t('admin.audit.trail') }}</em></template>
+      </i18n-t>
       <div class="rule-double w-full"></div>
       <p class="font-body-curio text-[15px] text-[color:var(--ink-soft)] mt-4 leading-relaxed max-w-[64ch]">
-        Every admin action, most recent first — who did what, to which record, and when.
+        {{ t('admin.audit.intro') }}
       </p>
     </header>
 
     <section v-if="errorOccurred" class="border border-[color:var(--rule)] bg-paper-deep p-12 text-center">
-      <p class="kicker kicker-signal mb-3">— Couldn't load —</p>
-      <button class="btn-editorial-ghost" @click="load(page)">Retry</button>
+      <p class="kicker kicker-signal mb-3">{{ t('admin.common.loadFailed') }}</p>
+      <button class="btn-editorial-ghost" @click="load(page)">{{ t('admin.common.retry') }}</button>
     </section>
 
     <section v-else-if="loading" class="border-t-2 border-[color:var(--rule)] pt-12 text-center">
-      <p class="kicker">Pulling the ledger…</p>
+      <p class="kicker">{{ t('admin.audit.loading') }}</p>
     </section>
 
     <section v-else-if="entries.length === 0" class="border border-[color:var(--rule)] bg-paper-deep p-12 text-center">
-      <p class="kicker mb-3">— Ledger is empty —</p>
+      <p class="kicker mb-3">{{ t('admin.audit.empty.kicker') }}</p>
       <p class="font-body-curio text-[14px] text-[color:var(--ink-soft)]">
-        No admin actions recorded yet.
+        {{ t('admin.audit.empty.body') }}
       </p>
     </section>
 
@@ -32,11 +31,11 @@
       <table class="w-full border-t-2 border-b-2 border-[color:var(--rule)] text-left">
         <thead>
           <tr class="border-b border-[color:var(--rule)]">
-            <th class="kicker py-3 pr-4">When</th>
-            <th class="kicker py-3 pr-4">Actor</th>
-            <th class="kicker py-3 pr-4">Action</th>
-            <th class="kicker py-3 pr-4">Target</th>
-            <th class="kicker py-3">Detail</th>
+            <th class="kicker py-3 pr-4">{{ t('admin.audit.columns.when') }}</th>
+            <th class="kicker py-3 pr-4">{{ t('admin.audit.columns.actor') }}</th>
+            <th class="kicker py-3 pr-4">{{ t('admin.audit.columns.action') }}</th>
+            <th class="kicker py-3 pr-4">{{ t('admin.audit.columns.target') }}</th>
+            <th class="kicker py-3">{{ t('admin.audit.columns.detail') }}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-[color:var(--rule)]">
@@ -48,6 +47,7 @@
               {{ entry.actorEmail }}
             </td>
             <td class="py-3 pr-4">
+              <!-- Backend enum code (e.g. GENERATE_DIGESTS) — shown raw in both editions. -->
               <span class="px-2 py-0.5 text-[10px] font-mono-curio uppercase tracking-[0.14em] border border-[color:var(--rule)]">
                 {{ entry.action }}
               </span>
@@ -68,14 +68,14 @@
       <nav v-if="totalPages > 1" class="flex items-center justify-between">
         <button class="btn-editorial-ghost" :disabled="page === 0" @click="load(page - 1)">
           <span aria-hidden="true">←</span>
-          Newer
+          {{ t('admin.common.pagination.newer') }}
         </button>
-        <span class="kicker">
-          Page <span class="num-tab text-[color:var(--ink)]">{{ page + 1 }}</span>
-          of <span class="num-tab text-[color:var(--ink)]">{{ totalPages }}</span>
-        </span>
+        <i18n-t scope="global" keypath="admin.common.pagination.pageOf" tag="span" class="kicker">
+          <template #page><span class="num-tab text-[color:var(--ink)]">{{ page + 1 }}</span></template>
+          <template #total><span class="num-tab text-[color:var(--ink)]">{{ totalPages }}</span></template>
+        </i18n-t>
         <button class="btn-editorial-ghost" :disabled="page >= totalPages - 1" @click="load(page + 1)">
-          Older
+          {{ t('admin.common.pagination.older') }}
           <span aria-hidden="true">→</span>
         </button>
       </nav>
@@ -85,8 +85,10 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { api } from '@/services/api'
 import { useToast } from '@/composables/useToast'
+import { useLocale } from '@/composables/useLocale'
 
 interface AuditLogEntry {
   id: number
@@ -100,6 +102,8 @@ interface AuditLogEntry {
   createdAt: string
 }
 
+const { t } = useI18n()
+const { intlLocale } = useLocale()
 const { error: showError } = useToast()
 
 const loading = ref(true)
@@ -109,7 +113,7 @@ const page = ref(0)
 const totalPages = ref(0)
 
 const formatWhen = (dateStr: string) =>
-  new Date(dateStr).toLocaleString('en-US', {
+  new Date(dateStr).toLocaleString(intlLocale.value, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -136,7 +140,7 @@ const load = async (target = 0) => {
     page.value = target
   } catch {
     errorOccurred.value = true
-    showError('Failed to load audit log')
+    showError(t('admin.audit.toast.loadFailed'))
   } finally {
     loading.value = false
   }

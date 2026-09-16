@@ -2,19 +2,18 @@
   <div class="mx-auto max-w-[920px] px-5 py-10 sm:px-8 lg:px-12">
     <!-- ── Header ─────────────────────────────────────── -->
     <header class="mb-10">
-      <p class="kicker kicker-signal mb-3">Section IV — Recall</p>
-      <h1 class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
-        What you
-        <em class="italic-display">remembered</em>.
-      </h1>
+      <p class="kicker kicker-signal mb-3">{{ t('quiz.history.kicker') }}</p>
+      <i18n-t scope="global" keypath="quiz.history.headline" tag="h1" class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
+        <template #tail><em class="italic-display">{{ t('quiz.history.tail') }}</em></template>
+      </i18n-t>
       <div class="rule-double w-full"></div>
     </header>
 
     <!-- ── Error ─────────────────────────────────────── -->
     <section v-if="errorOccurred" class="border border-[color:var(--rule)] bg-paper-deep p-12 text-center">
-      <p class="kicker kicker-signal mb-4">— Couldn't load —</p>
-      <h3 class="display-headline text-[28px] mb-3">The scoreboard wouldn't load.</h3>
-      <button class="btn-editorial-ghost" @click="loadHistory">Retry</button>
+      <p class="kicker kicker-signal mb-4">{{ t('quiz.history.error.kicker') }}</p>
+      <h3 class="display-headline text-[28px] mb-3">{{ t('quiz.history.error.headline') }}</h3>
+      <button class="btn-editorial-ghost" @click="loadHistory">{{ t('quiz.history.error.retry') }}</button>
     </section>
 
     <!-- ── Loading ────────────────────────────────────── -->
@@ -30,16 +29,15 @@
 
     <!-- ── Empty ─────────────────────────────────────── -->
     <section v-else-if="history.length === 0" class="border-2 border-[color:var(--rule)] bg-paper-deep p-14 text-center">
-      <p class="kicker mb-5">— No attempts on file —</p>
-      <h3 class="display-headline text-[36px] leading-tight mb-3">
-        Nothing on the
-        <em class="italic-display">scoreboard.</em>
-      </h3>
+      <p class="kicker mb-5">{{ t('quiz.history.empty.kicker') }}</p>
+      <i18n-t scope="global" keypath="quiz.history.empty.headline" tag="h3" class="display-headline text-[36px] leading-tight mb-3">
+        <template #tail><em class="italic-display">{{ t('quiz.history.empty.tail') }}</em></template>
+      </i18n-t>
       <p class="font-body-curio text-[14px] text-[color:var(--ink-soft)] mb-7 max-w-md mx-auto">
-        Take a quiz from the news archive and your scores will appear here.
+        {{ t('quiz.history.empty.body') }}
       </p>
       <router-link to="/dashboard/archive" class="btn-editorial">
-        Go to today's edition
+        {{ t('quiz.history.empty.cta') }}
         <span aria-hidden="true">→</span>
       </router-link>
     </section>
@@ -49,29 +47,29 @@
       <section class="grid grid-cols-3 border-t-2 border-b-2 border-[color:var(--rule)] divide-x divide-[color:var(--rule)] mb-10">
         <div class="px-5 py-6">
           <div class="deco-num text-[44px] leading-none">{{ String(history.length).padStart(2, '0') }}</div>
-          <p class="kicker mt-3">Quizzes filed</p>
+          <p class="kicker mt-3">{{ t('quiz.history.stats.filed') }}</p>
         </div>
         <div class="px-5 py-6">
           <div :class="['deco-num text-[44px] leading-none', avgPct >= 80 ? 'text-[color:var(--leaf)]' : avgPct >= 60 ? 'text-[color:var(--ink)]' : 'text-[color:var(--mute)]']">
             {{ avgPct }}<span class="text-[color:var(--mute)] text-[28px]">%</span>
           </div>
-          <p class="kicker mt-3">Average score</p>
+          <p class="kicker mt-3">{{ t('quiz.history.stats.average') }}</p>
         </div>
         <div class="px-5 py-6">
           <div class="deco-num text-[44px] leading-none text-[color:var(--signal-deep)]">
             {{ bestPct }}<span class="text-[color:var(--mute)] text-[28px]">%</span>
           </div>
-          <p class="kicker mt-3">Personal best</p>
+          <p class="kicker mt-3">{{ t('quiz.history.stats.best') }}</p>
         </div>
       </section>
 
       <!-- ── Scoreboard ────────────────────────────── -->
       <section>
         <div class="kicker pb-3 grid grid-cols-12 gap-3 border-b border-[color:var(--rule)]">
-          <span class="col-span-2">No.</span>
-          <span class="col-span-6">Filed</span>
-          <span class="col-span-2 text-center">Marks</span>
-          <span class="col-span-2 text-right">Score</span>
+          <span class="col-span-2">{{ t('quiz.history.table.no') }}</span>
+          <span class="col-span-6">{{ t('quiz.history.table.filed') }}</span>
+          <span class="col-span-2 text-center">{{ t('quiz.history.table.marks') }}</span>
+          <span class="col-span-2 text-right">{{ t('quiz.history.table.score') }}</span>
         </div>
         <ol class="divide-y divide-[color:var(--rule)]">
           <li
@@ -112,12 +110,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
 import { useQuizStore } from '@/stores/quiz'
 import { useToast } from '@/composables/useToast'
+import { useLocale } from '@/composables/useLocale'
 
 const quizStore = useQuizStore()
 const { quizHistory: history } = storeToRefs(quizStore)
 const { error: showError } = useToast()
+const { t } = useI18n()
+const { intlLocale } = useLocale()
 
 const loading = ref(true)
 const errorOccurred = ref(false)
@@ -153,12 +155,12 @@ const scoreText = (score: number, total: number) => {
 }
 
 const formatDate = (dateStr: string) =>
-  new Date(dateStr).toLocaleDateString('en-US', {
+  new Date(dateStr).toLocaleDateString(intlLocale.value, {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
   })
 
 const formatTime = (dateStr: string) =>
-  new Date(dateStr).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  new Date(dateStr).toLocaleTimeString(intlLocale.value, { hour: '2-digit', minute: '2-digit' })
 
 const loadHistory = async () => {
   loading.value = true
@@ -167,7 +169,7 @@ const loadHistory = async () => {
     await quizStore.fetchHistory()
   } catch {
     errorOccurred.value = true
-    showError('Failed to load quiz history')
+    showError(t('quiz.errors.history'))
   } finally {
     loading.value = false
   }

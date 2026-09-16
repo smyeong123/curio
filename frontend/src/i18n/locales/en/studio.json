@@ -1,0 +1,53 @@
+{
+  "header": {
+    "kicker": "Section VI — The Press Room",
+    "headline": "Run your own {edition}.",
+    "edition": "edition",
+    "lede": "Don't want to wait for the morning delivery? Drive it yourself. Bring your own API key (optional), generate today's digest across every topic you've picked, then send it straight to your inbox. Every topic is open during the free testing period."
+  },
+  "key": {
+    "kicker": "§ I — Your key",
+    "optional": "Optional",
+    "fallback": "No key? No problem — generation falls back to Curio's own key."
+  },
+  "generate": {
+    "kicker": "§ II — Generate today's digest",
+    "topicCount": "{count} topics",
+    "noTopics": "You haven't picked any topics yet. Choose your beats first.",
+    "pickTopics": "Pick topics in Settings",
+    "working": "Working…",
+    "button": "Generate today's digest"
+  },
+  "send": {
+    "kicker": "§ III — Send to your inbox",
+    "body": "Emails the most recent digest you haven't sent yet. Generate one above first if you don't have an unsent edition waiting.",
+    "ready": "● An unsent digest is ready to send",
+    "none": "○ No unsent digest waiting",
+    "sending": "Sending…",
+    "button": "Send to {target}",
+    "myInbox": "my inbox"
+  },
+  "latest": {
+    "kicker": "§ IV — Latest edition",
+    "generated": "Generated {time}",
+    "emailed": "Emailed {time}",
+    "notEmailed": "Not yet emailed",
+    "open": "Open"
+  },
+  "progress": {
+    "working": "Working…",
+    "state": {
+      "queued": "QUEUED",
+      "running": "RUNNING",
+      "success": "SUCCESS",
+      "failed": "FAILED",
+      "skipped": "SKIPPED"
+    }
+  },
+  "errors": {
+    "lostConnection": "Lost connection to Studio — reload to refresh status",
+    "lostConnectionShort": "Lost connection",
+    "generateFailed": "Could not start digest generation",
+    "sendFailed": "Could not start email send"
+  }
+}

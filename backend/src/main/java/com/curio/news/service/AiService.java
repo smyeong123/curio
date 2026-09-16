@@ -2,15 +2,16 @@ package com.curio.news.service;
 
 import com.curio.news.dto.NewsSummary;
 import com.curio.news.dto.QuizGenerationResult;
+import com.curio.shared.i18n.Language;
 
 import java.util.List;
 
 public interface AiService {
 
-    /** Use the platform's configured key. */
+    /** Use the platform's configured key. English edition. */
     List<NewsSummary> generateNewsSummaries(String topic);
 
-    /** Use the platform's configured key. */
+    /** Use the platform's configured key. English edition. */
     QuizGenerationResult generateQuizQuestions(String digestContent);
 
     /**
@@ -22,6 +23,16 @@ public interface AiService {
      */
     default List<NewsSummary> generateNewsSummaries(String topic, String overrideApiKey) {
         return generateNewsSummaries(topic);
+    }
+
+    /**
+     * The edition-aware entry point the digest pipeline uses: writes the summaries in
+     * {@code language} (English or Korean), billed to {@code overrideApiKey} when the
+     * user supplied one, else the platform key. Platform-key results are cached per
+     * topic+date+language so the two editions never share a cache entry.
+     */
+    default List<NewsSummary> generateNewsSummaries(String topic, Language language, String overrideApiKey) {
+        return generateNewsSummaries(topic, overrideApiKey);
     }
 
     default QuizGenerationResult generateQuizQuestions(String digestContent, String overrideApiKey) {
@@ -51,5 +62,14 @@ public interface AiService {
             return generateQuizQuestions(digestContent, hint);
         }
         return generateQuizQuestions(digestContent, overrideApiKey);
+    }
+
+    /**
+     * The edition-aware quiz entry point: questions, options and explanations are
+     * written in {@code language} — which must be the language the digest itself was
+     * written in (see {@link Language#fromDigestContent}), not the user's current setting.
+     */
+    default QuizGenerationResult generateQuizQuestions(String digestContent, Language language, DifficultyHint hint, String overrideApiKey) {
+        return generateQuizQuestions(digestContent, hint, overrideApiKey);
     }
 }

@@ -8,13 +8,14 @@
       </router-link>
 
       <div class="my-auto max-w-[460px]">
-        <p class="kicker mb-5" style="color: var(--signal);">New subscriber</p>
-        <h2 class="display-headline text-[clamp(40px,5vw,68px)] leading-[0.96] mb-8">
-          Pick a beat,
-          <em class="italic-display" style="color: var(--signal);">read it daily.</em>
-        </h2>
+        <p class="kicker mb-5" style="color: var(--signal);">{{ t('auth.register.aside.kicker') }}</p>
+        <i18n-t scope="global" keypath="auth.register.aside.headline" tag="h2" class="display-headline text-[clamp(40px,5vw,68px)] leading-[0.96] mb-8">
+          <template #daily>
+            <em class="italic-display" style="color: var(--signal);">{{ t('auth.register.aside.daily') }}</em>
+          </template>
+        </i18n-t>
         <p class="font-body-curio text-[15px] opacity-80 leading-relaxed mb-10">
-          Every model-news beat, free. Sample what's possible:
+          {{ t('auth.register.aside.body') }}
         </p>
 
         <ul class="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-[color:var(--paper)]/20 pt-6">
@@ -24,34 +25,38 @@
             class="flex items-baseline gap-3"
           >
             <span class="num-tab text-[10px] opacity-60">{{ String(i + 1).padStart(2, '0') }}</span>
-            <span class="font-display text-[14px] leading-tight">{{ topic }}</span>
+            <span class="font-display text-[14px] leading-tight">{{ topicLabel(topic) }}</span>
           </li>
         </ul>
       </div>
 
       <div class="flex items-end justify-between">
-        <p class="kicker" style="color: var(--paper); opacity: 0.5;">© 2026 — set in Fraunces</p>
-        <p class="kicker" style="color: var(--paper); opacity: 0.5;">{{ todayShort }}</p>
+        <p class="kicker" style="color: var(--paper); opacity: 0.5;">{{ t('auth.common.colophon') }}</p>
+        <div class="flex items-baseline gap-5">
+          <LanguageToggle class="text-[11px]" style="color: var(--paper); opacity: 0.6;" />
+          <p class="kicker" style="color: var(--paper); opacity: 0.5;">{{ todayShort }}</p>
+        </div>
       </div>
     </aside>
 
     <!-- ── Form panel ─────────────────────────────────────────── -->
     <section class="flex items-center justify-center px-6 py-14">
       <div class="w-full max-w-[460px]">
-        <router-link to="/" class="mb-10 flex items-baseline gap-3 lg:hidden">
-          <span class="display-headline text-[28px] leading-none">Curio</span>
-          <span class="kicker">Vol. 047</span>
-        </router-link>
+        <div class="mb-10 flex items-baseline justify-between gap-4 lg:hidden">
+          <router-link to="/" class="flex items-baseline gap-3">
+            <span class="display-headline text-[28px] leading-none">Curio</span>
+            <span class="kicker">Vol. 047</span>
+          </router-link>
+          <LanguageToggle class="text-[12px]" />
+        </div>
 
         <header class="mb-10">
-          <p class="kicker kicker-signal mb-3">Subscribe — free</p>
-          <h1 class="display-headline text-[clamp(40px,5vw,64px)] leading-[0.96] mb-4">
-            Start your
-            <em class="italic-display">subscription</em>.
-          </h1>
+          <p class="kicker kicker-signal mb-3">{{ t('auth.register.kicker') }}</p>
+          <i18n-t scope="global" keypath="auth.register.headline" tag="h1" class="display-headline text-[clamp(40px,5vw,64px)] leading-[0.96] mb-4">
+            <template #subscription><em class="italic-display">{{ t('auth.register.subscription') }}</em></template>
+          </i18n-t>
           <p class="font-body-curio text-[15px] text-[color:var(--ink-soft)] leading-relaxed">
-            Free during our testing period through July 2026 — full archive and all
-            topics, no credit card. Paid plans with extra features arrive August–September.
+            {{ t('auth.register.lede') }}
           </p>
         </header>
 
@@ -62,9 +67,9 @@
         />
 
         <div class="mt-8 pt-6 border-t border-[color:var(--rule)] flex items-baseline justify-between">
-          <span class="kicker">Already a subscriber?</span>
+          <span class="kicker">{{ t('auth.register.haveAccount') }}</span>
           <router-link to="/login" class="ink-link font-mono-curio text-[12px] uppercase tracking-[0.14em]">
-            Sign in →
+            {{ t('auth.register.signInLink') }}
           </router-link>
         </div>
       </div>
@@ -74,12 +79,19 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { useLocale } from '@/composables/useLocale'
+import { useTopicLabels } from '@/composables/useTopicLabels'
 import RegisterForm from '@/components/auth/RegisterForm.vue'
+import LanguageToggle from '@/components/ui/LanguageToggle.vue'
 import { getApiErrorMessage } from '@/utils/apiError'
 
+const { t } = useI18n()
+const { intlLocale } = useLocale()
+const { topicLabel } = useTopicLabels()
 const authStore = useAuthStore()
 const router = useRouter()
 const { success } = useToast()
@@ -87,6 +99,7 @@ const { success } = useToast()
 const loading = ref(false)
 const serverError = ref('')
 
+// Canonical topic names (data/topics.ts); rendered through topicLabel().
 const sampleTopics = [
   'Claude (Anthropic)',
   'GPT & ChatGPT (OpenAI)',
@@ -100,7 +113,7 @@ const sampleTopics = [
 
 const todayShort = computed(() => {
   const d = new Date()
-  return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase()
+  return d.toLocaleDateString(intlLocale.value, { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase()
 })
 
 const handleRegister = async (data: { email: string; password: string; fullName: string }) => {
@@ -108,10 +121,10 @@ const handleRegister = async (data: { email: string; password: string; fullName:
   serverError.value = ''
   try {
     await authStore.register(data)
-    success("Account created! Let's pick your beats.")
+    success(t('auth.register.toast.created'))
     router.push({ name: 'onboarding' })
   } catch (err: unknown) {
-    serverError.value = getApiErrorMessage(err, 'Registration failed. Please try again.')
+    serverError.value = getApiErrorMessage(err, t('auth.register.errors.failed'))
   } finally {
     loading.value = false
   }

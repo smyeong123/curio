@@ -2,11 +2,10 @@
   <div class="mx-auto max-w-[920px] px-5 py-10 sm:px-8 lg:px-12">
     <!-- ── Header ─────────────────────────────────── -->
     <header class="mb-10">
-      <p class="kicker kicker-signal mb-3">Section VII — Masthead</p>
-      <h1 class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
-        Your
-        <em class="italic-display">settings</em>.
-      </h1>
+      <p class="kicker kicker-signal mb-3">{{ t('settings.header.kicker') }}</p>
+      <i18n-t scope="global" keypath="settings.header.headline" tag="h1" class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
+        <template #settings><em class="italic-display">{{ t('settings.header.settings') }}</em></template>
+      </i18n-t>
       <div class="rule-double w-full"></div>
     </header>
 
@@ -14,26 +13,26 @@
       <!-- ── Profile ────────────────────────────── -->
       <section>
         <div class="flex items-baseline justify-between mb-5 border-b border-[color:var(--rule)] pb-2">
-          <p class="kicker">§ I — Profile</p>
+          <p class="kicker">{{ t('settings.profile.kicker') }}</p>
           <span class="kicker">{{ userStore.profile?.email }}</span>
         </div>
         <form @submit.prevent="handleProfileUpdate" class="space-y-7">
           <BaseInput
             v-model="fullName"
-            label="Full name"
+            :label="t('settings.profile.fullName')"
             id="settings-name"
-            placeholder="Your name"
+            :placeholder="t('settings.profile.fullNamePlaceholder')"
           />
           <div class="flex items-center justify-between border-t border-b border-[color:var(--rule)] py-4">
             <div>
-              <p class="font-display text-[16px] mb-1">Daily email digest</p>
-              <p class="kicker">Receive your edition every morning at {{ formatHour(deliveryHour) }} · {{ timezone }}</p>
+              <p class="font-display text-[16px] mb-1">{{ t('settings.profile.dailyDigest') }}</p>
+              <p class="kicker">{{ t('settings.profile.dailyDigestHint', { time: formatHour(deliveryHour), timezone }) }}</p>
             </div>
             <button
               type="button"
               role="switch"
               :aria-checked="deliveryEnabled"
-              aria-label="Toggle daily email digest"
+              :aria-label="t('settings.profile.toggleDigest')"
               :class="[
                 'relative inline-flex h-7 w-14 items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--signal)]',
                 deliveryEnabled ? 'bg-ink border-[color:var(--ink)]' : 'bg-paper border-[color:var(--rule)]'
@@ -58,12 +57,12 @@
                 class="h-4 w-4 accent-[color:var(--signal)]"
               />
               <span class="font-body-curio text-[14px] text-[color:var(--ink)]">
-                Automatically use my device's timezone
+                {{ t('settings.profile.autoTimezone') }}
               </span>
             </label>
             <div class="grid gap-5 sm:grid-cols-2">
               <div>
-                <label for="settings-delivery-hour" class="kicker mb-2 block">Delivery time</label>
+                <label for="settings-delivery-hour" class="kicker mb-2 block">{{ t('settings.profile.deliveryTime') }}</label>
                 <select
                   id="settings-delivery-hour"
                   v-model.number="deliveryHour"
@@ -73,7 +72,7 @@
                 </select>
               </div>
               <div>
-                <label for="settings-timezone" class="kicker mb-2 block">Timezone</label>
+                <label for="settings-timezone" class="kicker mb-2 block">{{ t('settings.profile.timezone') }}</label>
                 <select
                   id="settings-timezone"
                   v-model="timezone"
@@ -83,14 +82,14 @@
                   <option v-for="tz in timezones" :key="tz" :value="tz">{{ tz }}</option>
                 </select>
                 <p v-if="autoTimezone" class="kicker mt-1.5 text-[color:var(--mute)]">
-                  Following your device · {{ timezone }}
+                  {{ t('settings.profile.followingDevice', { timezone }) }}
                 </p>
               </div>
             </div>
           </div>
           <button type="submit" class="btn-editorial" :disabled="savingProfile">
-            <span v-if="savingProfile">Saving…</span>
-            <span v-else>Save changes</span>
+            <span v-if="savingProfile">{{ t('settings.profile.saving') }}</span>
+            <span v-else>{{ t('settings.profile.save') }}</span>
             <span aria-hidden="true">→</span>
           </button>
         </form>
@@ -99,11 +98,11 @@
       <!-- ── Appearance ─────────────────────────── -->
       <section>
         <div class="flex items-baseline justify-between mb-5 border-b border-[color:var(--rule)] pb-2">
-          <p class="kicker">§ II — Lights</p>
+          <p class="kicker">{{ t('settings.lights.kicker') }}</p>
         </div>
         <fieldset>
-          <legend class="sr-only">Theme preference</legend>
-          <div class="grid grid-cols-3 gap-0 border border-[color:var(--rule)]" role="radiogroup" aria-label="Theme preference">
+          <legend class="sr-only">{{ t('settings.lights.legend') }}</legend>
+          <div class="grid grid-cols-3 gap-0 border border-[color:var(--rule)]" role="radiogroup" :aria-label="t('settings.lights.legend')">
             <button
               v-for="(option, i) in themeOptions"
               :key="option.value"
@@ -123,36 +122,67 @@
             </button>
           </div>
         </fieldset>
-        <p class="kicker mt-3">System follows your device preference</p>
+        <p class="kicker mt-3">{{ t('settings.lights.hint') }}</p>
+      </section>
+
+      <!-- ── Edition (UI language) ──────────────── -->
+      <section>
+        <div class="flex items-baseline justify-between mb-5 border-b border-[color:var(--rule)] pb-2">
+          <p class="kicker">{{ t('settings.edition.kicker') }}</p>
+        </div>
+        <fieldset>
+          <legend class="sr-only">{{ t('common.language.label') }}</legend>
+          <div class="grid grid-cols-2 gap-0 border border-[color:var(--rule)]" role="radiogroup" :aria-label="t('common.language.label')">
+            <button
+              v-for="(option, i) in localeOptions"
+              :key="option.value"
+              type="button"
+              role="radio"
+              :lang="option.value"
+              :aria-checked="edition === option.value"
+              :class="[
+                'px-3 py-3 font-mono-curio text-[12px] uppercase tracking-[0.14em] transition-colors',
+                i < localeOptions.length - 1 ? 'border-r border-[color:var(--rule)]' : '',
+                edition === option.value
+                  ? 'bg-ink text-[color:var(--paper)]'
+                  : 'bg-paper text-[color:var(--ink)] hover:bg-paper-deep'
+              ]"
+              @click="chooseEdition(option.value)"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+        </fieldset>
+        <p class="kicker mt-3">{{ t('settings.edition.hint') }}</p>
       </section>
 
       <!-- ── Password (non-OAuth only) ─────────── -->
       <section v-if="userStore.profile && !isOAuthUser">
         <div class="flex items-baseline justify-between mb-5 border-b border-[color:var(--rule)] pb-2">
-          <p class="kicker">§ III — Password</p>
+          <p class="kicker">{{ t('settings.password.kicker') }}</p>
         </div>
         <form @submit.prevent="handlePasswordChange" class="space-y-7">
           <BaseInput
             v-model="currentPassword"
             type="password"
-            label="Current password"
+            :label="t('settings.password.current')"
             id="settings-current-password"
             placeholder="••••••••"
           />
           <BaseInput
             v-model="newPassword"
             type="password"
-            label="New password"
+            :label="t('settings.password.new')"
             id="settings-new-password"
-            placeholder="At least 8 characters"
+            :placeholder="t('settings.password.newPlaceholder')"
           />
           <button
             type="submit"
             class="btn-editorial"
             :disabled="savingPassword || !currentPassword || newPassword.length < 8"
           >
-            <span v-if="savingPassword">Updating…</span>
-            <span v-else>Update password</span>
+            <span v-if="savingPassword">{{ t('settings.password.updating') }}</span>
+            <span v-else>{{ t('settings.password.update') }}</span>
             <span aria-hidden="true">→</span>
           </button>
         </form>
@@ -161,7 +191,7 @@
       <!-- ── Bring Your Own Key (BYOK) ─────────── -->
       <section>
         <div class="flex items-baseline justify-between mb-5 border-b border-[color:var(--rule)] pb-2">
-          <p class="kicker kicker-signal">§ IV — Bring your own key</p>
+          <p class="kicker kicker-signal">{{ t('settings.byok.kicker') }}</p>
         </div>
         <ApiKeyManager />
       </section>
@@ -169,9 +199,9 @@
       <!-- ── Beats ──────────────────────────────── -->
       <section>
         <div class="flex items-baseline justify-between mb-5 border-b border-[color:var(--rule)] pb-2">
-          <p class="kicker">§ V — Beats</p>
+          <p class="kicker">{{ t('settings.beats.kicker') }}</p>
           <span :class="['kicker', selectedTopics.length >= 3 ? 'text-[color:var(--leaf)]' : 'text-[color:var(--mute)]']">
-            {{ selectedTopics.length }} selected{{ selectedTopics.length < 3 ? ' · 3 min' : '' }}
+            {{ t('settings.beats.selectedCount', { count: selectedTopics.length }) }}{{ selectedTopics.length < 3 ? t('settings.beats.minHint') : '' }}
           </span>
         </div>
 
@@ -191,12 +221,12 @@
                 <span class="num-tab text-[11px] text-[color:var(--mute)]">{{ String(dIdx + 1).padStart(2, '0') }}</span>
                 <span class="font-display text-[18px] font-medium flex items-center gap-2">
                   <AppIcon :name="domain.icon" class="h-[18px] w-[18px] flex-shrink-0 text-[color:var(--signal-deep)]" />
-                  {{ domain.name }}
+                  {{ groupName(domain) }}
                 </span>
               </div>
               <div class="flex items-center gap-3">
                 <span v-if="getDomainCount(domain) > 0" class="kicker kicker-signal">
-                  {{ getDomainCount(domain) }} on
+                  {{ t('settings.beats.domainOn', { count: getDomainCount(domain) }) }}
                 </span>
                 <span
                   :class="[
@@ -209,7 +239,7 @@
             </button>
             <div v-if="settingsExpandedDomains.has(domain.id)" :id="`settings-domain-panel-${domain.id}`" class="bg-paper-deep border-t border-[color:var(--rule)] divide-y divide-[color:var(--rule)]/40">
               <div v-for="sub in domain.subcategories" :key="sub.id" class="px-5 py-4">
-                <p class="kicker mb-3">{{ sub.name }}</p>
+                <p class="kicker mb-3">{{ groupName(sub) }}</p>
                 <div class="flex flex-wrap gap-2">
                   <button
                     v-for="topic in sub.topics"
@@ -225,7 +255,7 @@
                     <span aria-hidden="true" class="font-mono-curio text-[10px] opacity-70">
                       {{ selectedTopics.includes(topic) ? '✓' : '+' }}
                     </span>
-                    {{ topic }}
+                    {{ topicLabel(topic) }}
                   </button>
                 </div>
               </div>
@@ -238,8 +268,8 @@
           :disabled="selectedTopics.length < 3 || savingPreferences"
           @click="handlePreferencesUpdate"
         >
-          <span v-if="savingPreferences">Saving…</span>
-          <span v-else>Update preferences</span>
+          <span v-if="savingPreferences">{{ t('settings.beats.saving') }}</span>
+          <span v-else>{{ t('settings.beats.update') }}</span>
           <span aria-hidden="true">→</span>
         </button>
       </section>
@@ -247,36 +277,34 @@
       <!-- ── Danger zone ──────────────────────── -->
       <section>
         <div class="flex items-baseline justify-between mb-5 border-b border-[color:var(--rule)] pb-2">
-          <p class="kicker kicker-signal">§ VI — Delete account</p>
+          <p class="kicker kicker-signal">{{ t('settings.danger.kicker') }}</p>
         </div>
         <p class="font-body-curio text-[14px] text-[color:var(--ink-soft)] mb-5 max-w-[60ch] leading-relaxed">
-          Permanently delete your account, your edition history, your quiz scores, and all
-          associated data. The press will go quiet for you. This cannot be undone.
+          {{ t('settings.danger.body') }}
         </p>
         <button
           class="inline-flex items-center gap-3 border border-red-300 bg-transparent px-6 py-3 font-mono-curio text-[12px] uppercase tracking-[0.14em] text-red-600 hover:bg-red-600 hover:text-white transition-colors"
           @click="showDeleteModal = true"
         >
-          Delete my account
+          {{ t('settings.danger.delete') }}
           <span aria-hidden="true">↗</span>
         </button>
       </section>
     </div>
 
-    <BaseModal :show="showDeleteModal" title="Delete account" @close="showDeleteModal = false">
+    <BaseModal :show="showDeleteModal" :title="t('settings.danger.modalTitle')" @close="showDeleteModal = false">
       <p class="font-body-curio text-[14.5px] text-[color:var(--ink-soft)] mb-6 leading-relaxed">
-        Are you sure you want to delete your account? All your editions, quiz history,
-        and preferences will be permanently removed.
+        {{ t('settings.danger.confirm') }}
       </p>
       <div class="flex gap-3 justify-end">
-        <button class="btn-editorial-ghost" @click="showDeleteModal = false">Cancel</button>
+        <button class="btn-editorial-ghost" @click="showDeleteModal = false">{{ t('common.actions.cancel') }}</button>
         <button
           class="inline-flex items-center gap-3 bg-red-600 text-white px-5 py-3 font-mono-curio text-[12px] uppercase tracking-[0.14em] hover:bg-red-700 transition-colors disabled:opacity-50"
           :disabled="deleting"
           @click="handleDelete"
         >
-          <span v-if="deleting">Deleting…</span>
-          <span v-else>Delete my account</span>
+          <span v-if="deleting">{{ t('settings.danger.deleting') }}</span>
+          <span v-else>{{ t('settings.danger.delete') }}</span>
         </button>
       </div>
     </BaseModal>
@@ -286,11 +314,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@/stores/user'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { useTheme, type ThemePreference } from '@/composables/useTheme'
+import { useLocale } from '@/composables/useLocale'
+import { useTopicLabels } from '@/composables/useTopicLabels'
 import { api } from '@/services/api'
+import type { Locale } from '@/i18n'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import ApiKeyManager from '@/components/settings/ApiKeyManager.vue'
@@ -303,15 +335,44 @@ import { getApiErrorMessage } from '@/utils/apiError'
 const userStore = useUserStore()
 const authStore = useAuthStore()
 const router = useRouter()
+const { t } = useI18n()
 const { success, error } = useToast()
+const { topicLabel, groupName } = useTopicLabels()
 
 const { preference: themePreference, setTheme } = useTheme()
 
-const themeOptions: Array<{ value: ThemePreference; label: string }> = [
-  { value: 'light', label: 'Day' },
-  { value: 'dark', label: 'Night' },
-  { value: 'system', label: 'System' },
-]
+const themeOptions = computed<Array<{ value: ThemePreference; label: string }>>(() => [
+  { value: 'light', label: t('settings.lights.day') },
+  { value: 'dark', label: t('settings.lights.night') },
+  { value: 'system', label: t('settings.lights.system') },
+])
+
+// Edition (English / Korean) for the ACCOUNT. Picking one flips the UI locale at
+// once (useLocale) AND saves the digest/quiz/email language to /user/preferences.
+// The masthead and sidebar toggles change only what is on screen, so the active
+// radio reflects the SAVED account edition, falling back to the UI locale until
+// preferences have loaded.
+const { locale, setLocale } = useLocale()
+const localeOptions = computed<Array<{ value: Locale; label: string }>>(() => [
+  { value: 'en', label: t('common.language.en') },
+  { value: 'ko', label: t('common.language.ko') },
+])
+const edition = computed<Locale>(() => (userStore.language as Locale | null) ?? locale.value)
+const chooseEdition = async (value: Locale) => {
+  setLocale(value)
+  const previous = userStore.language
+  userStore.language = value
+  // A user who never finished onboarding has no topic list yet; the preferences
+  // endpoint requires one, so their edition is captured when onboarding saves.
+  if (userStore.preferences.length < 3) return
+  try {
+    await userStore.updatePreferences(userStore.preferences, { language: value })
+    success(t('settings.edition.saved'))
+  } catch (err: unknown) {
+    userStore.language = previous
+    error(getApiErrorMessage(err, t('settings.edition.saveFailed')))
+  }
+}
 
 const fullName = ref('')
 const deliveryEnabled = ref(true)
@@ -347,6 +408,8 @@ const timezones = computed<string[]>(() => {
   return list
 })
 
+// 24-hour "HH:00" in both editions — it is the format the backend schedules
+// on, and the Korean copy elsewhere quotes delivery hours the same way.
 const formatHour = (h: number) => `${String(h).padStart(2, '0')}:00`
 
 const currentPassword = ref('')
@@ -391,7 +454,7 @@ onMounted(async () => {
       : (userStore.timezone ?? detectBrowserTimezone())
     selectedTopics.value = [...userStore.preferences]
   } catch {
-    error('Failed to load settings')
+    error(t('settings.toasts.loadFailed'))
   }
 })
 
@@ -420,9 +483,9 @@ const handleProfileUpdate = async () => {
         timezoneAuto: autoTimezone.value,
       })
     }
-    success('Profile updated')
+    success(t('settings.toasts.profileUpdated'))
   } catch (err: unknown) {
-    error(getApiErrorMessage(err, 'Failed to update profile'))
+    error(getApiErrorMessage(err, t('settings.toasts.profileFailed')))
   } finally {
     savingProfile.value = false
   }
@@ -432,11 +495,11 @@ const handlePasswordChange = async () => {
   savingPassword.value = true
   try {
     await api.user.changePassword(currentPassword.value, newPassword.value)
-    success('Password updated')
+    success(t('settings.toasts.passwordUpdated'))
     currentPassword.value = ''
     newPassword.value = ''
   } catch (err: unknown) {
-    error(getApiErrorMessage(err, 'Failed to update password'))
+    error(getApiErrorMessage(err, t('settings.toasts.passwordFailed')))
   } finally {
     savingPassword.value = false
   }
@@ -446,9 +509,9 @@ const handlePreferencesUpdate = async () => {
   savingPreferences.value = true
   try {
     await userStore.updatePreferences(selectedTopics.value)
-    success('Preferences updated')
+    success(t('settings.toasts.preferencesUpdated'))
   } catch (err: unknown) {
-    error(getApiErrorMessage(err, 'Failed to update preferences'))
+    error(getApiErrorMessage(err, t('settings.toasts.preferencesFailed')))
   } finally {
     savingPreferences.value = false
   }
@@ -459,10 +522,10 @@ const handleDelete = async () => {
   try {
     await api.user.deleteAccount()
     authStore.clearTokens()
-    success('Account deleted')
+    success(t('settings.toasts.accountDeleted'))
     router.push({ name: 'home' })
   } catch (err: unknown) {
-    error(getApiErrorMessage(err, 'Failed to delete account'))
+    error(getApiErrorMessage(err, t('settings.toasts.deleteFailed')))
   } finally {
     deleting.value = false
   }

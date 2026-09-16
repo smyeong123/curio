@@ -3,6 +3,7 @@ package com.curio.news.service;
 import com.curio.news.dto.NewsSummary;
 import com.curio.news.dto.QuizGenerationResult;
 import com.curio.shared.concurrent.SingleFlight;
+import com.curio.shared.i18n.Language;
 import io.github.resilience4j.bulkhead.BulkheadRegistry;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,12 +15,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -203,5 +206,81 @@ class ClaudeServiceTest {
         return objectMapper.writeValueAsString(Map.of(
                 "content", List.of(Map.of("type", "text", "text", text))
         ));
+    }
+    // --- editions ---
+
+    @SuppressWarnings("unchecked")
+    private static String promptOf(HttpEntity<?> entity) {
+        Map<String, Object> body = (Map<String, Object>) entity.getBody();
+        List<Map<String, Object>> messages = (List<Map<String, Object>>) body.get("messages");
+        return String.valueOf(messages.get(0).get("content"));
+    }
+
+    @Test
+    void generateNewsSummaries_koreanEdition_usesALanguageScopedCacheKey_andAsksForKorean() throws Exception {
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(newsApiClient.fetchNewsArticles("technology")).thenReturn(List.of(Map.of("title", "t", "url", "u")));
+        when(newsApiClient.buildSourceContext(any())).thenReturn("articles");
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(claudeBody(SUMMARIES_JSON)));
+
+        List<NewsSummary> result = claudeService.generateNewsSummaries("technology", Language.KO, null);
+
+        assertThat(result).hasSize(1);
+        // Read twice on a cold cache: the fast path, then the re-check under the single-flight lock.
+        verify(valueOperations, atLeastOnce()).get("news:summaries:technology:" + LocalDate.now() + ":ko");
+        verify(valueOperations).set(eq("news:summaries:technology:" + LocalDate.now() + ":ko"), anyList(), eq(Duration.ofHours(12)));
+        verify(restTemplate).exchange(anyString(), eq(HttpMethod.POST),
+                argThat((HttpEntity<?> e) -> promptOf(e).contains("한국어") && promptOf(e).contains("해요체")
+                        && promptOf(e).contains("\"topic\": \"technology\"")),
+                eq(String.class));
+    }
+
+    @Test
+    void generateNewsSummaries_defaultsToTheEnglishEdition_withItsOwnCacheKey() throws Exception {
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(newsApiClient.fetchNewsArticles("technology")).thenReturn(List.of());
+        when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(claudeBody(SUMMARIES_JSON)));
+
+        claudeService.generateNewsSummaries("technology");
+
+        verify(valueOperations).set(eq("news:summaries:technology:" + LocalDate.now() + ":en"), anyList(), eq(Duration.ofHours(12)));
+        verify(restTemplate).exchange(anyString(), eq(HttpMethod.POST),
+                argThat((HttpEntity<?> e) -> promptOf(e).contains("in English") && !promptOf(e).contains("한국어")),
+                eq(String.class));
+    }
+
+    @Test
+    void generateNewsSummaries_byokKoreanEdition_skipsTheCache_andAsksForKorean() throws Exception {
+        when(newsApiClient.fetchNewsArticles("technology")).thenReturn(List.of(Map.of("title", "t", "url", "u")));
+        when(newsApiClient.buildSourceContext(any())).thenReturn("articles");
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(claudeBody(SUMMARIES_JSON)));
+
+        List<NewsSummary> result = claudeService.generateNewsSummaries("technology", Language.KO, "user-key");
+
+        assertThat(result).hasSize(1);
+        verifyNoInteractions(valueOperations);
+        verify(restTemplate).exchange(anyString(), eq(HttpMethod.POST),
+                argThat((HttpEntity<?> e) -> promptOf(e).contains("한국어")
+                        && "user-key".equals(e.getHeaders().getFirst("x-api-key"))),
+                eq(String.class));
+    }
+
+    @Test
+    void generateQuizQuestions_koreanEdition_honoursTheDifficultyHint_andAsksForKorean() throws Exception {
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(claudeBody(QUIZ_JSON)));
+
+        QuizGenerationResult result = claudeService.generateQuizQuestions(
+                "digest content", Language.KO, AiService.DifficultyHint.HARDER, null);
+
+        assertThat(result.getQuestions()).hasSize(1);
+        verify(restTemplate).exchange(anyString(), eq(HttpMethod.POST),
+                argThat((HttpEntity<?> e) -> promptOf(e).contains("0 easy, 2 medium, 3 challenging")
+                        && promptOf(e).contains("한국어")),
+                eq(String.class));
     }
 }

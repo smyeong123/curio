@@ -1,0 +1,41 @@
+{
+  "app": {
+    "name": "Curio",
+    "title": "Curio — A daily for AI model news",
+    "tagline": "— A daily for AI model news",
+    "loading": "Loading Curio",
+    "opening": "Opening today's edition…"
+  },
+  "language": {
+    "label": "Edition",
+    "en": "English",
+    "ko": "한국어",
+    "switchTo": "Switch to {language}"
+  },
+  "actions": {
+    "back": "Go back",
+    "home": "Go home",
+    "retry": "Try again",
+    "close": "Close",
+    "cancel": "Cancel",
+    "save": "Save",
+    "dismiss": "Dismiss"
+  },
+  "a11y": {
+    "closeDialog": "Close dialog",
+    "loading": "Loading",
+    "dismissNotification": "Dismiss notification"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "boundaryTitle": "Something went wrong",
+    "boundaryBody": "An unexpected error occurred. Please try again or return to the home page.",
+    "details": "Error details"
+  },
+  "notFound": {
+    "kicker": "— Off the press —",
+    "headline": "We couldn't find that {page}.",
+    "page": "page",
+    "body": "The story you're looking for never made it to print, or has been recycled. Try heading back to the front page."
+  }
+}

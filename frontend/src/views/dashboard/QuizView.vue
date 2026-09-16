@@ -2,20 +2,19 @@
   <div class="mx-auto max-w-[860px] px-5 py-10 sm:px-8 lg:px-12">
     <!-- ── Loading ─────────────────────────────────── -->
     <div v-if="loading" class="border-t-2 border-[color:var(--rule)] pt-24 pb-24 text-center">
-      <p class="kicker kicker-signal mb-4">— Setting type —</p>
-      <p class="display-headline text-[36px] leading-tight">
-        Preparing today's
-        <em class="italic-display">questions</em>…
-      </p>
+      <p class="kicker kicker-signal mb-4">{{ t('quiz.loading.kicker') }}</p>
+      <i18n-t scope="global" keypath="quiz.loading.headline" tag="p" class="display-headline text-[36px] leading-tight">
+        <template #questions><em class="italic-display">{{ t('quiz.loading.questions') }}</em></template>
+      </i18n-t>
     </div>
 
     <!-- ── Error ───────────────────────────────────── -->
     <div v-else-if="errorMsg" class="border border-[color:var(--rule)] bg-paper-deep p-12 text-center">
-      <p class="kicker kicker-signal mb-4">— No quiz on file —</p>
+      <p class="kicker kicker-signal mb-4">{{ t('quiz.error.kicker') }}</p>
       <h3 class="display-headline text-[28px] mb-2">{{ errorMsg }}</h3>
       <router-link to="/dashboard/archive" class="btn-editorial-ghost mt-6 inline-flex">
         <span aria-hidden="true">←</span>
-        Back to today's edition
+        {{ t('quiz.nav.backToEdition') }}
       </router-link>
     </div>
 
@@ -33,7 +32,7 @@
           v-if="results.improved === false"
           class="kicker text-center mt-4 text-[color:var(--ink-soft)]"
         >
-          Your best for this quiz stays {{ results.bestScore }}/{{ results.totalQuestions }}.
+          {{ t('quiz.results.bestStays', { best: results.bestScore, total: results.totalQuestions }) }}
         </p>
       </template>
 
@@ -43,7 +42,7 @@
             to="/dashboard/archive"
             class="kicker inline-flex items-baseline gap-2 hover:text-[color:var(--ink)]"
           >
-            <span aria-hidden="true">←</span> Back to today's edition
+            <span aria-hidden="true">←</span> {{ t('quiz.nav.backToEdition') }}
           </router-link>
           <button
             v-if="submitted"
@@ -51,34 +50,32 @@
             class="kicker inline-flex items-baseline gap-2 hover:text-[color:var(--ink)]"
             @click="reviewing = false"
           >
-            <span aria-hidden="true">←</span> Back to results
+            <span aria-hidden="true">←</span> {{ t('quiz.nav.backToResults') }}
           </button>
         </div>
 
         <header class="mb-10">
-          <p class="kicker kicker-signal mb-3">Section V — Daily quiz</p>
-          <h1 class="display-headline text-[clamp(40px,6vw,80px)] leading-[0.96] mb-4">
-            Five questions,
-            <em class="italic-display">five minutes.</em>
-          </h1>
+          <p class="kicker kicker-signal mb-3">{{ t('quiz.header.kicker') }}</p>
+          <i18n-t scope="global" keypath="quiz.header.headline" tag="h1" class="display-headline text-[clamp(40px,6vw,80px)] leading-[0.96] mb-4">
+            <template #tail><em class="italic-display">{{ t('quiz.header.tail') }}</em></template>
+          </i18n-t>
           <!-- Prior attempt (retakes are "better score wins") -->
           <p
             v-if="previousAttempt && !submitted"
             class="kicker inline-flex items-baseline gap-2 border border-[color:var(--rule)] bg-paper-deep px-3 py-2"
           >
-            <span class="text-[color:var(--signal-deep)]">Filed before —</span>
-            your best is {{ previousAttempt.score }}/{{ questions.length || 5 }}.
-            A better run replaces it.
+            <span class="text-[color:var(--signal-deep)]">{{ t('quiz.header.filedBefore') }}</span>
+            {{ t('quiz.header.previousAttempt', { score: previousAttempt.score, total: questions.length || 5 }) }}
           </p>
           <div class="flex items-end justify-between flex-wrap gap-3 mt-6 border-t-2 border-b-2 border-[color:var(--rule)] py-4">
             <p class="font-body-curio text-[14px] text-[color:var(--ink-soft)] leading-snug max-w-[42ch]">
-              Test your retention on today's edition. Answers are graded the moment you submit.
+              {{ t('quiz.header.intro') }}
             </p>
             <div class="text-right">
               <span class="deco-num text-[28px] leading-none">
                 {{ Object.keys(answers).length }}<span class="text-[color:var(--mute)]">/</span>{{ questions.length }}
               </span>
-              <p class="kicker mt-1">Answered</p>
+              <p class="kicker mt-1">{{ t('quiz.header.answered') }}</p>
             </div>
           </div>
         </header>
@@ -104,15 +101,15 @@
             :disabled="Object.keys(answers).length < questions.length || submitting"
             @click="handleSubmit"
           >
-            <span v-if="submitting">Submitting…</span>
-            <span v-else>File my answers</span>
+            <span v-if="submitting">{{ t('quiz.submit.submitting') }}</span>
+            <span v-else>{{ t('quiz.submit.cta') }}</span>
             <span aria-hidden="true">→</span>
           </button>
           <p
             v-if="Object.keys(answers).length < questions.length"
             class="kicker text-center mt-3"
           >
-            Answer all {{ questions.length }} questions to submit
+            {{ t('quiz.submit.hint', { count: questions.length }) }}
           </p>
         </div>
       </div>
@@ -123,6 +120,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useQuizStore } from '@/stores/quiz'
 import { useToast } from '@/composables/useToast'
 import type { QuizQuestion as QuizQuestionType, QuizSubmitResponse } from '@/types/quiz'
@@ -134,6 +132,7 @@ const route = useRoute()
 const router = useRouter()
 const quizStore = useQuizStore()
 const { error: showError } = useToast()
+const { t } = useI18n()
 
 const loading = ref(true)
 const errorMsg = ref('')
@@ -168,7 +167,7 @@ const handleSubmit = async () => {
     results.value = res
     submitted.value = true
   } catch (err: unknown) {
-    showError(getApiErrorMessage(err, 'Failed to submit quiz'))
+    showError(getApiErrorMessage(err, t('quiz.errors.submit')))
   } finally {
     submitting.value = false
   }
@@ -176,7 +175,7 @@ const handleSubmit = async () => {
 
 onBeforeRouteLeave(() => {
   if (Object.keys(answers.value).length > 0 && !submitted.value) {
-    return window.confirm('You have unanswered quiz progress. Are you sure you want to leave?')
+    return window.confirm(t('quiz.leaveConfirm'))
   }
 })
 
@@ -188,7 +187,7 @@ onMounted(async () => {
     questions.value = quiz.questions?.questions || []
     previousAttempt.value = quiz.previousAttempt ?? null
   } catch {
-    errorMsg.value = 'Quiz not found for this digest.'
+    errorMsg.value = t('quiz.error.notFound')
   } finally {
     loading.value = false
   }

@@ -1,0 +1,216 @@
+{
+  "common": {
+    "loadFailed": "— Couldn't load —",
+    "retry": "Retry",
+    "search": "Search",
+    "allBeats": "All beats",
+    "on": "On",
+    "off": "Off",
+    "yes": "Yes",
+    "no": "No",
+    "pagination": {
+      "earlier": "Earlier",
+      "newer": "Newer",
+      "older": "Older",
+      "pageOf": "Page {page} of {total}"
+    },
+    "columns": {
+      "email": "Email",
+      "name": "Name",
+      "beats": "Beats",
+      "delivery": "Delivery",
+      "joined": "Joined"
+    },
+    "kpi": {
+      "emailsToday": "Editions delivered today",
+      "quizzesToday": "Quizzes filed today"
+    }
+  },
+  "dashboard": {
+    "kicker": "Newsroom — Editorial desk",
+    "headline": "The {desk}.",
+    "desk": "desk",
+    "loadFailedTitle": "The desk wouldn't load.",
+    "loading": "Loading desk…",
+    "stats": {
+      "totalUsers": "Total subscribers"
+    },
+    "jobs": {
+      "kicker": "— Press operations —",
+      "running": "Running…",
+      "failed": "Failed",
+      "runNow": "Run now",
+      "lastRan": "Last ran · {time}",
+      "whyFailed": "Why it failed",
+      "generate": {
+        "title": "Generate digests",
+        "cron": "Cron · 06:00 UTC",
+        "done": "Filed",
+        "body": "Generate AI news digests for all active subscribers. Optionally filter to a single beat to test the press."
+      },
+      "send": {
+        "title": "Send the morning post",
+        "cron": "Cron · hourly (per-user tz)",
+        "done": "Delivered",
+        "body": "Batch send digest emails to subscribers with delivery enabled.",
+        "sending": "Sending…"
+      },
+      "cleanup": {
+        "title": "Recycle old issues",
+        "cron": "Cron · 00:00 UTC",
+        "done": "Recycled",
+        "body": "Permanently delete digests and quizzes older than 30 days.",
+        "recycling": "Recycling…"
+      }
+    },
+    "result": {
+      "failed": "Job failed — check server logs",
+      "digests": "{success} / {total} users · {fail} failed",
+      "digestsSkipped": "{success} / {total} users · {fail} failed · {skipped} skipped",
+      "emails": "{sent} sent, {fail} failed ({total} users)",
+      "cleanup": "{count} digests recycled (cutoff: {cutoff})"
+    },
+    "beats": {
+      "kicker": "— Beats overview —",
+      "count": "{count} beats",
+      "columns": {
+        "beat": "Beat",
+        "subscribers": "Subscribers",
+        "filedToday": "Filed today",
+        "lastFiled": "Last filed"
+      },
+      "empty": "No beats on file"
+    },
+    "cleanupModal": {
+      "title": "Confirm recycle",
+      "body": "This permanently deletes digests and quizzes older than 30 days. Cannot be undone.",
+      "confirm": "Confirm recycle"
+    },
+    "toast": {
+      "cleanupDone": "Recycle complete: {count} digests deleted",
+      "cleanupFailed": "Failed to run recycle",
+      "jobSlow": "The job is taking unusually long — it may still be running. Refresh later for final counts.",
+      "generateRunning": "Digest generation is already running",
+      "generateStarted": "Digest generation started — counts will update below",
+      "generateFailed": "Failed to start digest generation",
+      "sendRunning": "Email send is already running",
+      "sendStarted": "Email send started — counts will update below",
+      "sendFailed": "Failed to start email send",
+      "loadFailed": "Failed to load dashboard data"
+    }
+  },
+  "digests": {
+    "kicker": "Newsroom — Filed editions",
+    "headline": "All {editions}.",
+    "editions": "editions",
+    "filters": {
+      "topic": "Filter by beat",
+      "user": "Search reader",
+      "userPlaceholder": "email"
+    },
+    "loading": "Loading editions…",
+    "count": "{count} edition on file | {count} editions on file",
+    "perPage": "Per page",
+    "columns": {
+      "reader": "Reader",
+      "filed": "Filed",
+      "delivered": "Delivered",
+      "quiz": "Quiz"
+    },
+    "notSent": "Not sent",
+    "stories": "{count} stories",
+    "collapse": "Collapse −",
+    "expand": "Expand +",
+    "detail": {
+      "digestId": "Digest ID",
+      "userId": "User ID",
+      "stories": "Stories"
+    },
+    "empty": "No editions on file",
+    "toast": {
+      "loadFailed": "Failed to load digests"
+    }
+  },
+  "users": {
+    "kicker": "Newsroom — Roster",
+    "headline": "The {readers}.",
+    "readers": "readers",
+    "searchLabel": "Search by email",
+    "searchPlaceholder": "someone{'@'}example.com",
+    "loading": "Loading roster…",
+    "view": "View",
+    "empty": "No readers on file",
+    "toast": {
+      "loadFailed": "Failed to load users"
+    }
+  },
+  "userDetail": {
+    "back": "Back to roster",
+    "kicker": "Newsroom — Reader file",
+    "headline": "User {details}.",
+    "details": "details",
+    "loading": "Loading file…",
+    "notFound": "Reader not found.",
+    "sections": {
+      "profile": "§ I — Profile",
+      "beats": "§ II — Beats",
+      "metrics": "§ III — Metrics",
+      "recentDigests": "§ IV — Recent digests",
+      "recentQuizzes": "§ V — Recent quiz attempts"
+    },
+    "profile": {
+      "admin": "Admin",
+      "verified": "Verified"
+    },
+    "noBeats": "No beats selected.",
+    "metrics": {
+      "digests": "Digests filed",
+      "quizAttempts": "Quiz attempts",
+      "avgScore": "Avg quiz score"
+    },
+    "noDigests": "No digests yet.",
+    "noQuizzes": "No quiz attempts yet.",
+    "pts": "{score} pts",
+    "toast": {
+      "loadFailed": "Failed to load user details"
+    }
+  },
+  "stats": {
+    "kicker": "Newsroom — Numbers",
+    "headline": "The {numbers}.",
+    "numbers": "numbers",
+    "loading": "Crunching numbers…",
+    "totals": {
+      "totalUsers": "Total readers"
+    },
+    "distribution": {
+      "kicker": "— Beat distribution —",
+      "empty": "No beat data yet.",
+      "subscribers": "{count} subscribers"
+    },
+    "toast": {
+      "loadFailed": "Failed to load admin stats"
+    }
+  },
+  "audit": {
+    "kicker": "Newsroom — Ledger",
+    "headline": "The paper {trail}.",
+    "trail": "trail",
+    "intro": "Every admin action, most recent first — who did what, to which record, and when.",
+    "loading": "Pulling the ledger…",
+    "empty": {
+      "kicker": "— Ledger is empty —",
+      "body": "No admin actions recorded yet."
+    },
+    "columns": {
+      "when": "When",
+      "actor": "Actor",
+      "action": "Action",
+      "target": "Target",
+      "detail": "Detail"
+    },
+    "toast": {
+      "loadFailed": "Failed to load audit log"
+    }
+  }
+}

@@ -70,6 +70,7 @@ src/
 ├── stores/         # Pinia stores (below)
 ├── services/       # api.ts — Axios client with JWT interceptors
 ├── router/         # index.ts — routes + auth guards
+├── i18n/           # vue-i18n instance + locales/{en,ko}/<namespace>.json catalogs
 ├── types/          # TypeScript types matching backend DTOs
 ├── composables/    # Reusable composables
 ├── utils/          # Helpers (e.g. safeUrl.ts)
@@ -84,7 +85,7 @@ src/
 - `layout/`: `DashboardLayout.vue`, `LegalLayout.vue`
 - `quiz/`: `QuizQuestion.vue`, `QuizResults.vue`
 - `settings/`: `ApiKeyManager.vue` (BYOK key management)
-- `ui/`: `AppIcon.vue`, `BaseButton.vue`, `BaseInput.vue`, `BaseModal.vue`, `BaseSpinner.vue`, `ToastContainer.vue`
+- `ui/`: `AppIcon.vue`, `BaseButton.vue`, `BaseInput.vue`, `BaseModal.vue`, `BaseSpinner.vue`, `ToastContainer.vue`, `LanguageToggle.vue` (English / 한국어 edition switch)
 
 ## State Management (Pinia)
 
@@ -122,9 +123,9 @@ For the API contract, see [`../docs/CODEBASE.md`](../docs/CODEBASE.md).
 
 ## Testing
 
-**Unit (Vitest)** — `npm run test:unit`. 13 test files in `src/__tests__/` covering stores (auth, user, news, quiz), components, the `useToast` composable, and `safeUrl` utils. Runs in jsdom.
+**Unit (Vitest)** — `npm run test:unit`. 22 test files in `src/__tests__/` covering stores (auth, user, news, quiz), components, composables (`useToast`, `useTopicLabels`), the i18n layer (`useLocale`, catalog key-tree parity), views in both editions, and `safeUrl` utils. Runs in jsdom; `setup.ts` installs the app i18n singleton and resets it to English before each test.
 
-**E2E (Cypress)** — `npm run test:e2e`. 9 specs in `tests/e2e/` (as of 2026-07-18): `auth`, `onboarding`, `quiz`, `archive`, `settings`, `admin`, `reset-password`, `not-found`, `ui-screenshots`. Session mocking is centralized in `tests/e2e/helpers.ts`: the app keeps the access token in memory and re-establishes sessions via silent `POST /auth/refresh`, so specs seed the localStorage `user` (`withAuth()`) and stub the refresh call (`stubSession()`) — **never seed localStorage tokens**.
+**E2E (Cypress)** — `npm run test:e2e`. 10 specs in `tests/e2e/` (as of 2026-09-16): `auth`, `onboarding`, `quiz`, `archive`, `settings`, `admin`, `reset-password`, `not-found`, `i18n`, `ui-screenshots`. The support file (`tests/e2e/support.ts`) pins the UI edition to English before boot unless a test already chose one. Session mocking is centralized in `tests/e2e/helpers.ts`: the app keeps the access token in memory and re-establishes sessions via silent `POST /auth/refresh`, so specs seed the localStorage `user` (`withAuth()`) and stub the refresh call (`stubSession()`) — **never seed localStorage tokens**.
 
 ## Docker
 

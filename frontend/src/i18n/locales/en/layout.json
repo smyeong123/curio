@@ -1,0 +1,41 @@
+{
+  "masthead": {
+    "vol": "Vol. 047",
+    "tagline": "— Daily for AI model news"
+  },
+  "today": "Today's edition",
+  "sections": "Sections",
+  "newsroom": "Newsroom",
+  "nav": {
+    "today": "Today",
+    "quizHistory": "Quiz history",
+    "studio": "Digest studio",
+    "settings": "Settings"
+  },
+  "adminNav": {
+    "dashboard": "Dashboard",
+    "digests": "All digests",
+    "users": "Users",
+    "stats": "Stats",
+    "audit": "Audit log"
+  },
+  "theme": {
+    "label": "Lights",
+    "day": "Day",
+    "night": "Night",
+    "toggle": "Toggle theme"
+  },
+  "signOut": "Sign out",
+  "menu": {
+    "open": "Open menu",
+    "close": "Close menu",
+    "main": "Main menu"
+  },
+  "notice": {
+    "label": "Service announcement",
+    "lead": "Notice —",
+    "body": "Curio is free while we test, through the end of July 2026. From August–September, payments open and paid plans with extra features arrive — the free digest stays. Questions? Email {contact}.",
+    "contactName": "Sangmyeong Lee",
+    "dismiss": "Dismiss notice"
+  }
+}

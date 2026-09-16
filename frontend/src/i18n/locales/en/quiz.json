@@ -1,0 +1,84 @@
+{
+  "loading": {
+    "kicker": "— Setting type —",
+    "headline": "Preparing today's {questions}…",
+    "questions": "questions"
+  },
+  "error": {
+    "kicker": "— No quiz on file —",
+    "notFound": "Quiz not found for this digest."
+  },
+  "nav": {
+    "backToEdition": "Back to today's edition",
+    "backToResults": "Back to results"
+  },
+  "header": {
+    "kicker": "Section V — Daily quiz",
+    "headline": "Five questions, {tail}",
+    "tail": "five minutes.",
+    "filedBefore": "Filed before —",
+    "previousAttempt": "your best is {score}/{total}. A better run replaces it.",
+    "intro": "Test your retention on today's edition. Answers are graded the moment you submit.",
+    "answered": "Answered"
+  },
+  "submit": {
+    "submitting": "Submitting…",
+    "cta": "File my answers",
+    "hint": "Answer all {count} questions to submit"
+  },
+  "leaveConfirm": "You have unanswered quiz progress. Are you sure you want to leave?",
+  "errors": {
+    "submit": "Failed to submit quiz",
+    "history": "Failed to load quiz history"
+  },
+  "question": {
+    "counter": "Question {n} of {total}",
+    "a11yCorrect": "Correct answer",
+    "a11yIncorrect": "Your answer, incorrect",
+    "correctTag": "Correct",
+    "wrongTag": "Wrong",
+    "feedbackCorrect": "Correct!",
+    "feedbackIncorrect": "Incorrect"
+  },
+  "results": {
+    "kicker": "— Returns are in —",
+    "tiers": {
+      "excellent": { "lead": "Excellent", "tail": "work!" },
+      "good": { "lead": "Good", "tail": "job!" },
+      "keepReading": { "lead": "Keep", "tail": "reading!" }
+    },
+    "a11yScore": "{score} out of {total} correct",
+    "percentCorrect": "{percent}% correct",
+    "a11yBar": "Score bar: {score} filled out of {total}",
+    "review": "Review answers",
+    "bestStays": "Your best for this quiz stays {best}/{total}."
+  },
+  "history": {
+    "kicker": "Section IV — Recall",
+    "headline": "What you {tail}.",
+    "tail": "remembered",
+    "error": {
+      "kicker": "— Couldn't load —",
+      "headline": "The scoreboard wouldn't load.",
+      "retry": "Retry"
+    },
+    "empty": {
+      "kicker": "— No attempts on file —",
+      "headline": "Nothing on the {tail}",
+      "tail": "scoreboard.",
+      "body": "Take a quiz from the news archive and your scores will appear here.",
+      "cta": "Go to today's edition"
+    },
+    "stats": {
+      "filed": "Quizzes filed",
+      "average": "Average score",
+      "best": "Personal best"
+    },
+    "table": {
+      "no": "No.",
+      "filed": "Filed",
+      "marks": "Marks",
+      "score": "Score"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "groups": {
+    "frontier-labs": { "name": "프런티어 랩", "description": "주요 모델 연구소의 새 기능과 릴리스" },
+    "proprietary-frontier": { "name": "독점 프런티어 모델" },
+    "open-weight-leaders": { "name": "오픈 웨이트 선두 주자" },
+    "agentic-tools": { "name": "에이전트 & 개발자 도구", "description": "코딩 에이전트, 브라우저 사용, 에이전트 프레임워크" },
+    "coding-agents": { "name": "코딩 에이전트" },
+    "agent-platforms": { "name": "에이전트 플랫폼" },
+    "capabilities-ecosystem": { "name": "역량 & 생태계", "description": "새 역량 출시, 가격, 그리고 시장 전반" },
+    "model-capabilities": { "name": "모델 역량" },
+    "market": { "name": "시장" },
+    "emerging": { "name": "신흥 모델", "description": "새로 등장하는 프런티어·에이전트 모델을 나오는 즉시" },
+    "discovery": { "name": "발견" }
+  },
+  "leaves": {
+    "Claude Code & CLI Agents": "Claude Code & CLI 에이전트",
+    "Cursor, Aider & IDE Agents": "Cursor, Aider & IDE 에이전트",
+    "Devin & Autonomous Coders": "Devin & 자율 코딩 에이전트",
+    "Browser & Computer-Use Agents": "브라우저 & 컴퓨터 사용 에이전트",
+    "Agent Frameworks & SDKs": "에이전트 프레임워크 & SDK",
+    "Reasoning & Context": "추론 & 컨텍스트",
+    "Multimodal (Vision, Audio, Video)": "멀티모달 (비전, 오디오, 비디오)",
+    "Pricing & Availability": "가격 & 제공 현황",
+    "Benchmarks & Evaluations": "벤치마크 & 평가",
+    "New & Emerging Models": "신규 & 신흥 모델"
+  }
+}

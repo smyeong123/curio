@@ -10,6 +10,8 @@ export interface NewsSummary {
 export interface DigestContent {
   summaries: NewsSummary[]
   generatedFor: string[]
+  /** Edition the stories were written in; absent on digests generated before editions existed (English). */
+  language?: 'en' | 'ko'
 }
 
 export interface Digest {

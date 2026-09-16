@@ -8,7 +8,7 @@
             <div class="flex items-start justify-between mb-5" v-if="title">
               <h3 class="text-base font-semibold text-[color:var(--ink)]">{{ title }}</h3>
               <button
-                aria-label="Close dialog"
+                :aria-label="t('common.a11y.closeDialog')"
                 class="ml-4 text-[color:var(--mute)] hover:text-[color:var(--ink)] transition-colors rounded-lg p-0.5 hover:bg-paper-deep"
                 @click="$emit('close')"
               >
@@ -27,7 +27,10 @@
 
 <script setup lang="ts">
 import { ref, toRef } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useFocusTrap } from '@/composables/useFocusTrap'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   show: boolean

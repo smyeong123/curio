@@ -1,0 +1,75 @@
+{
+  "header": {
+    "kicker": "나의 에디션",
+    "headline": "오늘의 {brand}.",
+    "issuesInArchive": "보관된 호",
+    "intro": "개인 맞춤 다이제스트가 모두 모인 아카이브예요. 매 호마다 선택한 토픽의 모델 뉴스 스토리를 정리하고, 얼마나 기억에 남았는지 퀴즈로 확인해요."
+  },
+  "error": {
+    "kicker": "— 인쇄기 고장 —",
+    "headline": "아침 인쇄기가 돌아가지 않았어요.",
+    "body": "다이제스트를 불러오지 못했어요. 다시 시도하거나 잠시 후 다시 확인해 주세요.",
+    "retry": "다시 시도"
+  },
+  "empty": {
+    "kicker": "— 아직 발행된 호가 없어요 —",
+    "headline": "내일 자 에디션은 {tail}",
+    "headlineTail": "이미 인쇄 중이에요.",
+    "body": "Curio는 08:00에 첫 호를 발행해요. 무엇을 쓸지 알 수 있도록 지금 토픽을 정해 주세요.",
+    "cta": "토픽 정하기"
+  },
+  "search": {
+    "label": "아카이브 검색",
+    "placeholder": "헤드라인과 스토리 검색…",
+    "clear": "지우기",
+    "searching": "검색하는 중…",
+    "matchCount": "일치하는 스토리 {count}개",
+    "fullArchive": "전체 30일 아카이브",
+    "hint": "아래 7일 보기보다 넓은 전체 30일 아카이브를 검색해요"
+  },
+  "filter": {
+    "a11yRegion": "토픽별 다이제스트 필터",
+    "label": "필터",
+    "all": "모든 토픽",
+    "beatCount": "토픽 {count}개",
+    "activeCount": "{count}개 활성",
+    "other": "기타",
+    "a11yActive": "필터: {topic}",
+    "a11yNone": "토픽 필터 없음"
+  },
+  "noMatches": {
+    "kicker": "— 일치하는 결과 없음 —",
+    "body": "아카이브에서 {query}에 해당하는 스토리를 찾지 못했어요.",
+    "bodyOnTopic": "{topic} 토픽에서 {query}에 해당하는 스토리를 찾지 못했어요.",
+    "clear": "검색 지우기"
+  },
+  "noBeat": {
+    "kicker": "— 이 토픽의 호가 없어요 —",
+    "body": "보관된 에디션 중 {topic} 토픽을 다룬 호가 아직 없어요.",
+    "showAll": "모든 토픽 보기"
+  },
+  "paging": {
+    "dayOf": "{total}일 중 {page}일째",
+    "searchResults": "검색 결과",
+    "lastDays": "최근 7일",
+    "newer": "최신",
+    "older": "이전"
+  },
+  "issue": {
+    "label": "{number}호",
+    "delivered": "{time} 발송",
+    "takeQuiz": "퀴즈 풀기",
+    "beats": "토픽",
+    "end": "— 이번 호 끝 —"
+  },
+  "story": {
+    "fallbackKicker": "스토리",
+    "whyItMatters": "왜 중요한가",
+    "source": "출처: {name}",
+    "linkFallback": "링크"
+  },
+  "errors": {
+    "search": "검색에 실패했어요",
+    "load": "다이제스트를 불러오지 못했어요"
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "header": {
+    "kicker": "Section VII — Masthead",
+    "headline": "Your {settings}.",
+    "settings": "settings"
+  },
+  "profile": {
+    "kicker": "§ I — Profile",
+    "fullName": "Full name",
+    "fullNamePlaceholder": "Your name",
+    "dailyDigest": "Daily email digest",
+    "dailyDigestHint": "Receive your edition every morning at {time} · {timezone}",
+    "toggleDigest": "Toggle daily email digest",
+    "autoTimezone": "Automatically use my device's timezone",
+    "deliveryTime": "Delivery time",
+    "timezone": "Timezone",
+    "followingDevice": "Following your device · {timezone}",
+    "saving": "Saving…",
+    "save": "Save changes"
+  },
+  "lights": {
+    "kicker": "§ II — Lights",
+    "legend": "Theme preference",
+    "day": "Day",
+    "night": "Night",
+    "system": "System",
+    "hint": "System follows your device preference"
+  },
+  "edition": {
+    "kicker": "§ III — Edition",
+    "hint": "Sets the language of your daily digest, quiz and email — and of the app. The switch in the sidebar changes only what you see on screen.",
+    "saved": "Digest language saved",
+    "saveFailed": "Could not save the digest language"
+  },
+  "password": {
+    "kicker": "§ IV — Password",
+    "current": "Current password",
+    "new": "New password",
+    "newPlaceholder": "At least 8 characters",
+    "updating": "Updating…",
+    "update": "Update password"
+  },
+  "byok": {
+    "kicker": "§ V — Bring your own key",
+    "intro": "Plug in your own Anthropic, Google AI, or OpenAI key and your daily digest is generated against your account, not ours. Keys are encrypted with AES-256-GCM at rest and never returned by any endpoint after you save them.",
+    "loading": "Loading…",
+    "empty": "— No keys on file —",
+    "validated": "● Validated",
+    "notValidated": "○ Not validated",
+    "lastUsed": "Last used {when}",
+    "relative": {
+      "justNow": "just now",
+      "minutes": "{count}m ago",
+      "hours": "{count}h ago",
+      "days": "{count}d ago"
+    },
+    "remove": "Remove ↗",
+    "add": "Add a key",
+    "addModal": {
+      "titleAdd": "Add {provider} key",
+      "titleReplace": "Replace {provider} key",
+      "body": "Re-enter your password and paste a key from {provider}. We'll send it a tiny test request to confirm it works before storing it.",
+      "provider": "Provider",
+      "replaceNotice": "You already have a {provider} key on file — saving replaces it. The new key is validated before it goes live.",
+      "apiKey": "API key",
+      "confirmPassword": "Confirm with your password",
+      "passwordPlaceholder": "Your Curio password",
+      "saving": "Saving…",
+      "rotate": "Rotate & save →",
+      "save": "Save key →"
+    },
+    "removeModal": {
+      "title": "Remove {provider} key",
+      "body": "Re-enter your password to remove this key. Future digests will use the platform's key.",
+      "password": "Password",
+      "removing": "Removing…",
+      "remove": "Remove key"
+    },
+    "errors": {
+      "tooShort": "Key looks too short. Double-check the value.",
+      "passwordRequired": "Password required.",
+      "wrongPassword": "Wrong password.",
+      "saveFailed": "Could not save key.",
+      "removeFailed": "Could not remove key."
+    },
+    "toasts": {
+      "savedUnvalidated": "Key saved but not validated — it won't be used until validated",
+      "saved": "API key saved",
+      "removed": "API key removed"
+    }
+  },
+  "beats": {
+    "kicker": "§ VI — Beats",
+    "selectedCount": "{count} selected",
+    "minHint": " · 3 min",
+    "domainOn": "{count} on",
+    "saving": "Saving…",
+    "update": "Update preferences"
+  },
+  "danger": {
+    "kicker": "§ VII — Delete account",
+    "body": "Permanently delete your account, your edition history, your quiz scores, and all associated data. The press will go quiet for you. This cannot be undone.",
+    "delete": "Delete my account",
+    "modalTitle": "Delete account",
+    "confirm": "Are you sure you want to delete your account? All your editions, quiz history, and preferences will be permanently removed.",
+    "deleting": "Deleting…"
+  },
+  "toasts": {
+    "loadFailed": "Failed to load settings",
+    "profileUpdated": "Profile updated",
+    "profileFailed": "Failed to update profile",
+    "passwordUpdated": "Password updated",
+    "passwordFailed": "Failed to update password",
+    "preferencesUpdated": "Preferences updated",
+    "preferencesFailed": "Failed to update preferences",
+    "accountDeleted": "Account deleted",
+    "deleteFailed": "Failed to delete account"
+  }
+}

@@ -73,4 +73,27 @@ describe('user store', () => {
 
     expect(store.preferences).toEqual(['Claude (Anthropic)', 'Grok (xAI)', 'New & Emerging Models'])
   })
+
+  it('fetchPreferences reads the digest language, defaulting to null when absent', async () => {
+    vi.mocked(api.user.getPreferences).mockResolvedValue({ data: { topics: ['DeepSeek'], language: 'ko' } } as any)
+    const store = useUserStore()
+
+    await store.fetchPreferences()
+    expect(store.language).toBe('ko')
+
+    vi.mocked(api.user.getPreferences).mockResolvedValue({ data: { topics: ['DeepSeek'] } } as any)
+    await store.fetchPreferences()
+    expect(store.language).toBeNull()
+  })
+
+  it('updatePreferences forwards the language and mirrors it locally', async () => {
+    vi.mocked(api.user.updatePreferences).mockResolvedValue({ data: {} } as any)
+    const store = useUserStore()
+    const topics = ['Claude (Anthropic)', 'Grok (xAI)', 'New & Emerging Models']
+
+    await store.updatePreferences(topics, { language: 'ko' })
+
+    expect(api.user.updatePreferences).toHaveBeenCalledWith(topics, { language: 'ko' })
+    expect(store.language).toBe('ko')
+  })
 })

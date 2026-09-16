@@ -1,0 +1,16 @@
+{
+  "groups": {
+    "frontier-labs": { "name": "Frontier Labs", "description": "New features and releases from the major model labs" },
+    "proprietary-frontier": { "name": "Proprietary Frontier" },
+    "open-weight-leaders": { "name": "Open-Weight Leaders" },
+    "agentic-tools": { "name": "Agentic & Developer Tools", "description": "Coding agents, browser-use, and agent frameworks" },
+    "coding-agents": { "name": "Coding Agents" },
+    "agent-platforms": { "name": "Agent Platforms" },
+    "capabilities-ecosystem": { "name": "Capabilities & Ecosystem", "description": "Capability drops, pricing, and the broader market" },
+    "model-capabilities": { "name": "Model Capabilities" },
+    "market": { "name": "Market" },
+    "emerging": { "name": "Emerging", "description": "Brand-new frontier and agentic models as they land" },
+    "discovery": { "name": "Discovery" }
+  },
+  "leaves": {}
+}

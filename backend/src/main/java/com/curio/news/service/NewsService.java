@@ -13,6 +13,7 @@ import com.curio.user.port.in.UserApiKeyUseCase;
 import com.curio.user.port.out.UserPort;
 import com.curio.user.port.out.UserPreferencesPort;
 import com.curio.shared.exception.ResourceNotFoundException;
+import com.curio.shared.i18n.Language;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -130,6 +131,11 @@ public class NewsService implements NewsUseCase {
         // a local for the duration of this user's generation, then dropped.
         String userKey = resolveUserApiKey(user);
 
+        // The edition the reader chose (Settings → Edition / onboarding). Stamped into the
+        // digest below so the email and quiz for THIS digest follow it even if the user
+        // switches editions later.
+        Language language = Language.fromCode(preferences.getLanguage());
+
         // Collect summaries grouped by topic so we can interleave them fairly.
         // A user with many topics would otherwise get a digest dominated by
         // whichever topics happen to be processed first.
@@ -141,9 +147,7 @@ public class NewsService implements NewsUseCase {
             String topic = topics[i];
             try {
                 listener.onTopic(i + 1, total, topic);
-                List<NewsSummary> summaries = (userKey != null)
-                        ? aiService.generateNewsSummaries(topic, userKey)
-                        : aiService.generateNewsSummaries(topic);
+                List<NewsSummary> summaries = aiService.generateNewsSummaries(topic, language, userKey);
                 if (summaries != null && !summaries.isEmpty()) {
                     // Stamp the canonical topic (the exact beat the user chose in
                     // Settings) onto every summary. The AI is only *asked* to echo
@@ -189,6 +193,7 @@ public class NewsService implements NewsUseCase {
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("summaries", summaryMaps);
         content.put("generatedFor", Arrays.asList(preferences.getTopics()));
+        content.put(Language.CONTENT_KEY, language.code());
 
         Digest digest = Digest.builder()
                 .user(user)

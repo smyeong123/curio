@@ -15,6 +15,7 @@ Curio reads first-party lab blogs (Anthropic, OpenAI, DeepMind, Meta AI, Mistral
 - **Curio Studio** — Self-serve digest workbench: signed-in users can generate today's digest and send the email on demand (`/dashboard/studio`), with live async task status instead of waiting for the scheduled jobs.
 - **Newsroom (admin) dashboard** — User roster + detail, full-corpus digest browser, topic distribution, admin action audit log, **honest** job-status panel for the three scheduled jobs (digest gen / email send / cleanup) with manual triggers and per-attempt error breakdown.
 - **Editorial UI** — Newsprint paper background with a Fraunces variable-serif display face, JetBrains Mono kickers, Inter Tight body, and a dark mode that flips the same DNA. Built on Vue 3 + Tailwind CSS v4.
+- **Bilingual UI (English · 한국어)** — every page ships in both editions. Switch from the landing masthead, the dashboard sidebar, or Settings; the choice persists, and first visits follow the browser language. Hangul falls back to Noto Serif/Sans KR under the same editorial type system. The account's edition also sets the language the AI writes the digest, quiz and daily email in (`user_preferences.language`, chosen at onboarding or in Settings).
 - **Reliability** — Resilience4j circuit-breaker + bulkhead around AI calls (max 4 concurrent), 90 s time-limiter, automatic retry. ShedLock prevents double-runs across multiple backend pods.
 - **404 handling** — Wrong API paths return JSON 404 (not 500); the frontend SPA has a typeset off-the-press 404 page.
 
@@ -31,7 +32,7 @@ curio/
 │   └── src/main/java/com/curio/    # feature packages (auth, user, news, quiz, admin) each
 │                                   # with controller/service/port/adapter/entity/dto/repository,
 │                                   # + shared/ (scheduler, security, email, webhook, config).
-│                                   # resources/db/migration = Flyway V1–V27; templates/ = email
+│                                   # resources/db/migration = Flyway V1–V28; templates/ = email
 ├── docs/                           # Public long-form docs (setup, architecture, env, deploy)
 ├── docs-internal/                  # Private ops/product docs (gitignored — not published)
 ├── scripts/k6/                     # k6 load-test scenarios (auth, digests, quiz)
@@ -52,10 +53,11 @@ curio/
 | Vite | 7 | Build tool, prod build ~250 KB gzipped total |
 | Pinia | 3 | State management |
 | Vue Router | 4 | Routing + auth guards |
+| vue-i18n | 11 | Bilingual UI (English / Korean), JSON catalogs per feature namespace |
 | Tailwind CSS | 4 | Utility CSS, `@theme` token system |
 | Headless UI | 1.7 | Accessible primitives (modals, switches) |
 | Axios | 1.13 | HTTP client (per-call timeouts for long admin batches) |
-| Fraunces / Inter Tight / JetBrains Mono | — | Editorial type system (loaded from Google Fonts) |
+| Fraunces / Inter Tight / JetBrains Mono (+ Noto Serif/Sans KR fallbacks) | — | Editorial type system (loaded from Google Fonts) |
 | Vitest | 4 | Unit testing |
 | Cypress | 15 | E2E testing |
 
@@ -69,7 +71,7 @@ curio/
 | Spring Data JPA + Hibernate | — | DB access |
 | PostgreSQL | 16 | Primary DB |
 | Redis | 7 | AI summary cache + job-status registry |
-| Flyway | Boot-managed | DB migrations (V1–V27) |
+| Flyway | Boot-managed | DB migrations (V1–V28) |
 | Resilience4j | 2.2 | Circuit breaker + bulkhead + time limiter on AI calls |
 | ShedLock | 5.10 | Distributed scheduler locking |
 | Bucket4j | 8.10 | Rate limiting on auth endpoints |
@@ -113,7 +115,7 @@ docker compose --env-file .env.dev -f docker-compose.infra.yml ps     # both hea
 cd backend
 cp .env.example .env
 # Edit .env — at minimum: CLAUDE_API_KEY, RESEND_API_KEY, NEWS_API_KEY
-mvn spring-boot:run -Dspring-boot.run.profiles=dev   # dev profile; Flyway runs V1–V27 on first start
+mvn spring-boot:run -Dspring-boot.run.profiles=dev   # dev profile; Flyway runs V1–V28 on first start
 curl http://localhost:8080/actuator/health
 ```
 
@@ -216,7 +218,7 @@ Prod additionally needs self-generated secrets (`JWT_SECRET`, `JWT_REFRESH_SECRE
                                       |
 +-----------+   /api/v1   +-----------v-----------+   JPA   +-------------+
 | Vue SPA   +----------->| Spring Boot           +-------->| PostgreSQL  |
-| (Tailwind |  HTTPS via | (hexagonal, V1-V27,    |         |  (Flyway)   |
+| (Tailwind |  HTTPS via | (hexagonal, V1-V28,    |         |  (Flyway)   |
 | editorial)|  nginx     | Resilience4j, ShedLock|         +-------------+
 +-----------+            +--+------+------+------+
                             |      |      |
@@ -246,8 +248,8 @@ Full rationale in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) and [`docs/ar
 
 ## Testing
 
-- **Backend — 25 test classes** (as of 2026-07-18): JUnit 5 + Mockito units, `@SpringBootTest` + H2 integration (controllers, security filters, webhook signatures), and ArchUnit architecture rules.
-- **Frontend — 13 Vitest files + 9 Cypress E2E specs** (as of 2026-07-18): components/stores/composables via `@vue/test-utils`; Cypress covers auth, onboarding, archive, settings, quiz, admin, reset-password, not-found, ui-screenshots.
+- **Backend — 28 test classes** (as of 2026-09-16): JUnit 5 + Mockito units, `@SpringBootTest` + H2 integration (controllers, security filters, webhook signatures), and ArchUnit architecture rules.
+- **Frontend — 22 Vitest files + 10 Cypress E2E specs** (as of 2026-09-16): components/stores/composables/views (both editions) via `@vue/test-utils`; Cypress covers auth, onboarding, archive, settings, quiz, admin, reset-password, not-found, i18n (edition switch + persistence), ui-screenshots.
 
 ```bash
 cd backend && mvn test

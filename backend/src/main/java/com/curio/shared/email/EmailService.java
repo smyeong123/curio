@@ -7,6 +7,7 @@ import com.curio.user.entity.User;
 import com.curio.user.port.out.UserPort;
 import com.curio.shared.port.in.EmailUseCase;
 import com.curio.auth.service.UnsubscribeTokenService;
+import com.curio.shared.i18n.Language;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.context.MessageSource;
 import org.springframework.http.*;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -31,6 +33,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -45,6 +48,8 @@ public class EmailService implements EmailUseCase {
     private final ObjectMapper objectMapper;
     private final RestTemplateBuilder restTemplateBuilder;
     private final UnsubscribeTokenService unsubscribeTokenService;
+    /** Digest email chrome per edition: messages.properties (en) + messages_ko.properties. */
+    private final MessageSource messageSource;
 
     /** Optional SMTP fallback. Wired only when spring.mail.* is configured. */
     @Autowired(required = false)
@@ -93,8 +98,7 @@ public class EmailService implements EmailUseCase {
         }
 
         String html = renderDigestEmail(user, digest);
-        String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMMM d, yyyy"));
-        String subject = "Your Curio Daily Digest — " + date;
+        String subject = digestSubject(Language.fromDigestContent(digest.getContent()));
 
         String providerMessageId;
         try {
@@ -314,11 +318,34 @@ public class EmailService implements EmailUseCase {
         sendViaResend(user.getEmail(), "Your Curio sign-in code: " + code, html);
     }
 
-    private String renderDigestEmail(User user, Digest digest) {
-        String unsubscribeToken = unsubscribeTokenService.generateToken(user.getId());
+    /** Subject line in the digest's own language, e.g. "Your Curio Daily Digest — September 16, 2026" / "Curio 데일리 다이제스트 — 2026년 9월 16일". */
+    String digestSubject(Language language) {
+        Locale locale = Language.orDefault(language).locale();
+        String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern(
+                messageSource.getMessage("digest.email.datePattern", null, locale), locale));
+        return messageSource.getMessage("digest.email.subject", new Object[]{date}, locale);
+    }
 
-        Context context = new Context();
-        context.setVariable("userName", user.getFullName());
+    /**
+     * Renders the whole digest email. Package-private so the render test can exercise
+     * the real template + message catalogs without sending anything.
+     *
+     * <p>The email follows the language the digest was WRITTEN in (stamped into its
+     * content by NewsService), not the user's current setting — a reader who switches
+     * editions at 07:59 still gets chrome that matches the stories inside.
+     */
+    String renderDigestEmail(User user, Digest digest) {
+        String unsubscribeToken = unsubscribeTokenService.generateToken(user.getId());
+        Language language = Language.fromDigestContent(digest.getContent());
+        Locale locale = language.locale();
+
+        Context context = new Context(locale);
+        context.setVariable("lang", language.code());
+        String fullName = user.getFullName();
+        context.setVariable("userName", (fullName != null && !fullName.isBlank())
+                ? fullName : messageSource.getMessage("digest.email.reader", null, locale));
+        context.setVariable("topDate", LocalDateTime.now().format(DateTimeFormatter.ofPattern(
+                messageSource.getMessage("digest.email.topDatePattern", null, locale), locale)));
         context.setVariable("digest", digest);
         context.setVariable("frontendUrl", frontendUrl);
         context.setVariable("backendUrl", backendUrl);

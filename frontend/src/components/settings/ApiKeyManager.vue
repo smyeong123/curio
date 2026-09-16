@@ -1,15 +1,13 @@
 <template>
   <div>
     <p class="font-body-curio text-[14.5px] text-[color:var(--ink-soft)] leading-relaxed mb-6 max-w-[64ch]">
-      Plug in your own Anthropic, Google AI, or OpenAI key and your daily digest is
-      generated against your account, not ours. Keys are encrypted with AES-256-GCM at rest and
-      never returned by any endpoint after you save them.
+      {{ t('settings.byok.intro') }}
     </p>
 
     <!-- Saved keys -->
-    <div v-if="apiKeysLoading" class="kicker mb-4">Loading…</div>
+    <div v-if="apiKeysLoading" class="kicker mb-4">{{ t('settings.byok.loading') }}</div>
     <div v-else-if="apiKeys.length === 0" class="border-t border-b border-[color:var(--rule)] py-4 mb-4">
-      <p class="kicker">— No keys on file —</p>
+      <p class="kicker">{{ t('settings.byok.empty') }}</p>
     </div>
     <ul v-else class="border-t border-b border-[color:var(--rule)] divide-y divide-[color:var(--rule)] mb-4">
       <li
@@ -24,42 +22,44 @@
               class="kicker"
               :style="key.validated ? 'color: var(--leaf)' : 'color: var(--signal-deep)'"
             >
-              {{ key.validated ? '● Validated' : '○ Not validated' }}
+              {{ key.validated ? t('settings.byok.validated') : t('settings.byok.notValidated') }}
             </span>
           </div>
           <p class="font-mono-curio text-[12px] text-[color:var(--ink-soft)]">
             {{ key.keyPreview }}
           </p>
           <p v-if="key.lastUsedAt" class="kicker mt-1">
-            Last used {{ formatRelative(key.lastUsedAt) }}
+            {{ t('settings.byok.lastUsed', { when: formatRelative(key.lastUsedAt) }) }}
           </p>
         </div>
         <button
           class="kicker hover:text-red-600 transition-colors"
           style="color: var(--signal-deep);"
           @click="askDelete(key.provider)"
-        >Remove ↗</button>
+        >{{ t('settings.byok.remove') }}</button>
       </li>
     </ul>
 
     <button class="btn-editorial-ghost" @click="openAddModal">
-      <span aria-hidden="true">+</span> Add a key
+      <span aria-hidden="true">+</span> {{ t('settings.byok.add') }}
     </button>
 
     <!-- Add-key modal -->
     <BaseModal
       :show="showAddModal"
-      :title="hasKey(addForm.provider) ? `Replace ${providerLabel(addForm.provider)} key` : `Add ${providerLabel(addForm.provider)} key`"
+      :title="hasKey(addForm.provider)
+        ? t('settings.byok.addModal.titleReplace', { provider: providerLabel(addForm.provider) })
+        : t('settings.byok.addModal.titleAdd', { provider: providerLabel(addForm.provider) })"
       @close="showAddModal = false"
     >
-      <p class="font-body-curio text-[13.5px] text-[color:var(--ink-soft)] mb-5 leading-relaxed">
-        Re-enter your password and paste a key from
-        <strong class="font-semibold text-[color:var(--ink)]">{{ providerLabel(addForm.provider) }}</strong>.
-        We'll send it a tiny test request to confirm it works before storing it.
-      </p>
+      <i18n-t scope="global" keypath="settings.byok.addModal.body" tag="p" class="font-body-curio text-[13.5px] text-[color:var(--ink-soft)] mb-5 leading-relaxed">
+        <template #provider>
+          <strong class="font-semibold text-[color:var(--ink)]">{{ providerLabel(addForm.provider) }}</strong>
+        </template>
+      </i18n-t>
       <form @submit.prevent="submitAddKey" class="space-y-5">
         <div>
-          <label class="kicker mb-1 block">Provider</label>
+          <label class="kicker mb-1 block">{{ t('settings.byok.addModal.provider') }}</label>
           <div class="grid grid-cols-3 border border-[color:var(--rule)]">
             <button
               v-for="(label, p) in providerOptions"
@@ -79,21 +79,20 @@
           v-if="hasKey(addForm.provider)"
           class="border border-[color:var(--rule)] bg-paper-deep p-3 font-body-curio text-[13px] text-[color:var(--ink-soft)] leading-relaxed"
         >
-          You already have a {{ providerLabel(addForm.provider) }} key on file — saving replaces it.
-          The new key is validated before it goes live.
+          {{ t('settings.byok.addModal.replaceNotice', { provider: providerLabel(addForm.provider) }) }}
         </div>
         <BaseInput
           v-model="addForm.apiKey"
-          label="API key"
+          :label="t('settings.byok.addModal.apiKey')"
           type="password"
           :placeholder="apiKeyPlaceholder(addForm.provider)"
           id="byok-key"
         />
         <BaseInput
           v-model="addForm.currentPassword"
-          label="Confirm with your password"
+          :label="t('settings.byok.addModal.confirmPassword')"
           type="password"
-          placeholder="Your Curio password"
+          :placeholder="t('settings.byok.addModal.passwordPlaceholder')"
           id="byok-password"
         />
         <div v-if="addError" class="border border-red-300 bg-red-50/40 p-3 font-mono-curio text-[11px] uppercase tracking-[0.12em] text-red-600">
@@ -101,10 +100,10 @@
         </div>
         <div class="flex justify-end pt-3 border-t border-[color:var(--rule)]">
           <div class="flex gap-3">
-            <button type="button" class="btn-editorial-ghost" @click="showAddModal = false">Cancel</button>
+            <button type="button" class="btn-editorial-ghost" @click="showAddModal = false">{{ t('common.actions.cancel') }}</button>
             <button type="submit" class="btn-editorial" :disabled="addSaving">
-              <span v-if="addSaving">Saving…</span>
-              <span v-else>{{ hasKey(addForm.provider) ? 'Rotate & save →' : 'Save key →' }}</span>
+              <span v-if="addSaving">{{ t('settings.byok.addModal.saving') }}</span>
+              <span v-else>{{ hasKey(addForm.provider) ? t('settings.byok.addModal.rotate') : t('settings.byok.addModal.save') }}</span>
             </button>
           </div>
         </div>
@@ -112,31 +111,34 @@
     </BaseModal>
 
     <!-- Delete-key modal -->
-    <BaseModal :show="!!deleteTarget" :title="`Remove ${providerLabel(deleteTarget!)} key`" @close="deleteTarget = null">
+    <BaseModal
+      :show="!!deleteTarget"
+      :title="t('settings.byok.removeModal.title', { provider: deleteTarget ? providerLabel(deleteTarget) : '' })"
+      @close="deleteTarget = null"
+    >
       <p class="font-body-curio text-[14.5px] text-[color:var(--ink-soft)] mb-5">
-        Re-enter your password to remove this key. Future digests will use the
-        platform's key.
+        {{ t('settings.byok.removeModal.body') }}
       </p>
       <form @submit.prevent="submitDelete" class="space-y-4">
         <BaseInput
           v-model="deletePassword"
-          label="Password"
+          :label="t('settings.byok.removeModal.password')"
           type="password"
-          placeholder="Your Curio password"
+          :placeholder="t('settings.byok.addModal.passwordPlaceholder')"
           id="byok-delete-password"
         />
         <div v-if="deleteError" class="border border-red-300 bg-red-50/40 p-3 font-mono-curio text-[11px] uppercase tracking-[0.12em] text-red-600">
           {{ deleteError }}
         </div>
         <div class="flex justify-end gap-3 pt-3 border-t border-[color:var(--rule)]">
-          <button type="button" class="btn-editorial-ghost" @click="deleteTarget = null">Cancel</button>
+          <button type="button" class="btn-editorial-ghost" @click="deleteTarget = null">{{ t('common.actions.cancel') }}</button>
           <button
             type="submit"
             class="inline-flex items-center gap-3 bg-red-600 text-white px-5 py-3 font-mono-curio text-[12px] uppercase tracking-[0.14em] hover:bg-red-700 transition-colors disabled:opacity-50"
             :disabled="deletingKey"
           >
-            <span v-if="deletingKey">Removing…</span>
-            <span v-else>Remove key</span>
+            <span v-if="deletingKey">{{ t('settings.byok.removeModal.removing') }}</span>
+            <span v-else>{{ t('settings.byok.removeModal.remove') }}</span>
           </button>
         </div>
       </form>
@@ -153,6 +155,7 @@
  * show whether a validated key is on file).
  */
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
 import { api } from '@/services/api'
 import BaseInput from '@/components/ui/BaseInput.vue'
@@ -172,6 +175,7 @@ interface ApiKeyRow {
 
 const emit = defineEmits<{ (e: 'change', keys: ApiKeyRow[]): void }>()
 
+const { t } = useI18n()
 const { success, info } = useToast()
 
 const apiKeys = ref<ApiKeyRow[]>([])
@@ -191,6 +195,7 @@ const deletePassword = ref('')
 const deleteError = ref('')
 const deletingKey = ref(false)
 
+// Provider names are product names — the same in every edition.
 const providerOptions: Record<Provider, string> = {
   CLAUDE: 'Claude',
   GEMINI: 'Gemini',
@@ -211,10 +216,10 @@ const apiKeyPlaceholder = (p: Provider) => {
 
 const formatRelative = (iso: string) => {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-  if (seconds < 60) return 'just now'
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
-  return `${Math.floor(seconds / 86400)}d ago`
+  if (seconds < 60) return t('settings.byok.relative.justNow')
+  if (seconds < 3600) return t('settings.byok.relative.minutes', { count: Math.floor(seconds / 60) })
+  if (seconds < 86400) return t('settings.byok.relative.hours', { count: Math.floor(seconds / 3600) })
+  return t('settings.byok.relative.days', { count: Math.floor(seconds / 86400) })
 }
 
 const loadApiKeys = async () => {
@@ -239,11 +244,11 @@ const openAddModal = () => {
 const submitAddKey = async () => {
   addError.value = ''
   if (!addForm.value.apiKey || addForm.value.apiKey.length < 16) {
-    addError.value = 'Key looks too short. Double-check the value.'
+    addError.value = t('settings.byok.errors.tooShort')
     return
   }
   if (!addForm.value.currentPassword) {
-    addError.value = 'Password required.'
+    addError.value = t('settings.byok.errors.passwordRequired')
     return
   }
   addSaving.value = true
@@ -259,14 +264,14 @@ const submitAddKey = async () => {
     )
     showAddModal.value = false
     if (res.data?.validated === false) {
-      info("Key saved but not validated — it won't be used until validated")
+      info(t('settings.byok.toasts.savedUnvalidated'))
     } else {
-      success('API key saved')
+      success(t('settings.byok.toasts.saved'))
     }
     await loadApiKeys()
   } catch (e: unknown) {
     addError.value = getApiErrorMessage(e,
-      getApiErrorStatus(e) === 401 ? 'Wrong password.' : 'Could not save key.')
+      getApiErrorStatus(e) === 401 ? t('settings.byok.errors.wrongPassword') : t('settings.byok.errors.saveFailed'))
   } finally {
     addSaving.value = false
   }
@@ -284,12 +289,12 @@ const submitDelete = async () => {
   deleteError.value = ''
   try {
     await api.apiKeys.delete(deleteTarget.value, deletePassword.value)
-    success('API key removed')
+    success(t('settings.byok.toasts.removed'))
     deleteTarget.value = null
     await loadApiKeys()
   } catch (e: unknown) {
     deleteError.value = getApiErrorMessage(e,
-      getApiErrorStatus(e) === 401 ? 'Wrong password.' : 'Could not remove key.')
+      getApiErrorStatus(e) === 401 ? t('settings.byok.errors.wrongPassword') : t('settings.byok.errors.removeFailed'))
   } finally {
     deletingKey.value = false
   }

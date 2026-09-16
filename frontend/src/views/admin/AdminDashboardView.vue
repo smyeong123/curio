@@ -2,24 +2,23 @@
   <div class="mx-auto max-w-[1100px] px-5 py-10 sm:px-8 lg:px-12">
     <!-- ── Header ────────────────────────────────── -->
     <header class="mb-10">
-      <p class="kicker kicker-signal mb-3">Newsroom — Editorial desk</p>
-      <h1 class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
-        The
-        <em class="italic-display">desk</em>.
-      </h1>
+      <p class="kicker kicker-signal mb-3">{{ t('admin.dashboard.kicker') }}</p>
+      <i18n-t scope="global" keypath="admin.dashboard.headline" tag="h1" class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
+        <template #desk><em class="italic-display">{{ t('admin.dashboard.desk') }}</em></template>
+      </i18n-t>
       <div class="rule-double w-full"></div>
     </header>
 
     <!-- ── Error ────────────────────────────────── -->
     <section v-if="errorOccurred" class="border border-[color:var(--rule)] bg-paper-deep p-12 text-center">
-      <p class="kicker kicker-signal mb-4">— Couldn't load —</p>
-      <h3 class="display-headline text-[28px] mb-3">The desk wouldn't load.</h3>
-      <button class="btn-editorial-ghost" @click="loadDashboard">Retry</button>
+      <p class="kicker kicker-signal mb-4">{{ t('admin.common.loadFailed') }}</p>
+      <h3 class="display-headline text-[28px] mb-3">{{ t('admin.dashboard.loadFailedTitle') }}</h3>
+      <button class="btn-editorial-ghost" @click="loadDashboard">{{ t('admin.common.retry') }}</button>
     </section>
 
     <div v-else-if="statsLoading" class="border-t-2 border-[color:var(--rule)] pt-12 flex items-center justify-center gap-3 text-[color:var(--mute)]">
       <BaseSpinner :size="16" />
-      <p class="kicker">Loading desk…</p>
+      <p class="kicker">{{ t('admin.dashboard.loading') }}</p>
     </div>
 
     <div v-else class="space-y-14">
@@ -27,48 +26,48 @@
       <section class="grid grid-cols-3 border-t-2 border-b-2 border-[color:var(--rule)] divide-x divide-[color:var(--rule)]">
         <div class="px-5 py-6">
           <div class="deco-num text-[44px] leading-none">{{ fmtNum(quickStats.totalUsers) }}</div>
-          <p class="kicker mt-3">Total subscribers</p>
+          <p class="kicker mt-3">{{ t('admin.dashboard.stats.totalUsers') }}</p>
         </div>
         <div class="px-5 py-6">
           <div class="deco-num text-[44px] leading-none text-[color:var(--leaf)]">{{ fmtNum(quickStats.emailsSentToday) }}</div>
-          <p class="kicker mt-3">Editions delivered today</p>
+          <p class="kicker mt-3">{{ t('admin.common.kpi.emailsToday') }}</p>
         </div>
         <div class="px-5 py-6">
           <div class="deco-num text-[44px] leading-none text-[color:var(--signal-deep)]">{{ fmtNum(quickStats.quizCompletionsToday) }}</div>
-          <p class="kicker mt-3">Quizzes filed today</p>
+          <p class="kicker mt-3">{{ t('admin.common.kpi.quizzesToday') }}</p>
         </div>
       </section>
 
       <!-- ── Scheduled jobs ──────────────────── -->
       <section>
-        <p class="kicker mb-4">— Press operations —</p>
+        <p class="kicker mb-4">{{ t('admin.dashboard.jobs.kicker') }}</p>
         <div class="space-y-0 border-t-2 border-b-2 border-[color:var(--rule)] divide-y divide-[color:var(--rule)]">
           <!-- Generate digests -->
           <article class="py-6">
             <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div class="flex-1">
                 <div class="flex items-baseline flex-wrap gap-3 mb-2">
-                  <p class="display-headline text-[22px] leading-tight">Generate digests</p>
-                  <span class="kicker">Cron · 06:00 UTC</span>
-                  <span v-if="jobStatus.digestGeneration.running" class="kicker inline-flex items-center gap-1.5" style="color: var(--signal-deep);"><span class="inline-block w-[6px] h-[6px] rounded-full bg-current animate-pulse"></span>Running…</span>
+                  <p class="display-headline text-[22px] leading-tight">{{ t('admin.dashboard.jobs.generate.title') }}</p>
+                  <span class="kicker">{{ t('admin.dashboard.jobs.generate.cron') }}</span>
+                  <span v-if="jobStatus.digestGeneration.running" class="kicker inline-flex items-center gap-1.5" style="color: var(--signal-deep);"><span class="inline-block w-[6px] h-[6px] rounded-full bg-current animate-pulse"></span>{{ t('admin.dashboard.jobs.running') }}</span>
                   <span
                     v-else-if="jobStatus.digestGeneration.lastResult"
                     :class="['kicker']"
                     :style="jobStatus.digestGeneration.lastResult.failed ? 'color: #b91c1c' : 'color: var(--leaf)'"
-                  >● {{ jobStatus.digestGeneration.lastResult.failed ? 'Failed' : 'Filed' }}</span>
+                  >● {{ jobStatus.digestGeneration.lastResult.failed ? t('admin.dashboard.jobs.failed') : t('admin.dashboard.jobs.generate.done') }}</span>
                 </div>
                 <p class="font-body-curio text-[13.5px] text-[color:var(--ink-soft)] mb-3 max-w-[60ch]">
-                  Generate AI news digests for all active subscribers. Optionally filter to a single beat to test the press.
+                  {{ t('admin.dashboard.jobs.generate.body') }}
                 </p>
                 <select
                   v-model="digestTopicFilter"
                   class="bg-transparent border-b border-[color:var(--rule)] py-1 font-mono-curio text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--signal)]"
                 >
-                  <option value="">All beats</option>
-                  <option v-for="t in allTopics" :key="t" :value="t">{{ t }}</option>
+                  <option value="">{{ t('admin.common.allBeats') }}</option>
+                  <option v-for="topic in allTopics" :key="topic" :value="topic">{{ topicLabel(topic) }}</option>
                 </select>
                 <p v-if="jobStatus.digestGeneration.lastRanAt" class="kicker mt-3">
-                  Last ran · {{ formatDate(jobStatus.digestGeneration.lastRanAt) }}
+                  {{ t('admin.dashboard.jobs.lastRan', { time: formatDate(jobStatus.digestGeneration.lastRanAt) }) }}
                 </p>
                 <p v-if="jobStatus.digestGeneration.lastResult" class="font-body-curio text-[13px] text-[color:var(--ink)] mt-1">
                   {{ formatJobResult('digests', jobStatus.digestGeneration.lastResult) }}
@@ -79,7 +78,7 @@
                   class="mt-4 border border-red-300 bg-red-50/40 p-4 text-[12px]"
                   role="alert"
                 >
-                  <p class="kicker mb-2" style="color: #b91c1c;">Why it failed</p>
+                  <p class="kicker mb-2" style="color: #b91c1c;">{{ t('admin.dashboard.jobs.whyFailed') }}</p>
                   <ul
                     v-if="jobStatus.digestGeneration.lastResult?.errorsByType"
                     class="space-y-1 mb-2 font-mono-curio text-[11px] text-red-900"
@@ -100,8 +99,8 @@
                 </div>
               </div>
               <button class="btn-editorial flex-shrink-0" :disabled="generating || jobStatus.digestGeneration.running" @click="handleGenerateDigests">
-                <span v-if="generating || jobStatus.digestGeneration.running">Running…</span>
-                <span v-else>Run now</span>
+                <span v-if="generating || jobStatus.digestGeneration.running">{{ t('admin.dashboard.jobs.running') }}</span>
+                <span v-else>{{ t('admin.dashboard.jobs.runNow') }}</span>
                 <BaseSpinner v-if="generating || jobStatus.digestGeneration.running" :size="13" />
                 <span v-else aria-hidden="true">→</span>
               </button>
@@ -113,28 +112,28 @@
             <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div class="flex-1">
                 <div class="flex items-baseline flex-wrap gap-3 mb-2">
-                  <p class="display-headline text-[22px] leading-tight">Send the morning post</p>
-                  <span class="kicker">Cron · hourly (per-user tz)</span>
-                  <span v-if="jobStatus.emailSend.running" class="kicker inline-flex items-center gap-1.5" style="color: var(--signal-deep);"><span class="inline-block w-[6px] h-[6px] rounded-full bg-current animate-pulse"></span>Running…</span>
+                  <p class="display-headline text-[22px] leading-tight">{{ t('admin.dashboard.jobs.send.title') }}</p>
+                  <span class="kicker">{{ t('admin.dashboard.jobs.send.cron') }}</span>
+                  <span v-if="jobStatus.emailSend.running" class="kicker inline-flex items-center gap-1.5" style="color: var(--signal-deep);"><span class="inline-block w-[6px] h-[6px] rounded-full bg-current animate-pulse"></span>{{ t('admin.dashboard.jobs.running') }}</span>
                   <span
                     v-else-if="jobStatus.emailSend.lastResult"
                     :class="['kicker']"
                     :style="jobStatus.emailSend.lastResult.failed ? 'color: #b91c1c' : 'color: var(--leaf)'"
-                  >● {{ jobStatus.emailSend.lastResult.failed ? 'Failed' : 'Delivered' }}</span>
+                  >● {{ jobStatus.emailSend.lastResult.failed ? t('admin.dashboard.jobs.failed') : t('admin.dashboard.jobs.send.done') }}</span>
                 </div>
                 <p class="font-body-curio text-[13.5px] text-[color:var(--ink-soft)] max-w-[60ch]">
-                  Batch send digest emails to subscribers with delivery enabled.
+                  {{ t('admin.dashboard.jobs.send.body') }}
                 </p>
                 <p v-if="jobStatus.emailSend.lastRanAt" class="kicker mt-3">
-                  Last ran · {{ formatDate(jobStatus.emailSend.lastRanAt) }}
+                  {{ t('admin.dashboard.jobs.lastRan', { time: formatDate(jobStatus.emailSend.lastRanAt) }) }}
                 </p>
                 <p v-if="jobStatus.emailSend.lastResult" class="font-body-curio text-[13px] text-[color:var(--ink)] mt-1">
                   {{ formatJobResult('emails', jobStatus.emailSend.lastResult) }}
                 </p>
               </div>
               <button class="btn-editorial flex-shrink-0" :disabled="sendingEmails || jobStatus.emailSend.running" @click="handleSendEmails">
-                <span v-if="sendingEmails || jobStatus.emailSend.running">Sending…</span>
-                <span v-else>Run now</span>
+                <span v-if="sendingEmails || jobStatus.emailSend.running">{{ t('admin.dashboard.jobs.send.sending') }}</span>
+                <span v-else>{{ t('admin.dashboard.jobs.runNow') }}</span>
                 <BaseSpinner v-if="sendingEmails || jobStatus.emailSend.running" :size="13" />
                 <span v-else aria-hidden="true">→</span>
               </button>
@@ -146,20 +145,20 @@
             <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div class="flex-1">
                 <div class="flex items-baseline flex-wrap gap-3 mb-2">
-                  <p class="display-headline text-[22px] leading-tight">Recycle old issues</p>
-                  <span class="kicker">Cron · 00:00 UTC</span>
-                  <span v-if="jobStatus.cleanup.running" class="kicker inline-flex items-center gap-1.5" style="color: var(--signal-deep);"><span class="inline-block w-[6px] h-[6px] rounded-full bg-current animate-pulse"></span>Running…</span>
+                  <p class="display-headline text-[22px] leading-tight">{{ t('admin.dashboard.jobs.cleanup.title') }}</p>
+                  <span class="kicker">{{ t('admin.dashboard.jobs.cleanup.cron') }}</span>
+                  <span v-if="jobStatus.cleanup.running" class="kicker inline-flex items-center gap-1.5" style="color: var(--signal-deep);"><span class="inline-block w-[6px] h-[6px] rounded-full bg-current animate-pulse"></span>{{ t('admin.dashboard.jobs.running') }}</span>
                   <span
                     v-else-if="jobStatus.cleanup.lastResult"
                     :class="['kicker']"
                     :style="jobStatus.cleanup.lastResult.failed ? 'color: #b91c1c' : 'color: var(--leaf)'"
-                  >● {{ jobStatus.cleanup.lastResult.failed ? 'Failed' : 'Recycled' }}</span>
+                  >● {{ jobStatus.cleanup.lastResult.failed ? t('admin.dashboard.jobs.failed') : t('admin.dashboard.jobs.cleanup.done') }}</span>
                 </div>
                 <p class="font-body-curio text-[13.5px] text-[color:var(--ink-soft)] max-w-[60ch]">
-                  Permanently delete digests and quizzes older than 30 days.
+                  {{ t('admin.dashboard.jobs.cleanup.body') }}
                 </p>
                 <p v-if="jobStatus.cleanup.lastRanAt" class="kicker mt-3">
-                  Last ran · {{ formatDate(jobStatus.cleanup.lastRanAt) }}
+                  {{ t('admin.dashboard.jobs.lastRan', { time: formatDate(jobStatus.cleanup.lastRanAt) }) }}
                 </p>
                 <p v-if="jobStatus.cleanup.lastResult" class="font-body-curio text-[13px] text-[color:var(--ink)] mt-1">
                   {{ formatJobResult('cleanup', jobStatus.cleanup.lastResult) }}
@@ -170,8 +169,8 @@
                 :disabled="cleaningUp"
                 @click="showCleanupConfirm = true"
               >
-                <span v-if="cleaningUp">Recycling…</span>
-                <span v-else>Run now</span>
+                <span v-if="cleaningUp">{{ t('admin.dashboard.jobs.cleanup.recycling') }}</span>
+                <span v-else>{{ t('admin.dashboard.jobs.runNow') }}</span>
                 <BaseSpinner v-if="cleaningUp" :size="13" />
                 <span v-else aria-hidden="true">↗</span>
               </button>
@@ -183,16 +182,16 @@
       <!-- ── Topics overview ─────────────────── -->
       <section>
         <div class="flex items-baseline justify-between mb-4">
-          <p class="kicker">— Beats overview —</p>
-          <span class="kicker">{{ topics.length }} beats</span>
+          <p class="kicker">{{ t('admin.dashboard.beats.kicker') }}</p>
+          <span class="kicker">{{ t('admin.dashboard.beats.count', { count: topics.length }) }}</span>
         </div>
         <table class="w-full text-[13.5px] border-t-2 border-[color:var(--rule)]">
           <thead>
             <tr class="border-b border-[color:var(--rule)]">
-              <th class="text-left py-3 kicker">Beat</th>
-              <th class="text-right py-3 kicker">Subscribers</th>
-              <th class="text-right py-3 kicker">Filed today</th>
-              <th class="text-right py-3 kicker">Last filed</th>
+              <th class="text-left py-3 kicker">{{ t('admin.dashboard.beats.columns.beat') }}</th>
+              <th class="text-right py-3 kicker">{{ t('admin.dashboard.beats.columns.subscribers') }}</th>
+              <th class="text-right py-3 kicker">{{ t('admin.dashboard.beats.columns.filedToday') }}</th>
+              <th class="text-right py-3 kicker">{{ t('admin.dashboard.beats.columns.lastFiled') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -201,7 +200,7 @@
               :key="topic.topic"
               class="border-b border-[color:var(--rule)]/40 last:border-0"
             >
-              <td class="py-3 font-display text-[15px] text-[color:var(--ink)]">{{ topic.topic }}</td>
+              <td class="py-3 font-display text-[15px] text-[color:var(--ink)]">{{ topicLabel(topic.topic) }}</td>
               <td class="py-3 text-right num-tab text-[14px]">{{ topic.subscriberCount }}</td>
               <td
                 :class="[
@@ -214,7 +213,7 @@
               </td>
             </tr>
             <tr v-if="topics.length === 0">
-              <td colspan="4" class="py-6 text-center kicker">No beats on file</td>
+              <td colspan="4" class="py-6 text-center kicker">{{ t('admin.dashboard.beats.empty') }}</td>
             </tr>
           </tbody>
         </table>
@@ -222,19 +221,19 @@
     </div>
 
     <!-- Cleanup confirm -->
-    <BaseModal :show="showCleanupConfirm" title="Confirm recycle" @close="showCleanupConfirm = false">
+    <BaseModal :show="showCleanupConfirm" :title="t('admin.dashboard.cleanupModal.title')" @close="showCleanupConfirm = false">
       <p class="font-body-curio text-[14.5px] text-[color:var(--ink-soft)] mb-6 leading-relaxed">
-        This permanently deletes digests and quizzes older than 30 days. Cannot be undone.
+        {{ t('admin.dashboard.cleanupModal.body') }}
       </p>
       <div class="flex justify-end gap-3">
-        <button class="btn-editorial-ghost" @click="showCleanupConfirm = false">Cancel</button>
+        <button class="btn-editorial-ghost" @click="showCleanupConfirm = false">{{ t('common.actions.cancel') }}</button>
         <button
           class="inline-flex items-center gap-3 bg-red-600 text-white px-5 py-3 font-mono-curio text-[12px] uppercase tracking-[0.14em] hover:bg-red-700 transition-colors disabled:opacity-50"
           :disabled="cleaningUp"
           @click="handleCleanup"
         >
           <BaseSpinner v-if="cleaningUp" :size="13" />
-          {{ cleaningUp ? 'Recycling…' : 'Confirm recycle' }}
+          {{ cleaningUp ? t('admin.dashboard.jobs.cleanup.recycling') : t('admin.dashboard.cleanupModal.confirm') }}
         </button>
       </div>
     </BaseModal>
@@ -243,12 +242,18 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, reactive } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { api } from '@/services/api'
 import { useToast } from '@/composables/useToast'
+import { useLocale } from '@/composables/useLocale'
+import { useTopicLabels } from '@/composables/useTopicLabels'
 import { ALL_TOPICS } from '@/data/topics'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseSpinner from '@/components/ui/BaseSpinner.vue'
 
+const { t } = useI18n()
+const { intlLocale } = useLocale()
+const { topicLabel } = useTopicLabels()
 const { error, success } = useToast()
 
 interface TopicStatus {
@@ -292,6 +297,8 @@ const errorOccurred = ref(false)
 const quickStats = ref({ totalUsers: 0, emailsSentToday: 0, quizCompletionsToday: 0 })
 const topics = ref<TopicStatus[]>([])
 
+// Canonical topic names (data/topics.ts) are what the backend filters on;
+// they are rendered through topicLabel() but sent as-is.
 const digestTopicFilter = ref('')
 const allTopics = ALL_TOPICS
 
@@ -310,15 +317,15 @@ const jobStatus = reactive<{
   cleanup: { running: false, lastRanAt: null, lastResult: null },
 })
 
-const fmtNum = (n?: number) => (n ?? 0).toLocaleString('en-US')
+const fmtNum = (n?: number) => (n ?? 0).toLocaleString(intlLocale.value)
 
 const formatDate = (value: string) =>
-  new Date(value).toLocaleString('en-US', {
+  new Date(value).toLocaleString(intlLocale.value, {
     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   })
 
 const formatDateShort = (value: string) =>
-  new Date(value).toLocaleString('en-US', {
+  new Date(value).toLocaleString(intlLocale.value, {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   })
 
@@ -332,21 +339,29 @@ const hasDigestErrors = (result: JobResult | null): boolean => {
 }
 
 const formatJobResult = (type: 'digests' | 'emails' | 'cleanup', result: JobResult): string => {
-  if (result.failed) return 'Job failed — check server logs'
+  if (result.failed) return t('admin.dashboard.result.failed')
   if (type === 'digests') {
     // Manual run uses successCount/totalUsers/failCount; the scheduled job uses
     // digestSuccess/usersProcessed/digestFail — normalize so both render cleanly.
-    const success = result.successCount ?? result.digestSuccess
-    const total = result.totalUsers ?? result.usersProcessed
-    const fail = result.failCount ?? result.digestFail
-    const skipped = result.skippedCount ? ` · ${result.skippedCount} skipped` : ''
-    return `${success ?? 0} / ${total ?? 0} users · ${fail ?? 0} failed${skipped}`
+    const success = result.successCount ?? result.digestSuccess ?? 0
+    const total = result.totalUsers ?? result.usersProcessed ?? 0
+    const fail = result.failCount ?? result.digestFail ?? 0
+    return result.skippedCount
+      ? t('admin.dashboard.result.digestsSkipped', { success, total, fail, skipped: result.skippedCount })
+      : t('admin.dashboard.result.digests', { success, total, fail })
   }
   if (type === 'emails') {
-    return `${result.sentCount} sent, ${result.failCount} failed (${result.totalUsersProcessed} users)`
+    return t('admin.dashboard.result.emails', {
+      sent: result.sentCount ?? 0,
+      fail: result.failCount ?? 0,
+      total: result.totalUsersProcessed ?? 0,
+    })
   }
   if (type === 'cleanup') {
-    return `${result.deletedDigests} digests recycled (cutoff: ${result.cutoffDate ? formatDateShort(result.cutoffDate) : '—'})`
+    return t('admin.dashboard.result.cleanup', {
+      count: result.deletedDigests ?? 0,
+      cutoff: result.cutoffDate ? formatDateShort(result.cutoffDate) : '—',
+    })
   }
   return ''
 }
@@ -361,10 +376,10 @@ const handleCleanup = async () => {
     jobStatus.cleanup.lastRanAt = new Date().toISOString()
     jobStatus.cleanup.lastResult = data
     showCleanupConfirm.value = false
-    success(`Recycle complete: ${data.deletedDigests} digests deleted`)
+    success(t('admin.dashboard.toast.cleanupDone', { count: data.deletedDigests }))
   } catch {
     jobStatus.cleanup.lastResult = { failed: true }
-    error('Failed to run recycle')
+    error(t('admin.dashboard.toast.cleanupFailed'))
   } finally {
     cleaningUp.value = false
     jobStatus.cleanup.running = false
@@ -449,7 +464,7 @@ const pollJobUntilComplete = (key: PollableJob, prevRanAt: string | null) => {
     } else if (attempts >= MAX_JOB_POLL_ATTEMPTS) {
       stopPoll(key)
       // Don't silently revert to idle: tell the admin the job may still be going.
-      error('The job is taking unusually long — it may still be running. Refresh later for final counts.')
+      error(t('admin.dashboard.toast.jobSlow'))
     }
   }, 3000)
   jobPollers.set(key, timer)
@@ -469,13 +484,13 @@ const handleGenerateDigests = async () => {
   try {
     const response = await api.admin.generateDigests(digestTopicFilter.value ? [digestTopicFilter.value] : undefined)
     if (response.data?.status === 'already_running') {
-      error('Digest generation is already running')
+      error(t('admin.dashboard.toast.generateRunning'))
     } else {
-      success('Digest generation started — counts will update below')
+      success(t('admin.dashboard.toast.generateStarted'))
     }
     pollJobUntilComplete('digestGeneration', prevRanAt)
   } catch {
-    error('Failed to start digest generation')
+    error(t('admin.dashboard.toast.generateFailed'))
   } finally {
     generating.value = false
   }
@@ -487,13 +502,13 @@ const handleSendEmails = async () => {
   try {
     const response = await api.admin.sendEmails()
     if (response.data?.status === 'already_running') {
-      error('Email send is already running')
+      error(t('admin.dashboard.toast.sendRunning'))
     } else {
-      success('Email send started — counts will update below')
+      success(t('admin.dashboard.toast.sendStarted'))
     }
     pollJobUntilComplete('emailSend', prevRanAt)
   } catch {
-    error('Failed to start email send')
+    error(t('admin.dashboard.toast.sendFailed'))
   } finally {
     sendingEmails.value = false
   }
@@ -521,7 +536,7 @@ const loadDashboard = async () => {
     }
   } catch {
     errorOccurred.value = true
-    error('Failed to load dashboard data')
+    error(t('admin.dashboard.toast.loadFailed'))
   } finally {
     statsLoading.value = false
   }

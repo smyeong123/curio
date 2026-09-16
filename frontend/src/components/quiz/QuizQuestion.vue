@@ -6,7 +6,7 @@
         {{ String(question.id).padStart(2, '0') }}
       </span>
       <div class="col-span-10 sm:col-span-11">
-        <p class="kicker mb-2">Question {{ question.id }} of {{ total }}</p>
+        <p class="kicker mb-2">{{ t('quiz.question.counter', { n: question.id, total }) }}</p>
         <p class="display-headline text-[clamp(20px,2.4vw,28px)] leading-[1.15]">{{ question.question }}</p>
       </div>
     </div>
@@ -46,11 +46,11 @@
           class="font-mono-curio text-[16px] text-[color:var(--signal-deep)]"
         >×</span>
         <!-- Non-color-only correctness cue for assistive tech -->
-        <span v-if="submitted && result && key === result.correctAnswer" class="sr-only">Correct answer</span>
+        <span v-if="submitted && result && key === result.correctAnswer" class="sr-only">{{ t('quiz.question.a11yCorrect') }}</span>
         <span
           v-else-if="submitted && key === selectedAnswer && result && !result.correct"
           class="sr-only"
-        >Your answer, incorrect</span>
+        >{{ t('quiz.question.a11yIncorrect') }}</span>
       </button>
     </div>
 
@@ -62,11 +62,11 @@
       ]"
     >
       <span class="col-span-2 sm:col-span-1 kicker pt-1" :style="result.correct ? 'color: var(--leaf)' : 'color: var(--signal-deep)'">
-        {{ result.correct ? '✓ Correct' : '× Wrong' }}
+        {{ result.correct ? `✓ ${t('quiz.question.correctTag')}` : `× ${t('quiz.question.wrongTag')}` }}
       </span>
       <div class="col-span-10 sm:col-span-11">
         <p class="font-body-curio text-[14.5px] leading-[1.55] text-[color:var(--ink-soft)] border-l-2 border-[color:var(--signal)] pl-4">
-          {{ result.correct ? 'Correct!' : 'Incorrect' }}<span v-if="result.explanation">.</span>
+          {{ result.correct ? t('quiz.question.feedbackCorrect') : t('quiz.question.feedbackIncorrect') }}<span v-if="result.explanation">.</span>
           <span v-if="result.explanation"> {{ result.explanation }}</span>
         </p>
       </div>
@@ -75,6 +75,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { QuizQuestion as QuizQuestionType, QuizSubmitResponse } from '@/types/quiz'
 
 const props = defineProps<{
@@ -88,6 +89,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   select: [questionId: number, answer: string]
 }>()
+
+const { t } = useI18n()
 
 // ── WAI-ARIA radio group keyboard pattern ──────────────────────────
 // Roving tabindex: only one option is in the Tab order — the selected one, or

@@ -3,24 +3,23 @@
     <!-- ── Top strip ────────────────────────────────────────────── -->
     <div class="bg-ink text-[color:var(--paper)] py-2">
       <div class="mx-auto flex w-full max-w-[1100px] items-center justify-between px-6 text-[11px] uppercase tracking-[0.18em] font-mono-curio">
-        <span>Curio · New subscriber setup</span>
-        <button class="opacity-80 hover:opacity-100" @click="handleLogout">Log out ↗</button>
+        <span>{{ t('onboarding.strip.title') }}</span>
+        <div class="flex items-center gap-4">
+          <LanguageToggle />
+          <button class="opacity-80 hover:opacity-100" @click="handleLogout">{{ t('onboarding.strip.logOut') }}</button>
+        </div>
       </div>
     </div>
 
     <div class="mx-auto w-full max-w-[1100px] px-6 py-12 lg:py-16">
       <!-- ── Header ──────────────────────────────────────────────── -->
       <header class="mb-12">
-        <p class="kicker kicker-signal mb-4">Section I — Pick your beats</p>
-        <h1 class="display-headline text-[clamp(40px,6vw,84px)] leading-[0.96] mb-6">
-          What's
-          <em class="italic-display">your beat</em>
-          this morning?
-        </h1>
+        <p class="kicker kicker-signal mb-4">{{ t('onboarding.header.kicker') }}</p>
+        <i18n-t scope="global" keypath="onboarding.header.headline" tag="h1" class="display-headline text-[clamp(40px,6vw,84px)] leading-[0.96] mb-6">
+          <template #beat><em class="italic-display">{{ t('onboarding.header.beat') }}</em></template>
+        </i18n-t>
         <p class="font-body-curio text-[16px] text-[color:var(--ink-soft)] leading-relaxed max-w-[60ch]">
-          Curio writes a different paper for every reader. Pick at least three beats and
-          we'll file your first issue at 08:00 tomorrow. You can change them whenever you
-          like.
+          {{ t('onboarding.header.lede') }}
         </p>
       </header>
 
@@ -29,13 +28,15 @@
         <div class="flex items-baseline gap-4">
           <span class="deco-num text-[64px] leading-none">{{ selectedTopics.length }}</span>
           <div>
-            <p class="kicker">Selected</p>
+            <p class="kicker">{{ t('onboarding.counter.selected') }}</p>
             <p class="font-display text-[15px] text-[color:var(--ink-soft)]">
-              <span class="num-tab">3</span> minimum · pick as many as you like
+              <i18n-t scope="global" keypath="onboarding.counter.minimum" tag="span">
+                <template #min><span class="num-tab">3</span></template>
+              </i18n-t>
               <span v-if="selectedTopics.length < 3" class="text-[color:var(--signal-deep)]">
-                · {{ 3 - selectedTopics.length }} more to go
+                · {{ t('onboarding.counter.moreToGo', { count: 3 - selectedTopics.length }) }}
               </span>
-              <span v-else class="text-[color:var(--leaf)]">· you're all set</span>
+              <span v-else class="text-[color:var(--leaf)]">· {{ t('onboarding.counter.allSet') }}</span>
             </p>
           </div>
         </div>
@@ -43,11 +44,11 @@
 
       <!-- ── Quick picks ────────────────────────────────────────── -->
       <section class="mb-12">
-        <p class="kicker mb-4">— Or grab a preset bundle —</p>
+        <p class="kicker mb-4">{{ t('onboarding.presets.kicker') }}</p>
         <div class="flex flex-wrap gap-3">
           <button
             v-for="preset in quickPicks"
-            :key="preset.label"
+            :key="preset.id"
             class="group flex items-baseline gap-3 px-4 py-2.5 border border-[color:var(--rule)] bg-paper hover:bg-ink hover:text-[color:var(--paper)] transition-colors"
             @click="applyPreset(preset.topics)"
           >
@@ -78,16 +79,16 @@
               <span class="deco-num text-[44px] leading-none text-[color:var(--mute)] flex-shrink-0">{{ String(dIdx + 1).padStart(2, '0') }}</span>
               <div class="min-w-0">
                 <div class="flex items-baseline gap-3 mb-1">
-                  <span class="kicker">Chapter</span>
+                  <span class="kicker">{{ t('onboarding.hierarchy.chapter') }}</span>
                   <span v-if="getDomainSelectedCount(domain) > 0" class="kicker kicker-signal">
-                    {{ getDomainSelectedCount(domain) }} on the beat
+                    {{ t('onboarding.hierarchy.onTheBeat', { count: getDomainSelectedCount(domain) }) }}
                   </span>
                 </div>
                 <h3 class="display-headline text-[clamp(24px,3.5vw,38px)] leading-tight flex items-center gap-3">
                   <AppIcon :name="domain.icon" class="h-[0.75em] w-[0.75em] flex-shrink-0 text-[color:var(--signal-deep)]" />
-                  <span>{{ domain.name }}</span>
+                  <span>{{ groupName(domain) }}</span>
                 </h3>
-                <p class="font-body-curio text-[13px] text-[color:var(--mute)] mt-1">{{ domain.description }}</p>
+                <p class="font-body-curio text-[13px] text-[color:var(--mute)] mt-1">{{ groupDescription(domain) }}</p>
               </div>
             </div>
             <span
@@ -115,7 +116,7 @@
               >
                 <div class="flex items-baseline gap-4">
                   <span class="kicker num-tab">{{ String.fromCharCode(65 + sIdx) }}</span>
-                  <span class="font-display text-[18px] font-medium">{{ subcategory.name }}</span>
+                  <span class="font-display text-[18px] font-medium">{{ groupName(subcategory) }}</span>
                 </div>
                 <div class="flex items-center gap-3">
                   <span
@@ -148,7 +149,7 @@
                   ]"
                   @click="toggleTopic(topic)"
                 >
-                  <span class="font-display text-[14px] leading-tight">{{ topic }}</span>
+                  <span class="font-display text-[14px] leading-tight">{{ topicLabel(topic) }}</span>
                   <span
                     :class="[
                       'font-mono-curio text-[12px] flex-shrink-0',
@@ -165,18 +166,18 @@
 
       <!-- ── Selection summary ───────────────────────────────── -->
       <section v-if="selectedTopics.length > 0" class="mb-10 border border-[color:var(--rule)] bg-paper-deep p-6">
-        <p class="kicker mb-3">Your beats</p>
+        <p class="kicker mb-3">{{ t('onboarding.summary.kicker') }}</p>
         <div class="flex flex-wrap gap-2">
           <span
             v-for="topic in selectedTopics"
             :key="topic"
             class="inline-flex items-center gap-2 px-3 py-1.5 bg-ink text-[color:var(--paper)] font-mono-curio text-[11px] uppercase tracking-[0.12em]"
           >
-            {{ topic }}
+            {{ topicLabel(topic) }}
             <button
               class="opacity-70 hover:opacity-100 hover:text-[color:var(--signal)]"
               @click="toggleTopic(topic)"
-              :aria-label="`Remove ${topic}`"
+              :aria-label="t('onboarding.summary.remove', { topic: topicLabel(topic) })"
             >×</button>
           </span>
         </div>
@@ -189,15 +190,15 @@
           :disabled="selectedTopics.length < 3 || saving"
           @click="handleSave"
         >
-          <span v-if="saving">Filing…</span>
-          <span v-else>Start reading</span>
+          <span v-if="saving">{{ t('onboarding.cta.filing') }}</span>
+          <span v-else>{{ t('onboarding.cta.start') }}</span>
           <span aria-hidden="true">→</span>
         </button>
         <p v-if="selectedTopics.length < 3" class="kicker">
-          {{ 3 - selectedTopics.length }} more beat{{ 3 - selectedTopics.length !== 1 ? 's' : '' }} to publish
+          {{ t('onboarding.cta.moreToPublish', 3 - selectedTopics.length) }}
         </p>
         <router-link to="/dashboard/archive" class="kicker hover:text-[color:var(--ink)]">
-          Skip for now —
+          {{ t('onboarding.cta.skip') }}
         </router-link>
       </div>
     </div>
@@ -205,43 +206,57 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { useLocale } from '@/composables/useLocale'
 import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/user'
 import { useToast } from '@/composables/useToast'
+import { useTopicLabels } from '@/composables/useTopicLabels'
 import { TOPIC_HIERARCHY } from '@/data/topics'
 import type { TopicL1, TopicL2, TopicIcon } from '@/data/topics'
 import { detectBrowserTimezone } from '@/utils/timezone'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import LanguageToggle from '@/components/ui/LanguageToggle.vue'
 import { getApiErrorMessage } from '@/utils/apiError'
+
+const { t } = useI18n()
+const { locale } = useLocale()
+const { topicLabel, groupName, groupDescription } = useTopicLabels()
 
 const topicHierarchy = TOPIC_HIERARCHY
 
-interface QuickPick { label: string; icon: TopicIcon | 'globe'; topics: string[] }
+interface QuickPick { id: string; label: string; icon: TopicIcon | 'globe'; topics: string[] }
 
-const quickPicks: QuickPick[] = [
+// Preset labels come from the catalog; the topic lists are canonical names
+// (data/topics.ts) and go to the API untranslated.
+const quickPicks = computed<QuickPick[]>(() => [
   {
-    label: 'Frontier Watcher',
+    id: 'frontierWatcher',
+    label: t('onboarding.presets.frontierWatcher'),
     icon: 'brain',
     topics: ['Claude (Anthropic)', 'GPT & ChatGPT (OpenAI)', 'Gemini (Google DeepMind)', 'Grok (xAI)', 'New & Emerging Models']
   },
   {
-    label: 'Open Source',
+    id: 'openSource',
+    label: t('onboarding.presets.openSource'),
     icon: 'globe',
     topics: ['Llama (Meta AI)', 'DeepSeek', 'Qwen (Alibaba)', 'Mistral', 'Pricing & Availability']
   },
   {
-    label: 'Agent Builder',
+    id: 'agentBuilder',
+    label: t('onboarding.presets.agentBuilder'),
     icon: 'bot',
     topics: ['Claude Code & CLI Agents', 'Cursor, Aider & IDE Agents', 'Devin & Autonomous Coders', 'Browser & Computer-Use Agents', 'Agent Frameworks & SDKs']
   },
   {
-    label: 'Capability Tracker',
+    id: 'capabilityTracker',
+    label: t('onboarding.presets.capabilityTracker'),
     icon: 'rocket',
     topics: ['Reasoning & Context', 'Multimodal (Vision, Audio, Video)', 'Benchmarks & Evaluations', 'Pricing & Availability', 'New & Emerging Models']
   }
-]
+])
 
 const selectedTopics = ref<string[]>([])
 
@@ -295,14 +310,17 @@ const handleSave = async () => {
   try {
     // Capture the user's timezone up front so their first digest lands at 08:00
     // local (the send-gate defaults an unset timezone to 08:00 UTC otherwise).
+    // The edition the reader signed up in becomes their digest language, so a
+    // Korean-UI signup gets Korean stories from the first issue.
     await userStore.updatePreferences(selectedTopics.value, {
       timezone: detectBrowserTimezone(),
       deliveryHour: 8,
+      language: locale.value,
     })
-    success('Beats saved! Your first issue is on its way.')
+    success(t('onboarding.toasts.saved'))
     router.push({ name: 'archive' })
   } catch (err: unknown) {
-    error(getApiErrorMessage(err, 'Failed to save preferences. Please try again.'))
+    error(getApiErrorMessage(err, t('onboarding.toasts.saveFailed')))
   } finally {
     saving.value = false
   }

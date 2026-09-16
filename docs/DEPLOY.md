@@ -211,7 +211,7 @@ On the server, in `~/curio`:
   - `curio-frontend` (healthy after ~5s)
 - [ ] Check logs for errors: `docker compose logs --tail=50 backend`
   - Must see: `Started CurioApplication in N seconds`
-  - Must see: Flyway migrations applied (V1–V27)
+  - Must see: Flyway migrations applied (V1–V28)
 - [ ] Tail front: `docker compose logs --tail=20 frontend` — should show nginx ready
 
 ---

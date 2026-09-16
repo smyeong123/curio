@@ -117,6 +117,7 @@ curio/
 │       │   │       ├── scheduler/    DigestGenerationJob, EmailSendJob, CleanupJob, ExpiredAuthRowReaper, JobStatusRegistry, JobFailureNotifier
 │       │   │       ├── exception/    GlobalExceptionHandler, ResourceNotFoundException, UnauthorizedException, RootCauses
 │       │   │       ├── email/        EmailService
+│       │   │       ├── i18n/         Language (EN/KO edition: codes, locales, digest-content stamp)
 │       │   │       ├── webhook/      WebhookController
 │       │   │       └── port/in/      EmailUseCase
 │       │   └── resources/
@@ -124,9 +125,11 @@ curio/
 │       │       ├── application-dev.yml
 │       │       ├── application-prod.yml
 │       │       ├── application-test.yml
-│       │       ├── db/migration/    # V1-V27 Flyway SQL scripts
+│       │       ├── db/migration/    # V1-V28 Flyway SQL scripts
+│       │       ├── messages.properties      # digest-email chrome, English (subject, labels, date patterns)
+│       │       ├── messages_ko.properties   # same keys, Korean edition
 │       │       └── templates/
-│       │           └── digest-email.html   # Thymeleaf email template
+│       │           └── digest-email.html   # Thymeleaf email template (all copy via #{...} keys, lang from the digest)
 │       └── test/java/com/curio/
 │           ├── CurioApplicationTests.java
 │           ├── HexagonalArchitectureTest.java  # ArchUnit rules (4 rules)
@@ -135,13 +138,15 @@ curio/
 │           ├── auth/controller/     AuthControllerIntegrationTest
 │           ├── auth/service/        AuthServiceTest, UnsubscribeTokenServiceTest
 │           ├── user/controller/     UserControllerPasswordIntegrationTest, UserControllerUnsubscribeIntegrationTest
-│           ├── user/service/        UserServicePasswordTest, UserApiKeyServiceTest
+│           ├── user/service/        UserServicePasswordTest, UserApiKeyServiceTest, UserServicePreferencesTest
 │           ├── quiz/service/        QuizServiceTest, QuizAttemptRecorderTest
 │           ├── news/service/        ClaudeServiceTest, GeminiServiceTest, OpenAiServiceTest, NewsApiClientTest, NewsServiceTest
 │           ├── shared/webhook/      WebhookControllerSignatureIntegrationTest
 │           ├── shared/scheduler/    DigestGenerationJobTest
 │           ├── shared/concurrent/   SingleFlightTest
 │           ├── shared/config/       JwtSecretsValidatorTest
+│           ├── shared/i18n/         LanguageTest
+│           ├── shared/email/        EmailServiceRenderTest
 │           └── shared/security/     ApiKeyCipherTest
 │
 ├── frontend/                        # Vue 3 SPA (TypeScript + Vite)
@@ -160,6 +165,9 @@ curio/
 │       │   ├── styles/main.css      # Tailwind v4 import + @theme + base styles
 │       │   └── vue.svg              # Unused Vite asset
 │       ├── router/index.ts          # Routes + auth/admin guards
+│       ├── i18n/
+│       │   ├── index.ts             # vue-i18n instance, locale detection, catalog auto-discovery
+│       │   └── locales/{en,ko}/     # one JSON per namespace (common, home, layout, topics, auth, archive, quiz, settings, studio, onboarding, admin, legal)
 │       ├── stores/                  # auth, user, news, quiz (Pinia)
 │       ├── services/
 │       │   ├── api.ts               # Single Axios client + all endpoint methods
@@ -169,11 +177,13 @@ curio/
 │       │   ├── useEnsureTimezone.ts # Device-timezone auto-follow (wired in DashboardLayout)
 │       │   ├── useFocusOnEnter.ts
 │       │   ├── useFocusTrap.ts
+│       │   ├── useLocale.ts         # Edition (en/ko) state: persist on explicit choice, <html lang>, document.title
 │       │   ├── useTheme.ts          # Light/dark theme toggle
+│       │   ├── useTopicLabels.ts    # Localized labels for the topic taxonomy (names stay canonical)
 │       │   └── useToast.ts          # Actively used
 │       ├── types/                   # user.ts, news.ts, quiz.ts
 │       ├── components/
-│       │   ├── ui/                  # BaseButton, BaseInput, BaseModal, BaseSpinner, ToastContainer, AppIcon
+│       │   ├── ui/                  # BaseButton, BaseInput, BaseModal, BaseSpinner, ToastContainer, AppIcon, LanguageToggle
 │       │   ├── auth/                # LoginForm, RegisterForm
 │       │   ├── layout/              # DashboardLayout, LegalLayout
 │       │   ├── quiz/                # QuizQuestion, QuizResults
@@ -240,7 +250,7 @@ Base URL: `/api/v1`
 |--------|------|------|-------------|----------|
 | GET | `/me` | JWT | - | `UserResponse` |
 | PUT | `/me` | JWT | `{ fullName?, deliveryEnabled? }` | `UserResponse` |
-| GET | `/preferences` | JWT | - | `{ topics: string[] }` |
+| GET | `/preferences` | JWT | - | `{ topics: string[], timezone, deliveryHour, timezoneAuto, language }` |
 | PUT | `/preferences` | JWT | `PreferencesRequest { topics }` | `{ topics }` |
 | DELETE | `/me` | JWT | - | 200 empty |
 | GET | `/unsubscribe?token=` | Public | - | HTML string |
@@ -337,6 +347,7 @@ User implements Spring Security's `UserDetails`. `isEnabled()` returns `emailVer
 | `id` | UUID | PK | |
 | `user_id` | UUID | FK -> users, NOT NULL | @ManyToOne LAZY |
 | `topics` | TEXT[] | PostgreSQL array | |
+| `language` | VARCHAR(8) | NOT NULL DEFAULT 'en', CHECK IN ('en','ko') | Edition the digest, quiz and daily email are written in (V28); same codes as the frontend locale |
 | `created_at` | TIMESTAMP | @PrePersist | |
 | `updated_at` | TIMESTAMP | @PrePersist, @PreUpdate | |
 
@@ -346,7 +357,7 @@ User implements Spring Security's `UserDetails`. `isEnabled()` returns `emailVer
 |--------|------|-------------|-------|
 | `id` | UUID | PK | |
 | `user_id` | UUID | FK -> users, NOT NULL | |
-| `content` | JSONB | NOT NULL | Contains `summaries` array and `generatedFor` topics |
+| `content` | JSONB | NOT NULL | Contains `summaries` array, `generatedFor` topics and `language` (`"en"`/`"ko"`, the edition the stories were written in; absent on pre-V28 digests = English) |
 | `generated_at` | TIMESTAMP | @PrePersist | NOT `created_at` |
 | `email_sent_at` | TIMESTAMP | nullable | Set when email sent |
 | `email_provider_id` | VARCHAR | UNIQUE, nullable | Resend message ID |
@@ -456,6 +467,7 @@ Indexes: `idx_audit_log_actor_id` (actor_id), `idx_audit_log_action` (action), `
 | V25 | `quiz_attempt_unique_per_user` (adds `uq_quiz_attempts_user_quiz` UNIQUE(user_id, quiz_id): one attempt row per (user, quiz), "better score wins") |
 | V26 | `add_timezone_auto` (Adds timezone_auto column to user_preferences for device-based timezone auto-follow) |
 | V27 | `normalize_emails_lowercase` (Folds existing emails to trimmed-lowercase and adds a `lower(email)` unique index — one account per real mailbox regardless of case; backs `EmailNormalizer`) |
+| V28 | `add_language_to_user_preferences` (Adds `language` VARCHAR(8) NOT NULL DEFAULT 'en' + CHECK ('en','ko') to user_preferences — the edition the AI writes the digest/quiz/email in) |
 
 ### Service Layer
 
@@ -471,10 +483,16 @@ QuizGenerationResult generateQuizQuestions(String digestContent);
 default List<NewsSummary> generateNewsSummaries(String topic, String overrideApiKey);
 default QuizGenerationResult generateQuizQuestions(String digestContent, String overrideApiKey);
 
-// Difficulty-aware quiz generation (implementations may ignore the hint; Claude honors it)
+// Difficulty-aware quiz generation (the shared AbstractAiProvider prompt honors the hint for every provider)
 enum DifficultyHint { EASIER, NORMAL, HARDER }
 default QuizGenerationResult generateQuizQuestions(String digestContent, DifficultyHint hint);
 default QuizGenerationResult generateQuizQuestions(String digestContent, DifficultyHint hint, String overrideApiKey);
+
+// Edition-aware entry points (what NewsService / QuizService actually call). `Language` (shared/i18n) is EN or KO;
+// the 1-/2-/3-arg overloads above all delegate here with Language.EN. Platform-key summaries are cached per
+// topic+date+language (`news:summaries:{topic}:{date}:{lang}`); the quiz language must be the digest's own.
+default List<NewsSummary> generateNewsSummaries(String topic, Language language, String overrideApiKey);
+default QuizGenerationResult generateQuizQuestions(String digestContent, Language language, DifficultyHint hint, String overrideApiKey);
 ```
 
 Provider selected via `AI_PROVIDER` env var:
@@ -571,6 +589,7 @@ All providers: Redis cache check first, call NewsApiClient for articles, call AI
 | Vite | ^7.2.4 | Active |
 | Pinia | ^3.0.4 | Active (no persistedstate plugin) |
 | Vue Router | ^4.6.4 | Active |
+| vue-i18n | ^11.4.10 | Active (composition API, runtime message compiler over JSON catalogs) |
 | Axios | ^1.13.5 | Active |
 | Tailwind CSS | ^4.1.18 | Active (v4 with CSS-based config) |
 | TypeScript | ~5.9.3 | Active |
@@ -586,10 +605,10 @@ All providers: Redis cache check first, call NewsApiClient for articles, call AI
 "preview": "vite preview",
 "test:unit": "vitest",
 "test:e2e": "cypress open",
-"lint": "vue-tsc --noEmit"
+"lint": "vue-tsc -b && eslint src tests"
 ```
 
-**Note:** No `format` script and no ESLint/Prettier config — `lint` is type-checking only (`vue-tsc --noEmit`).
+**Note:** No `format` script or Prettier config — `lint` is project-mode type-checking (`vue-tsc -b`; a bare `vue-tsc --noEmit` checks nothing because the root tsconfig only holds references) plus a deliberately narrow ESLint set (`eslint.config.mjs`: `no-use-before-define` for the computed-TDZ trap; no style rules).
 
 ### Routing
 
@@ -714,7 +733,7 @@ All 39 frontend API calls (across the `auth`, `user`, `apiKeys`, `news`, `quiz`,
 
 ### Components
 
-**UI (6):** `BaseButton`, `BaseInput`, `BaseModal`, `BaseSpinner`, `ToastContainer`, `AppIcon` (custom inline SVG icon system with 18+ icons)
+**UI (7):** `BaseButton`, `BaseInput`, `BaseModal`, `BaseSpinner`, `ToastContainer`, `AppIcon` (custom inline SVG icon system with 18+ icons), `LanguageToggle` (edition switch — `link` variant for mastheads/footers, `switch` variant for the sidebar foot)
 
 **Auth (2):** `LoginForm`, `RegisterForm`
 
@@ -735,8 +754,23 @@ All 39 frontend API calls (across the `auth`, `user`, `apiKeys`, `news`, `quiz`,
 | `useToast()` | Active | Module-level singleton. Used throughout views for notifications. |
 | `useEnsureTimezone()` | Active | Captures/re-syncs the device timezone on authenticated app entry (wired in `DashboardLayout`) for timezone auto-follow. |
 | `useTheme()` | Active | Light/dark theme state + toggle. |
+| `useLocale()` | Active | Edition state (`en` \| `ko`): `locale`, `intlLocale` (BCP-47 for Intl), `setLocale`, `toggleLocale`. Persists only on explicit choice; keeps `<html lang>` + `document.title` in sync. |
+| `useTopicLabels()` | Active | `topicLabel(name)`, `groupName(l1\|l2)`, `groupDescription(l1)` — render-time labels for the canonical topic taxonomy. |
 | `useFocusTrap()` | Active | Traps focus within modals/drawers for keyboard accessibility. |
 | `useFocusOnEnter()` | Active | Moves focus to a target element on mount/enter. |
+
+### Internationalization (i18n)
+
+The UI ships in two editions, **English (default) and Korean**, via **vue-i18n v11** (composition mode). Digest *content* (headlines, TL;DRs, quiz questions) and the daily email are written by the backend in the **account's edition** (`user_preferences.language`, set at onboarding from the UI locale and in Settings → Edition) — a separate, server-side choice from the device-level UI locale. The Settings selector sets both; the masthead/sidebar toggles change only the UI.
+
+- **Catalogs:** `src/i18n/locales/<en|ko>/<namespace>.json`, auto-discovered by `import.meta.glob` in `src/i18n/index.ts` and exposed as `t('<namespace>.<key>')`. Namespaces map to feature areas (`common`, `home`, `layout`, `topics`, `auth`, `archive`, `quiz`, `settings`, `studio`, `onboarding`, `admin`, `legal`). Both editions must ship the same key tree — `src/__tests__/i18n/useLocale.test.ts` asserts it. `fallbackLocale: 'en'` is a safety net, not a plan.
+- **Detection order:** explicit choice in `localStorage['curio:locale']` → `navigator.languages` (first `en`/`ko` match) → `en`. A browser-detected locale is never written to storage; only `setLocale()` persists.
+- **Document sync:** `useLocale.ts` stamps `<html lang>` and `document.title` at boot (`main.ts` calls `syncDocumentLocale()` before mount, like the stored-theme pre-paint) and on every switch. `:lang(ko)` CSS and the Noto KR font fallbacks key off that attribute.
+- **Switch points:** `LanguageToggle` in the landing masthead + footer, auth-page mastheads, `LegalLayout` header, the dashboard sidebar/drawer foot (next to Lights), and a radiogroup in Settings.
+- **Topic taxonomy:** names in `data/topics.ts` are canonical ids (stored in `user_preferences.topics`, carried in digest JSON) — never translated at the data layer. `useTopicLabels()` maps them at render time from `topics.json` (`leaves` keyed by canonical name, `groups` keyed by L1/L2 id).
+- **Locale-sensitive formatting:** views pass `intlLocale` (`en-US` / `ko-KR`) to `toLocale*String` instead of a hard-coded `'en-US'`.
+- **Message-format gotchas:** vue-i18n compiles every string — `{name}` interpolates, `|` splits plural forms, `@` starts a linked message; a literal `@`/`|` must be written `{'@'}` / `{'|'}`. Inline markup inside a sentence goes through `<i18n-t scope="global">` with named slots.
+- **Tests:** Vitest installs the app's i18n singleton for every mount and resets it to `en` before each test (`__tests__/setup.ts`); Cypress pins `curio:locale=en` in `tests/e2e/support.ts` unless a test already chose an edition (`i18n.cy.ts` covers switching + persistence).
 
 ### TypeScript Types
 
@@ -750,7 +784,7 @@ The design system is an editorial "newsprint" theme, not the old indigo/Manrope 
 
 - **Tailwind CSS v4**, imported via `@import "tailwindcss"` in `src/assets/styles/main.css` (loaded by `main.ts`). Design tokens live in an `@theme inline` block that maps Tailwind color utilities (`bg-paper`, `text-ink`, `text-signal`, …) onto runtime CSS variables, so the palette flips between light and dark by redefining those variables under `:root[data-theme='dark']` / `:root.dark` (kept in sync by `useTheme.ts`).
 - **Palette:** warm paper (`--paper #f3ede1`) / ink (`--ink #14130f`) neutrals with a signal-orange accent (`--signal #ff4a1c`) and a leaf green — no indigo primary. Components use these editorial tokens throughout.
-- **Fonts** load from Google Fonts in `index.html`: **Fraunces** (display, `--font-display`), **Inter Tight** (body, `--font-body`), and **JetBrains Mono** (kickers/metadata, `--font-mono`). There is no Manrope.
+- **Fonts** load from Google Fonts in `index.html`: **Fraunces** (display, `--font-display`), **Inter Tight** (body, `--font-body`), and **JetBrains Mono** (kickers/metadata, `--font-mono`), each with a **Noto Serif KR / Noto Sans KR** fallback for Hangul (served as unicode-range subsets, so English readers never download them). Unlayered `:root:lang(ko)` rules at the end of `main.css` drop the synthesized italic (Hangul has none — emphasis keeps colour and gains weight) and loosen the Latin-tuned tracking. There is no Manrope.
 - `tailwind.config.js` (v3-style) is still present and in use for `darkMode: 'class'` and the `content` globs; its `primary #6366F1` / `secondary #F59E0B` colors are legacy leftovers that no component references.
 
 ---
@@ -874,15 +908,20 @@ The full variable reference (what each var is, why it's needed, prod-required vs
 | `JwtSecretsValidatorTest` | Unit | Boot-time JWT secret validation (length, distinctness, non-placeholder) |
 | `SingleFlightTest` | Unit | In-process per-key single-flight lock (one cold-cache call per topic+date) |
 | `DigestGenerationJobTest` | Job | Scheduled job execution, digest generation, idempotency |
+| `LanguageTest` | Unit | Edition parsing: lenient `fromCode` for stored values, strict `isSupportedCode` for API input, digest-content stamp with English fallback |
+| `EmailServiceRenderTest` | Unit | Renders the real digest template through the real `messages*.properties` (no Spring context): Korean vs English chrome, `<html lang>`, generic-reader fallback, quiz block omission, localized subject |
+| `UserServicePreferencesTest` | Unit | `language` on PUT /preferences: lowercased on store, unchanged when omitted, rejected when unsupported, exposed on GET with English default |
 
 ### Frontend Test Inventory
 
-**Unit tests (Vitest): 13 test files** in `src/__tests__/` (as of 2026-07-18)
-- Components: Various component logic tests
+**Unit tests (Vitest): 22 test files** in `src/__tests__/` (as of 2026-09-16)
+- Components: BaseButton, BaseInput, BaseModal, LoginForm, RegisterForm, QuizQuestion, QuizResults, LanguageToggle
+- Views (both editions — each mounts in English, switches to Korean, asserts translated copy and unchanged English): HomeView, LoginView, ArchiveView, SettingsView, StatsView, LegalViews
 - Stores: Pinia store tests (auth, user, news, quiz)
-- Composables: Reusable composable tests
+- Composables / i18n: `useToast`, `useTopicLabels`, `useLocale` + catalog key-tree parity (every key in `en` exists in `ko` and vice versa)
+- Utils: `safeUrl`
 
-**E2E tests (Cypress): 9 spec files** (as of 2026-07-18)
+**E2E tests (Cypress): 10 spec files** (as of 2026-09-16; `tests/e2e/support.ts` pins the edition to English before boot)
 
 | Spec | Coverage |
 |---|---|
@@ -894,6 +933,7 @@ The full variable reference (what each var is, why it's needed, prod-required vs
 | `not-found.cy.ts` | 404 catchall route, navigation |
 | `admin.cy.ts` | Admin dashboard, users list, user detail, stats, digest browser, audit log |
 | `reset-password.cy.ts` | Password reset flow |
+| `i18n.cy.ts` | Edition switch from the landing masthead and dashboard sidebar, `<html lang>` + title, persistence across reload and routes |
 | `ui-screenshots.cy.ts` | Visual screenshots (7 pages desktop, 3 mobile) -- no assertions, screenshot capture only |
 
 Coverage gaps and test to-dos are tracked in the private working notes (`docs-internal/CODEBASE_NOTES.md`).

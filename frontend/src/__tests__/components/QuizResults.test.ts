@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import QuizResults from '@/components/quiz/QuizResults.vue'
+import { i18n } from '@/i18n'
 
 describe('QuizResults', () => {
   it('displays score', () => {
@@ -45,5 +46,16 @@ describe('QuizResults', () => {
     const wrapper = mount(QuizResults, { props: { score: 3, total: 5 } })
     await wrapper.findAll('button')[1].trigger('click')
     expect(wrapper.emitted('back')).toBeTruthy()
+  })
+
+  it('renders the Korean edition when the locale is ko', () => {
+    i18n.global.locale.value = 'ko'
+    const wrapper = mount(QuizResults, { props: { score: 4, total: 5 } })
+    expect(wrapper.text()).toContain('— 채점 결과 도착 —')
+    expect(wrapper.text()).toContain('아주 훌륭해요!')
+    expect(wrapper.text()).toContain('정답률 80%')
+    expect(wrapper.text()).toContain('답 확인하기')
+    expect(wrapper.text()).toContain('오늘의 에디션으로 →')
+    expect(wrapper.get('[data-tier]').attributes('data-tier')).toBe('excellent')
   })
 })
