@@ -1,6 +1,5 @@
 {
   "app": {
-    "name": "Curio",
     "title": "Curio — A daily for AI model news",
     "tagline": "— A daily for AI model news",
     "loading": "Loading Curio",
@@ -15,11 +14,8 @@
   "actions": {
     "back": "Go back",
     "home": "Go home",
-    "retry": "Try again",
-    "close": "Close",
-    "cancel": "Cancel",
-    "save": "Save",
-    "dismiss": "Dismiss"
+    "retry": "Retry",
+    "cancel": "Cancel"
   },
   "a11y": {
     "closeDialog": "Close dialog",

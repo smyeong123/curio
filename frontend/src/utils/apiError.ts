@@ -4,7 +4,7 @@
  * and are written for users — always safe to show.
  *
  * This is THE place for the `err.response.data.message` shape; don't re-inline
- * the cast in views (it was previously copy-pasted 16 times).
+ * the cast in views.
  */
 export function getApiErrorMessage(err: unknown, fallback: string): string {
   const anyErr = err as { response?: { data?: { message?: string } } }

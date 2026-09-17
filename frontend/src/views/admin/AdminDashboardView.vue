@@ -1,20 +1,18 @@
 <template>
   <div class="mx-auto max-w-[1100px] px-5 py-10 sm:px-8 lg:px-12">
-    <!-- ── Header ────────────────────────────────── -->
-    <header class="mb-10">
-      <p class="kicker kicker-signal mb-3">{{ t('admin.dashboard.kicker') }}</p>
-      <i18n-t scope="global" keypath="admin.dashboard.headline" tag="h1" class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
-        <template #desk><em class="italic-display">{{ t('admin.dashboard.desk') }}</em></template>
-      </i18n-t>
-      <div class="rule-double w-full"></div>
-    </header>
+    <PageMasthead
+      :kicker="t('admin.dashboard.kicker')"
+      keypath="admin.dashboard.headline"
+      emphasis="desk"
+      :emphasis-text="t('admin.dashboard.desk')"
+    />
 
-    <!-- ── Error ────────────────────────────────── -->
-    <section v-if="errorOccurred" class="border border-[color:var(--rule)] bg-paper-deep p-12 text-center">
-      <p class="kicker kicker-signal mb-4">{{ t('admin.common.loadFailed') }}</p>
-      <h3 class="display-headline text-[28px] mb-3">{{ t('admin.dashboard.loadFailedTitle') }}</h3>
-      <button class="btn-editorial-ghost" @click="loadDashboard">{{ t('admin.common.retry') }}</button>
-    </section>
+    <ErrorState
+      v-if="errorOccurred"
+      :kicker="t('admin.common.loadFailed')"
+      :headline="t('admin.dashboard.loadFailedTitle')"
+      @retry="loadDashboard"
+    />
 
     <div v-else-if="statsLoading" class="border-t-2 border-[color:var(--rule)] pt-12 flex items-center justify-center gap-3 text-[color:var(--mute)]">
       <BaseSpinner :size="16" />
@@ -25,15 +23,15 @@
       <!-- ── Quick stats ─────────────────────── -->
       <section class="grid grid-cols-3 border-t-2 border-b-2 border-[color:var(--rule)] divide-x divide-[color:var(--rule)]">
         <div class="px-5 py-6">
-          <div class="deco-num text-[44px] leading-none">{{ fmtNum(quickStats.totalUsers) }}</div>
+          <div class="deco-num text-[44px] leading-none">{{ formatNumber(quickStats.totalUsers) }}</div>
           <p class="kicker mt-3">{{ t('admin.dashboard.stats.totalUsers') }}</p>
         </div>
         <div class="px-5 py-6">
-          <div class="deco-num text-[44px] leading-none text-[color:var(--leaf)]">{{ fmtNum(quickStats.emailsSentToday) }}</div>
+          <div class="deco-num text-[44px] leading-none text-[color:var(--leaf)]">{{ formatNumber(quickStats.emailsSentToday) }}</div>
           <p class="kicker mt-3">{{ t('admin.common.kpi.emailsToday') }}</p>
         </div>
         <div class="px-5 py-6">
-          <div class="deco-num text-[44px] leading-none text-[color:var(--signal-deep)]">{{ fmtNum(quickStats.quizCompletionsToday) }}</div>
+          <div class="deco-num text-[44px] leading-none text-[color:var(--signal-deep)]">{{ formatNumber(quickStats.quizCompletionsToday) }}</div>
           <p class="kicker mt-3">{{ t('admin.common.kpi.quizzesToday') }}</p>
         </div>
       </section>
@@ -42,140 +40,80 @@
       <section>
         <p class="kicker mb-4">{{ t('admin.dashboard.jobs.kicker') }}</p>
         <div class="space-y-0 border-t-2 border-b-2 border-[color:var(--rule)] divide-y divide-[color:var(--rule)]">
-          <!-- Generate digests -->
-          <article class="py-6">
-            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-              <div class="flex-1">
-                <div class="flex items-baseline flex-wrap gap-3 mb-2">
-                  <p class="display-headline text-[22px] leading-tight">{{ t('admin.dashboard.jobs.generate.title') }}</p>
-                  <span class="kicker">{{ t('admin.dashboard.jobs.generate.cron') }}</span>
-                  <span v-if="jobStatus.digestGeneration.running" class="kicker inline-flex items-center gap-1.5" style="color: var(--signal-deep);"><span class="inline-block w-[6px] h-[6px] rounded-full bg-current animate-pulse"></span>{{ t('admin.dashboard.jobs.running') }}</span>
-                  <span
-                    v-else-if="jobStatus.digestGeneration.lastResult"
-                    :class="['kicker']"
-                    :style="jobStatus.digestGeneration.lastResult.failed ? 'color: #b91c1c' : 'color: var(--leaf)'"
-                  >● {{ jobStatus.digestGeneration.lastResult.failed ? t('admin.dashboard.jobs.failed') : t('admin.dashboard.jobs.generate.done') }}</span>
-                </div>
-                <p class="font-body-curio text-[13.5px] text-[color:var(--ink-soft)] mb-3 max-w-[60ch]">
-                  {{ t('admin.dashboard.jobs.generate.body') }}
-                </p>
-                <select
-                  v-model="digestTopicFilter"
-                  class="bg-transparent border-b border-[color:var(--rule)] py-1 font-mono-curio text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--signal)]"
-                >
-                  <option value="">{{ t('admin.common.allBeats') }}</option>
-                  <option v-for="topic in allTopics" :key="topic" :value="topic">{{ topicLabel(topic) }}</option>
-                </select>
-                <p v-if="jobStatus.digestGeneration.lastRanAt" class="kicker mt-3">
-                  {{ t('admin.dashboard.jobs.lastRan', { time: formatDate(jobStatus.digestGeneration.lastRanAt) }) }}
-                </p>
-                <p v-if="jobStatus.digestGeneration.lastResult" class="font-body-curio text-[13px] text-[color:var(--ink)] mt-1">
-                  {{ formatJobResult('digests', jobStatus.digestGeneration.lastResult) }}
-                </p>
-
-                <div
-                  v-if="hasDigestErrors(jobStatus.digestGeneration.lastResult)"
-                  class="mt-4 border border-red-300 bg-red-50/40 p-4 text-[12px]"
-                  role="alert"
-                >
-                  <p class="kicker mb-2" style="color: #b91c1c;">{{ t('admin.dashboard.jobs.whyFailed') }}</p>
-                  <ul
-                    v-if="jobStatus.digestGeneration.lastResult?.errorsByType"
-                    class="space-y-1 mb-2 font-mono-curio text-[11px] text-red-900"
-                  >
-                    <li v-for="(count, kind) in jobStatus.digestGeneration.lastResult.errorsByType" :key="String(kind)">
-                      {{ kind }} × {{ count }}
-                    </li>
-                  </ul>
-                  <ul
-                    v-if="jobStatus.digestGeneration.lastResult?.sampleErrors?.length"
-                    class="space-y-1.5 font-body-curio text-[12px] text-red-900"
-                  >
-                    <li v-for="(sample, idx) in jobStatus.digestGeneration.lastResult.sampleErrors" :key="idx">
-                      <span class="font-display">{{ sample.userEmail }}</span> —
-                      <span class="font-mono-curio text-[11px]">{{ sample.message }}</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <button class="btn-editorial flex-shrink-0" :disabled="generating || jobStatus.digestGeneration.running" @click="handleGenerateDigests">
-                <span v-if="generating || jobStatus.digestGeneration.running">{{ t('admin.dashboard.jobs.running') }}</span>
-                <span v-else>{{ t('admin.dashboard.jobs.runNow') }}</span>
-                <BaseSpinner v-if="generating || jobStatus.digestGeneration.running" :size="13" />
-                <span v-else aria-hidden="true">→</span>
-              </button>
-            </div>
-          </article>
-
-          <!-- Send emails -->
-          <article class="py-6">
-            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-              <div class="flex-1">
-                <div class="flex items-baseline flex-wrap gap-3 mb-2">
-                  <p class="display-headline text-[22px] leading-tight">{{ t('admin.dashboard.jobs.send.title') }}</p>
-                  <span class="kicker">{{ t('admin.dashboard.jobs.send.cron') }}</span>
-                  <span v-if="jobStatus.emailSend.running" class="kicker inline-flex items-center gap-1.5" style="color: var(--signal-deep);"><span class="inline-block w-[6px] h-[6px] rounded-full bg-current animate-pulse"></span>{{ t('admin.dashboard.jobs.running') }}</span>
-                  <span
-                    v-else-if="jobStatus.emailSend.lastResult"
-                    :class="['kicker']"
-                    :style="jobStatus.emailSend.lastResult.failed ? 'color: #b91c1c' : 'color: var(--leaf)'"
-                  >● {{ jobStatus.emailSend.lastResult.failed ? t('admin.dashboard.jobs.failed') : t('admin.dashboard.jobs.send.done') }}</span>
-                </div>
-                <p class="font-body-curio text-[13.5px] text-[color:var(--ink-soft)] max-w-[60ch]">
-                  {{ t('admin.dashboard.jobs.send.body') }}
-                </p>
-                <p v-if="jobStatus.emailSend.lastRanAt" class="kicker mt-3">
-                  {{ t('admin.dashboard.jobs.lastRan', { time: formatDate(jobStatus.emailSend.lastRanAt) }) }}
-                </p>
-                <p v-if="jobStatus.emailSend.lastResult" class="font-body-curio text-[13px] text-[color:var(--ink)] mt-1">
-                  {{ formatJobResult('emails', jobStatus.emailSend.lastResult) }}
-                </p>
-              </div>
-              <button class="btn-editorial flex-shrink-0" :disabled="sendingEmails || jobStatus.emailSend.running" @click="handleSendEmails">
-                <span v-if="sendingEmails || jobStatus.emailSend.running">{{ t('admin.dashboard.jobs.send.sending') }}</span>
-                <span v-else>{{ t('admin.dashboard.jobs.runNow') }}</span>
-                <BaseSpinner v-if="sendingEmails || jobStatus.emailSend.running" :size="13" />
-                <span v-else aria-hidden="true">→</span>
-              </button>
-            </div>
-          </article>
-
-          <!-- Cleanup -->
-          <article class="py-6">
-            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-              <div class="flex-1">
-                <div class="flex items-baseline flex-wrap gap-3 mb-2">
-                  <p class="display-headline text-[22px] leading-tight">{{ t('admin.dashboard.jobs.cleanup.title') }}</p>
-                  <span class="kicker">{{ t('admin.dashboard.jobs.cleanup.cron') }}</span>
-                  <span v-if="jobStatus.cleanup.running" class="kicker inline-flex items-center gap-1.5" style="color: var(--signal-deep);"><span class="inline-block w-[6px] h-[6px] rounded-full bg-current animate-pulse"></span>{{ t('admin.dashboard.jobs.running') }}</span>
-                  <span
-                    v-else-if="jobStatus.cleanup.lastResult"
-                    :class="['kicker']"
-                    :style="jobStatus.cleanup.lastResult.failed ? 'color: #b91c1c' : 'color: var(--leaf)'"
-                  >● {{ jobStatus.cleanup.lastResult.failed ? t('admin.dashboard.jobs.failed') : t('admin.dashboard.jobs.cleanup.done') }}</span>
-                </div>
-                <p class="font-body-curio text-[13.5px] text-[color:var(--ink-soft)] max-w-[60ch]">
-                  {{ t('admin.dashboard.jobs.cleanup.body') }}
-                </p>
-                <p v-if="jobStatus.cleanup.lastRanAt" class="kicker mt-3">
-                  {{ t('admin.dashboard.jobs.lastRan', { time: formatDate(jobStatus.cleanup.lastRanAt) }) }}
-                </p>
-                <p v-if="jobStatus.cleanup.lastResult" class="font-body-curio text-[13px] text-[color:var(--ink)] mt-1">
-                  {{ formatJobResult('cleanup', jobStatus.cleanup.lastResult) }}
-                </p>
-              </div>
-              <button
-                class="inline-flex items-center gap-3 border border-red-400 bg-transparent px-6 py-3 font-mono-curio text-[12px] uppercase tracking-[0.14em] text-red-600 hover:bg-red-600 hover:text-white transition-colors disabled:opacity-50"
-                :disabled="cleaningUp"
-                @click="showCleanupConfirm = true"
+          <JobCard
+            :title="t('admin.dashboard.jobs.generate.title')"
+            :cron="t('admin.dashboard.jobs.generate.cron')"
+            :body="t('admin.dashboard.jobs.generate.body')"
+            :state="jobStatus.digestGeneration"
+            :done-label="t('admin.dashboard.jobs.generate.done')"
+            :busy="generating"
+            :busy-label="t('admin.dashboard.jobs.running')"
+            :result-text="formatJobResult('digests', jobStatus.digestGeneration.lastResult)"
+            :detail-text="formatJobDetail('digests', jobStatus.digestGeneration.lastResult)"
+            @run="handleGenerateDigests"
+          >
+            <template #controls>
+              <select
+                v-model="digestTopicFilter"
+                class="bg-transparent border-b border-[color:var(--rule)] py-1 font-mono-curio text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--signal)]"
               >
-                <span v-if="cleaningUp">{{ t('admin.dashboard.jobs.cleanup.recycling') }}</span>
-                <span v-else>{{ t('admin.dashboard.jobs.runNow') }}</span>
-                <BaseSpinner v-if="cleaningUp" :size="13" />
-                <span v-else aria-hidden="true">↗</span>
-              </button>
-            </div>
-          </article>
+                <option value="">{{ t('admin.common.allBeats') }}</option>
+                <option v-for="topic in allTopics" :key="topic" :value="topic">{{ topicLabel(topic) }}</option>
+              </select>
+            </template>
+            <template #errors>
+              <div
+                v-if="hasDigestErrors(jobStatus.digestGeneration.lastResult)"
+                class="mt-4 border border-red-300 bg-red-50/40 p-4 text-[12px]"
+                role="alert"
+              >
+                <p class="kicker mb-2" style="color: #b91c1c;">{{ t('admin.dashboard.jobs.whyFailed') }}</p>
+                <ul
+                  v-if="jobStatus.digestGeneration.lastResult?.errorsByType"
+                  class="space-y-1 mb-2 font-mono-curio text-[11px] text-red-900"
+                >
+                  <li v-for="(count, kind) in jobStatus.digestGeneration.lastResult.errorsByType" :key="String(kind)">
+                    {{ kind }} × {{ count }}
+                  </li>
+                </ul>
+                <ul
+                  v-if="jobStatus.digestGeneration.lastResult?.sampleErrors?.length"
+                  class="space-y-1.5 font-body-curio text-[12px] text-red-900"
+                >
+                  <li v-for="(sample, idx) in jobStatus.digestGeneration.lastResult.sampleErrors" :key="idx">
+                    <span class="font-display">{{ sample.userEmail }}</span> —
+                    <span class="font-mono-curio text-[11px]">{{ sample.message }}</span>
+                  </li>
+                </ul>
+              </div>
+            </template>
+          </JobCard>
+
+          <JobCard
+            :title="t('admin.dashboard.jobs.send.title')"
+            :cron="t('admin.dashboard.jobs.send.cron')"
+            :body="t('admin.dashboard.jobs.send.body')"
+            :state="jobStatus.emailSend"
+            :done-label="t('admin.dashboard.jobs.send.done')"
+            :busy="sendingEmails"
+            :busy-label="t('admin.dashboard.jobs.send.sending')"
+            :result-text="formatJobResult('emails', jobStatus.emailSend.lastResult)"
+            :detail-text="formatJobDetail('emails', jobStatus.emailSend.lastResult)"
+            @run="handleSendEmails"
+          />
+
+          <JobCard
+            :title="t('admin.dashboard.jobs.cleanup.title')"
+            :cron="t('admin.dashboard.jobs.cleanup.cron')"
+            :body="t('admin.dashboard.jobs.cleanup.body')"
+            :state="jobStatus.cleanup"
+            :done-label="t('admin.dashboard.jobs.cleanup.done')"
+            :busy="cleaningUp"
+            :busy-label="t('admin.dashboard.jobs.cleanup.recycling')"
+            :result-text="formatJobResult('cleanup', jobStatus.cleanup.lastResult)"
+            danger
+            @run="showCleanupConfirm = true"
+          />
         </div>
       </section>
 
@@ -209,7 +147,7 @@
                 ]"
               >{{ topic.digestsGeneratedToday }}</td>
               <td class="py-3 text-right font-mono-curio text-[12px] text-[color:var(--ink-soft)]">
-                {{ topic.latestDigestGeneratedAt ? formatDateShort(topic.latestDigestGeneratedAt) : '—' }}
+                {{ topic.latestDigestGeneratedAt ? formatDateTime(topic.latestDigestGeneratedAt, 'compact') : '—' }}
               </td>
             </tr>
             <tr v-if="topics.length === 0">
@@ -241,60 +179,29 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, reactive } from 'vue'
+import { onMounted, ref, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/services/api'
 import { useToast } from '@/composables/useToast'
-import { useLocale } from '@/composables/useLocale'
+import { useFormat } from '@/composables/useFormat'
+import { usePoller } from '@/composables/usePoller'
 import { useTopicLabels } from '@/composables/useTopicLabels'
 import { ALL_TOPICS } from '@/data/topics'
+import type { AdminStats, JobCardState, JobResult, JobStatusEntry, TopicStatus } from '@/types/admin'
+import JobCard from '@/components/admin/JobCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseSpinner from '@/components/ui/BaseSpinner.vue'
+import ErrorState from '@/components/ui/ErrorState.vue'
+import PageMasthead from '@/components/ui/PageMasthead.vue'
 
 const { t } = useI18n()
-const { intlLocale } = useLocale()
+const { formatNumber, formatDateTime, formatDuration } = useFormat()
 const { topicLabel } = useTopicLabels()
 const { error, success } = useToast()
 
-interface TopicStatus {
-  topic: string
-  subscriberCount: number
-  latestDigestGeneratedAt: string | null
-  digestsGeneratedToday: number
-}
-
-interface SampleError {
-  userEmail: string
-  message: string
-}
-
-interface JobResult {
-  failed?: boolean
-  totalUsers?: number
-  successCount?: number
-  failCount?: number
-  sampleErrors?: SampleError[]
-  errorsByType?: Record<string, number>
-  sentCount?: number
-  totalUsersProcessed?: number
-  deletedDigests?: number
-  cutoffDate?: string
-  skippedCount?: number
-  // Scheduled DigestGenerationJob emits these keys instead of the manual shape
-  usersProcessed?: number
-  digestSuccess?: number
-  digestFail?: number
-}
-
-interface JobState {
-  running: boolean
-  lastRanAt: string | null
-  lastResult: JobResult | null
-}
-
 const statsLoading = ref(false)
 const errorOccurred = ref(false)
-const quickStats = ref({ totalUsers: 0, emailsSentToday: 0, quizCompletionsToday: 0 })
+const quickStats = ref<AdminStats>({ totalUsers: 0, emailsSentToday: 0, quizCompletionsToday: 0 })
 const topics = ref<TopicStatus[]>([])
 
 // Canonical topic names (data/topics.ts) are what the backend filters on;
@@ -307,63 +214,92 @@ const sendingEmails = ref(false)
 const cleaningUp = ref(false)
 const showCleanupConfirm = ref(false)
 
-const jobStatus = reactive<{
-  digestGeneration: JobState
-  emailSend: JobState
-  cleanup: JobState
-}>({
+type JobKey = 'digestGeneration' | 'emailSend' | 'cleanup'
+
+const jobStatus = reactive<Record<JobKey, JobCardState>>({
   digestGeneration: { running: false, lastRanAt: null, lastResult: null },
   emailSend: { running: false, lastRanAt: null, lastResult: null },
   cleanup: { running: false, lastRanAt: null, lastResult: null },
 })
 
-const fmtNum = (n?: number) => (n ?? 0).toLocaleString(intlLocale.value)
+// Registry job names, keyed by the card they drive.
+const JOB_NAMES: ReadonlyArray<[JobKey, JobStatusEntry['jobName']]> = [
+  ['digestGeneration', 'digest-generation'],
+  ['emailSend', 'email-send'],
+  ['cleanup', 'cleanup'],
+]
 
-const formatDate = (value: string) =>
-  new Date(value).toLocaleString(intlLocale.value, {
-    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
+// Generate/send are fire-and-forget batches (202 + background run), so their
+// "Running…" badge follows the server and is polled. Cleanup is synchronous:
+// its badge is the local request flag and the registry never overrides it.
+type PollableJob = 'digestGeneration' | 'emailSend'
+const isPollable = (key: JobKey): key is PollableJob => key !== 'cleanup'
 
-const formatDateShort = (value: string) =>
-  new Date(value).toLocaleString(intlLocale.value, {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
+const applyJobsStatus = (jobs: JobStatusEntry[]) => {
+  for (const [key, jobName] of JOB_NAMES) {
+    const job = jobs.find((j) => j.jobName === jobName)
+    if (!job) continue
+    if (job.lastStatus !== 'NEVER_RAN') {
+      jobStatus[key].lastRanAt = job.lastRanAt
+      jobStatus[key].lastResult = job.lastStatus === 'FAILED' ? { failed: true } : job.lastResult
+    }
+    // Server-reported live state wins over the client-local optimistic flag, so
+    // the "Running…" badge is correct on load and in other tabs.
+    if (isPollable(key)) jobStatus[key].running = job.running
+  }
+}
 
 const hasDigestErrors = (result: JobResult | null): boolean => {
   if (!result) return false
   if (result.failed) return true
-  // Manual run emits failCount; the scheduled DigestGenerationJob emits digestFail
-  if (((result.failCount ?? result.digestFail) ?? 0) > 0) return true
+  if ((result.digestFail ?? 0) > 0) return true
   if (result.sampleErrors && result.sampleErrors.length > 0) return true
   return false
 }
 
-const formatJobResult = (type: 'digests' | 'emails' | 'cleanup', result: JobResult): string => {
+const formatJobResult = (type: 'digests' | 'emails' | 'cleanup', result: JobResult | null): string => {
+  if (!result) return ''
   if (result.failed) return t('admin.dashboard.result.failed')
   if (type === 'digests') {
-    // Manual run uses successCount/totalUsers/failCount; the scheduled job uses
-    // digestSuccess/usersProcessed/digestFail — normalize so both render cleanly.
-    const success = result.successCount ?? result.digestSuccess ?? 0
-    const total = result.totalUsers ?? result.usersProcessed ?? 0
-    const fail = result.failCount ?? result.digestFail ?? 0
-    return result.skippedCount
-      ? t('admin.dashboard.result.digestsSkipped', { success, total, fail, skipped: result.skippedCount })
+    const success = result.digestSuccess ?? 0
+    const total = result.usersProcessed ?? 0
+    const fail = result.digestFail ?? 0
+    const skipped = result.digestSkipped ?? 0
+    return skipped > 0
+      ? t('admin.dashboard.result.digestsSkipped', { success, total, fail, skipped })
       : t('admin.dashboard.result.digests', { success, total, fail })
   }
   if (type === 'emails') {
     return t('admin.dashboard.result.emails', {
       sent: result.sentCount ?? 0,
       fail: result.failCount ?? 0,
-      total: result.totalUsersProcessed ?? 0,
+      total: result.usersScanned ?? 0,
     })
   }
-  if (type === 'cleanup') {
-    return t('admin.dashboard.result.cleanup', {
-      count: result.deletedDigests ?? 0,
-      cutoff: result.cutoffDate ? formatDateShort(result.cutoffDate) : '—',
-    })
+  return t('admin.dashboard.result.cleanup', {
+    count: result.deletedDigests ?? 0,
+    cutoff: result.cutoffDate ? formatDateTime(result.cutoffDate, 'compact') : '—',
+  })
+}
+
+/** Second line under the result: quiz counts + beat filter (digests), users due (emails), duration. */
+const formatJobDetail = (type: 'digests' | 'emails', result: JobResult | null): string => {
+  if (!result || result.failed) return ''
+  const parts: string[] = []
+  if (type === 'digests') {
+    if (result.quizSuccess !== undefined || result.quizFail !== undefined) {
+      parts.push(t('admin.dashboard.result.quizzes', { success: result.quizSuccess ?? 0, fail: result.quizFail ?? 0 }))
+    }
+    if (result.topicFilter?.length) {
+      parts.push(t('admin.dashboard.result.beats', { beats: result.topicFilter.map(topicLabel).join(', ') }))
+    }
+  } else if (result.usersProcessed !== undefined) {
+    parts.push(t('admin.dashboard.result.due', { due: result.usersProcessed }))
   }
-  return ''
+  if (result.durationMs !== undefined) {
+    parts.push(t('admin.dashboard.result.took', { duration: formatDuration(result.durationMs) }))
+  }
+  return parts.join(' · ')
 }
 
 const handleCleanup = async () => {
@@ -386,96 +322,49 @@ const handleCleanup = async () => {
   }
 }
 
-type JobStatusEntry = {
-  jobName: string
-  lastRanAt: string | null
-  lastStatus: string
-  lastResult: JobResult | null
-  running: boolean
-}
-
-const applyJobsStatus = (jobs: JobStatusEntry[]) => {
-  const digestJob = jobs.find((j) => j.jobName === 'digest-generation')
-  const emailJob = jobs.find((j) => j.jobName === 'email-send')
-  const cleanupJobData = jobs.find((j) => j.jobName === 'cleanup')
-  if (digestJob) {
-    if (digestJob.lastStatus !== 'NEVER_RAN') {
-      jobStatus.digestGeneration.lastRanAt = digestJob.lastRanAt
-      jobStatus.digestGeneration.lastResult = digestJob.lastStatus === 'FAILED' ? { failed: true } : digestJob.lastResult
-    }
-    // Server-reported live state wins over the client-local optimistic flag, so
-    // the "Running…" badge is correct on load and in other tabs.
-    jobStatus.digestGeneration.running = digestJob.running
-  }
-  if (emailJob) {
-    if (emailJob.lastStatus !== 'NEVER_RAN') {
-      jobStatus.emailSend.lastRanAt = emailJob.lastRanAt
-      jobStatus.emailSend.lastResult = emailJob.lastStatus === 'FAILED' ? { failed: true } : emailJob.lastResult
-    }
-    jobStatus.emailSend.running = emailJob.running
-  }
-  if (cleanupJobData && cleanupJobData.lastStatus !== 'NEVER_RAN') {
-    jobStatus.cleanup.lastRanAt = cleanupJobData.lastRanAt
-    jobStatus.cleanup.lastResult = cleanupJobData.lastStatus === 'FAILED' ? { failed: true } : cleanupJobData.lastResult
-  }
-}
-
-// Re-poll just the job registry after a fire-and-forget generate/send trigger.
-const refreshJobsStatus = async () => {
-  try {
-    const jobsResponse = await api.admin.getJobsStatus()
-    applyJobsStatus(jobsResponse.data)
-  } catch {
-    // non-fatal: the trigger toast already fired; leave prior counts in place
-  }
-}
-
-// The manual generate/send jobs run in the background (202 fire-and-forget) and the
-// registry only records a result on COMPLETION, so we poll /admin/jobs/status until
-// the job's lastRanAt advances past what it was at trigger time — then the fresh
-// counts are on screen. The "Running…" indicator is driven by jobStatus.*.running.
-type PollableJob = 'digestGeneration' | 'emailSend'
-const jobPollers = new Map<PollableJob, ReturnType<typeof setInterval>>()
-
-const stopPoll = (key: PollableJob) => {
-  const timer = jobPollers.get(key)
-  if (timer !== undefined) {
-    clearInterval(timer)
-    jobPollers.delete(key)
-  }
-  jobStatus[key].running = false
-}
-
+// The manual generate/send jobs run in the background and the registry only
+// records a result on COMPLETION, so after a trigger we poll /admin/jobs/status
+// until the job's lastRanAt advances past what it was at trigger time — then
+// the fresh counts are on screen. One poller per job; both stop on unmount.
+const JOB_POLL_INTERVAL_MS = 3000
 // The batches legitimately take minutes (the POST itself allows 600s), so the
-// poll budget must comfortably exceed that — giving up at 2 minutes used to
-// silently drop the "Running…" badge while the job was still crunching.
+// poll budget comfortably exceeds that before the badge gives up.
 const MAX_JOB_POLL_ATTEMPTS = 220 // × 3s ≈ 11 min, past the backend's 600s ceiling
 
-const pollJobUntilComplete = (key: PollableJob, prevRanAt: string | null) => {
-  stopPoll(key)
-  jobStatus[key].running = true
-  let attempts = 0
-  const timer = setInterval(async () => {
-    attempts += 1
-    await refreshJobsStatus()
-    const now = jobStatus[key].lastRanAt
-    if (now && now !== prevRanAt) {
-      stopPoll(key) // completed — a fresh run was recorded
-    } else if (attempts >= MAX_JOB_POLL_ATTEMPTS) {
-      stopPoll(key)
+const pollBaseline: Record<PollableJob, string | null> = { digestGeneration: null, emailSend: null }
+
+const makeJobPoller = (key: PollableJob) =>
+  usePoller({
+    intervalMs: JOB_POLL_INTERVAL_MS,
+    maxAttempts: MAX_JOB_POLL_ATTEMPTS,
+    tick: async (isCurrent) => {
+      const jobs = (await api.admin.getJobsStatus()).data
+      if (!isCurrent()) return 'continue'
+      applyJobsStatus(jobs)
+      const ranAt = jobStatus[key].lastRanAt
+      if (!ranAt || ranAt === pollBaseline[key]) return 'continue'
+      jobStatus[key].running = false // completed — a fresh run was recorded
+      return 'done'
+    },
+    onExhausted: () => {
       // Don't silently revert to idle: tell the admin the job may still be going.
+      jobStatus[key].running = false
       error(t('admin.dashboard.toast.jobSlow'))
-    }
-  }, 3000)
-  jobPollers.set(key, timer)
+    },
+  })
+
+const jobPollers: Record<PollableJob, ReturnType<typeof usePoller>> = {
+  digestGeneration: makeJobPoller('digestGeneration'),
+  emailSend: makeJobPoller('emailSend'),
 }
 
-onUnmounted(() => {
-  jobPollers.forEach((timer) => clearInterval(timer))
-  jobPollers.clear()
-})
+const pollJobUntilComplete = (key: PollableJob, prevRanAt: string | null) => {
+  pollBaseline[key] = prevRanAt
+  jobStatus[key].running = true
+  jobPollers[key].start()
+}
 
-// Generate/send are now fire-and-forget: the backend returns 202 { status }
+// Generate/send are fire-and-forget: the backend returns 202 { status }
 // immediately and runs the batch in the background, so we surface a toast and
 // then poll /admin/jobs/status for live counts instead of reading the POST body.
 const handleGenerateDigests = async () => {

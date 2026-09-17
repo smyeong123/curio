@@ -6,7 +6,6 @@ vi.mock('@/services/api', () => ({
   api: {
     news: {
       getDigests: vi.fn(),
-      getDigest: vi.fn(),
       search: vi.fn()
     }
   }
@@ -26,6 +25,12 @@ const mockDigest = {
   emailSentAt: null
 }
 
+const digestOn = (page: number) => ({ ...mockDigest, id: `digest-p${page}` })
+
+const pageOf = (content: unknown[], number: number, totalPages: number) => ({
+  data: { content, totalPages, totalElements: content.length * totalPages, number, size: 50 }
+})
+
 describe('news store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -35,39 +40,66 @@ describe('news store', () => {
   it('starts with empty state', () => {
     const store = useNewsStore()
     expect(store.digests).toEqual([])
-    expect(store.currentDigest).toBeNull()
-    expect(store.totalPages).toBe(0)
-    expect(store.currentPage).toBe(0)
+    expect(store.topicFilter).toBeNull()
   })
 
-  it('fetchDigests sets digests and pagination', async () => {
-    vi.mocked(api.news.getDigests).mockResolvedValue({
-      data: { content: [mockDigest], totalPages: 3, totalElements: 25, number: 1, size: 10 }
-    } as any)
+  it('fetchAllDigests loads a single-page archive with one request', async () => {
+    vi.mocked(api.news.getDigests).mockResolvedValue(pageOf([mockDigest], 0, 1) as any)
     const store = useNewsStore()
 
-    await store.fetchDigests(1, 10)
+    const all = await store.fetchAllDigests()
 
+    expect(all).toEqual([mockDigest])
     expect(store.digests).toEqual([mockDigest])
-    expect(store.totalPages).toBe(3)
-    expect(store.currentPage).toBe(1)
-    expect(api.news.getDigests).toHaveBeenCalledWith(1, 10)
+    expect(api.news.getDigests).toHaveBeenCalledTimes(1)
+    expect(api.news.getDigests).toHaveBeenCalledWith(0, 50)
   })
 
-  it('fetchDigest sets currentDigest', async () => {
-    vi.mocked(api.news.getDigest).mockResolvedValue({ data: mockDigest } as any)
+  it('fetchAllDigests requests the remaining pages together and keeps them in order', async () => {
+    let releasePage1!: () => void
+    vi.mocked(api.news.getDigests).mockImplementation(((page: number) => {
+      if (page === 0) return Promise.resolve(pageOf([digestOn(0)], 0, 3))
+      if (page === 1) return new Promise((resolve) => { releasePage1 = () => resolve(pageOf([digestOn(1)], 1, 3)) })
+      return Promise.resolve(pageOf([digestOn(2)], 2, 3))
+    }) as any)
     const store = useNewsStore()
 
-    await store.fetchDigest('digest-1')
+    const pending = store.fetchAllDigests()
+    await vi.waitFor(() => expect(api.news.getDigests).toHaveBeenCalledTimes(3))
+    // Page 2 was requested without waiting for page 1 to land.
+    expect(api.news.getDigests).toHaveBeenNthCalledWith(2, 1, 50)
+    expect(api.news.getDigests).toHaveBeenNthCalledWith(3, 2, 50)
 
-    expect(store.currentDigest).toEqual(mockDigest)
-    expect(api.news.getDigest).toHaveBeenCalledWith('digest-1')
+    releasePage1()
+    const all = await pending
+
+    expect(all.map((d) => d.id)).toEqual(['digest-p0', 'digest-p1', 'digest-p2'])
+    expect(store.digests.map((d) => d.id)).toEqual(['digest-p0', 'digest-p1', 'digest-p2'])
+  })
+
+  it('fetchAllDigests stops at maxPages', async () => {
+    vi.mocked(api.news.getDigests).mockImplementation(((page: number) =>
+      Promise.resolve(pageOf([digestOn(page)], page, 40))) as any)
+    const store = useNewsStore()
+
+    const all = await store.fetchAllDigests(50, 2)
+
+    expect(api.news.getDigests).toHaveBeenCalledTimes(2)
+    expect(all).toHaveLength(2)
+  })
+
+  it('fetchAllDigests handles an empty archive (zero pages)', async () => {
+    vi.mocked(api.news.getDigests).mockResolvedValue(pageOf([], 0, 0) as any)
+    const store = useNewsStore()
+
+    const all = await store.fetchAllDigests()
+
+    expect(all).toEqual([])
+    expect(api.news.getDigests).toHaveBeenCalledTimes(1)
   })
 
   it('searchDigests returns results without touching browse state', async () => {
-    vi.mocked(api.news.search).mockResolvedValue({
-      data: { content: [mockDigest], totalPages: 1, totalElements: 1, number: 0, size: 50 }
-    } as any)
+    vi.mocked(api.news.search).mockResolvedValue(pageOf([mockDigest], 0, 1) as any)
     const store = useNewsStore()
 
     const page = await store.searchDigests('claude')
@@ -77,51 +109,31 @@ describe('news store', () => {
     expect(api.news.search).toHaveBeenCalledWith('claude', 0, 50)
   })
 
-  it('fetchDigests defaults to page 0 size 10', async () => {
-    vi.mocked(api.news.getDigests).mockResolvedValue({
-      data: { content: [], totalPages: 0, totalElements: 0, number: 0, size: 10 }
-    } as any)
-    const store = useNewsStore()
-
-    await store.fetchDigests()
-
-    expect(api.news.getDigests).toHaveBeenCalledWith(0, 10)
-  })
-
   it('reset wipes news state (logout must not leak across accounts)', async () => {
-    vi.mocked(api.news.getDigest).mockResolvedValue({ data: mockDigest } as any)
-    vi.mocked(api.news.getDigests).mockResolvedValue({
-      data: { content: [mockDigest], totalPages: 1, totalElements: 1, number: 0, size: 10 }
-    } as any)
+    vi.mocked(api.news.getDigests).mockResolvedValue(pageOf([mockDigest], 0, 1) as any)
     const store = useNewsStore()
-    await store.fetchDigests()
-    await store.fetchDigest('digest-1')
+    await store.fetchAllDigests()
     store.topicFilter = 'Claude (Anthropic)'
 
     store.reset()
 
     expect(store.digests).toEqual([])
-    expect(store.currentDigest).toBeNull()
-    expect(store.totalPages).toBe(0)
-    expect(store.currentPage).toBe(0)
     expect(store.topicFilter).toBeNull()
   })
 
-  it('a stale fetchDigest response does not clobber a newer one', async () => {
-    const staleDigest = { ...mockDigest, id: 'digest-stale' }
-    const freshDigest = { ...mockDigest, id: 'digest-fresh' }
+  it('a stale fetchAllDigests response does not clobber a newer one', async () => {
     let resolveStale: (v: unknown) => void
     const stalePromise = new Promise((resolve) => { resolveStale = resolve })
-    vi.mocked(api.news.getDigest)
+    vi.mocked(api.news.getDigests)
       .mockReturnValueOnce(stalePromise as any)
-      .mockResolvedValueOnce({ data: freshDigest } as any)
+      .mockResolvedValueOnce(pageOf([{ ...mockDigest, id: 'digest-fresh' }], 0, 1) as any)
     const store = useNewsStore()
 
-    const first = store.fetchDigest('digest-stale')
-    await store.fetchDigest('digest-fresh')
-    resolveStale!({ data: staleDigest })
+    const first = store.fetchAllDigests()
+    await store.fetchAllDigests()
+    resolveStale!(pageOf([{ ...mockDigest, id: 'digest-stale' }], 0, 1))
     await first
 
-    expect(store.currentDigest?.id).toBe('digest-fresh')
+    expect(store.digests.map((d) => d.id)).toEqual(['digest-fresh'])
   })
 })

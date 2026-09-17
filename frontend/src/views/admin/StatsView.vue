@@ -1,17 +1,17 @@
 <template>
   <div class="mx-auto max-w-[1100px] px-5 py-10 sm:px-8 lg:px-12">
-    <header class="mb-10">
-      <p class="kicker kicker-signal mb-3">{{ t('admin.stats.kicker') }}</p>
-      <i18n-t scope="global" keypath="admin.stats.headline" tag="h1" class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
-        <template #numbers><em class="italic-display">{{ t('admin.stats.numbers') }}</em></template>
-      </i18n-t>
-      <div class="rule-double w-full"></div>
-    </header>
+    <PageMasthead
+      :kicker="t('admin.stats.kicker')"
+      keypath="admin.stats.headline"
+      emphasis="numbers"
+      :emphasis-text="t('admin.stats.numbers')"
+    />
 
-    <section v-if="errorOccurred" class="border border-[color:var(--rule)] bg-paper-deep p-12 text-center">
-      <p class="kicker kicker-signal mb-3">{{ t('admin.common.loadFailed') }}</p>
-      <button class="btn-editorial-ghost" @click="loadStats">{{ t('admin.common.retry') }}</button>
-    </section>
+    <ErrorState
+      v-if="errorOccurred"
+      :kicker="t('admin.common.loadFailed')"
+      @retry="loadStats"
+    />
 
     <section v-else-if="loading" class="border-t-2 border-[color:var(--rule)] pt-12 text-center">
       <p class="kicker">{{ t('admin.stats.loading') }}</p>
@@ -21,15 +21,15 @@
       <!-- Totals -->
       <section class="grid grid-cols-3 border-t-2 border-b-2 border-[color:var(--rule)] divide-x divide-[color:var(--rule)]">
         <div class="px-5 py-6">
-          <div class="deco-num text-[44px] leading-none">{{ fmtNum(stats.totalUsers) }}</div>
+          <div class="deco-num text-[44px] leading-none">{{ formatNumber(stats.totalUsers) }}</div>
           <p class="kicker mt-3">{{ t('admin.stats.totals.totalUsers') }}</p>
         </div>
         <div class="px-5 py-6">
-          <div class="deco-num text-[44px] leading-none text-[color:var(--leaf)]">{{ fmtNum(stats.emailsSentToday) }}</div>
+          <div class="deco-num text-[44px] leading-none text-[color:var(--leaf)]">{{ formatNumber(stats.emailsSentToday) }}</div>
           <p class="kicker mt-3">{{ t('admin.common.kpi.emailsToday') }}</p>
         </div>
         <div class="px-5 py-6">
-          <div class="deco-num text-[44px] leading-none text-[color:var(--signal-deep)]">{{ fmtNum(stats.quizCompletionsToday) }}</div>
+          <div class="deco-num text-[44px] leading-none text-[color:var(--signal-deep)]">{{ formatNumber(stats.quizCompletionsToday) }}</div>
           <p class="kicker mt-3">{{ t('admin.common.kpi.quizzesToday') }}</p>
         </div>
       </section>
@@ -71,21 +71,22 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/services/api'
 import { useToast } from '@/composables/useToast'
-import { useLocale } from '@/composables/useLocale'
+import { useFormat } from '@/composables/useFormat'
 import { useTopicLabels } from '@/composables/useTopicLabels'
 import { TOPIC_HIERARCHY } from '@/data/topics'
+import type { AdminStats } from '@/types/admin'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import ErrorState from '@/components/ui/ErrorState.vue'
+import PageMasthead from '@/components/ui/PageMasthead.vue'
 
 const { t } = useI18n()
-const { intlLocale } = useLocale()
+const { formatNumber } = useFormat()
 const { topicLabel, groupName } = useTopicLabels()
 const { error } = useToast()
 
-const fmtNum = (n?: number) => (n ?? 0).toLocaleString(intlLocale.value)
-
 const loading = ref(false)
 const errorOccurred = ref(false)
-const stats = ref({ totalUsers: 0, emailsSentToday: 0, quizCompletionsToday: 0 })
+const stats = ref<AdminStats>({ totalUsers: 0, emailsSentToday: 0, quizCompletionsToday: 0 })
 const topicDistribution = ref<Record<string, number>>({})
 
 const topicEntries = computed(() =>

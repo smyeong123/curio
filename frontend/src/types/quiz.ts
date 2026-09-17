@@ -40,10 +40,3 @@ export interface QuizSubmitResponse {
   bestScore?: number
   improved?: boolean
 }
-
-export interface QuizHistoryPage {
-  content: QuizAttempt[]
-  totalPages: number
-  totalElements: number
-  number: number
-}

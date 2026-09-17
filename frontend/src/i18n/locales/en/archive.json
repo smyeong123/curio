@@ -8,8 +8,7 @@
   "error": {
     "kicker": "— Press jam —",
     "headline": "The morning press wouldn't run.",
-    "body": "We couldn't load your digests. Please retry, or try again in a moment.",
-    "retry": "Retry"
+    "body": "We couldn't load your digests. Please retry, or try again in a moment."
   },
   "empty": {
     "kicker": "— No issues yet —",

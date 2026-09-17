@@ -1,13 +1,11 @@
 <template>
   <div class="mx-auto max-w-[920px] px-5 py-10 sm:px-8 lg:px-12">
-    <!-- ── Header ─────────────────────────────────── -->
-    <header class="mb-10">
-      <p class="kicker kicker-signal mb-3">{{ t('settings.header.kicker') }}</p>
-      <i18n-t scope="global" keypath="settings.header.headline" tag="h1" class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
-        <template #settings><em class="italic-display">{{ t('settings.header.settings') }}</em></template>
-      </i18n-t>
-      <div class="rule-double w-full"></div>
-    </header>
+    <PageMasthead
+      :kicker="t('settings.header.kicker')"
+      keypath="settings.header.headline"
+      emphasis="settings"
+      :emphasis-text="t('settings.header.settings')"
+    />
 
     <div class="space-y-14">
       <!-- ── Profile ────────────────────────────── -->
@@ -100,28 +98,12 @@
         <div class="flex items-baseline justify-between mb-5 border-b border-[color:var(--rule)] pb-2">
           <p class="kicker">{{ t('settings.lights.kicker') }}</p>
         </div>
-        <fieldset>
-          <legend class="sr-only">{{ t('settings.lights.legend') }}</legend>
-          <div class="grid grid-cols-3 gap-0 border border-[color:var(--rule)]" role="radiogroup" :aria-label="t('settings.lights.legend')">
-            <button
-              v-for="(option, i) in themeOptions"
-              :key="option.value"
-              type="button"
-              role="radio"
-              :aria-checked="themePreference === option.value"
-              :class="[
-                'px-3 py-3 font-mono-curio text-[12px] uppercase tracking-[0.14em] transition-colors',
-                i < themeOptions.length - 1 ? 'border-r border-[color:var(--rule)]' : '',
-                themePreference === option.value
-                  ? 'bg-ink text-[color:var(--paper)]'
-                  : 'bg-paper text-[color:var(--ink)] hover:bg-paper-deep'
-              ]"
-              @click="setTheme(option.value)"
-            >
-              {{ option.label }}
-            </button>
-          </div>
-        </fieldset>
+        <SegmentedControl
+          :options="themeOptions"
+          :model-value="themePreference"
+          :label="t('settings.lights.legend')"
+          @update:model-value="setTheme"
+        />
         <p class="kicker mt-3">{{ t('settings.lights.hint') }}</p>
       </section>
 
@@ -130,29 +112,12 @@
         <div class="flex items-baseline justify-between mb-5 border-b border-[color:var(--rule)] pb-2">
           <p class="kicker">{{ t('settings.edition.kicker') }}</p>
         </div>
-        <fieldset>
-          <legend class="sr-only">{{ t('common.language.label') }}</legend>
-          <div class="grid grid-cols-2 gap-0 border border-[color:var(--rule)]" role="radiogroup" :aria-label="t('common.language.label')">
-            <button
-              v-for="(option, i) in localeOptions"
-              :key="option.value"
-              type="button"
-              role="radio"
-              :lang="option.value"
-              :aria-checked="edition === option.value"
-              :class="[
-                'px-3 py-3 font-mono-curio text-[12px] uppercase tracking-[0.14em] transition-colors',
-                i < localeOptions.length - 1 ? 'border-r border-[color:var(--rule)]' : '',
-                edition === option.value
-                  ? 'bg-ink text-[color:var(--paper)]'
-                  : 'bg-paper text-[color:var(--ink)] hover:bg-paper-deep'
-              ]"
-              @click="chooseEdition(option.value)"
-            >
-              {{ option.label }}
-            </button>
-          </div>
-        </fieldset>
+        <SegmentedControl
+          :options="localeOptions"
+          :model-value="edition"
+          :label="t('common.language.label')"
+          @update:model-value="chooseEdition"
+        />
         <p class="kicker mt-3">{{ t('settings.edition.hint') }}</p>
       </section>
 
@@ -213,9 +178,9 @@
           >
             <button
               class="w-full flex items-center justify-between px-2 py-4 hover:bg-paper-deep transition-colors text-left"
-              :aria-expanded="settingsExpandedDomains.has(domain.id)"
+              :aria-expanded="expandedDomains.has(domain.id)"
               :aria-controls="`settings-domain-panel-${domain.id}`"
-              @click="toggleSettingsDomain(domain.id)"
+              @click="toggleDomain(domain.id)"
             >
               <div class="flex items-baseline gap-4">
                 <span class="num-tab text-[11px] text-[color:var(--mute)]">{{ String(dIdx + 1).padStart(2, '0') }}</span>
@@ -225,19 +190,19 @@
                 </span>
               </div>
               <div class="flex items-center gap-3">
-                <span v-if="getDomainCount(domain) > 0" class="kicker kicker-signal">
-                  {{ t('settings.beats.domainOn', { count: getDomainCount(domain) }) }}
+                <span v-if="domainCount(domain) > 0" class="kicker kicker-signal">
+                  {{ t('settings.beats.domainOn', { count: domainCount(domain) }) }}
                 </span>
                 <span
                   :class="[
                     'font-mono-curio text-[18px] transition-transform',
-                    settingsExpandedDomains.has(domain.id) ? 'rotate-45 text-[color:var(--signal-deep)]' : 'text-[color:var(--mute)]'
+                    expandedDomains.has(domain.id) ? 'rotate-45 text-[color:var(--signal-deep)]' : 'text-[color:var(--mute)]'
                   ]"
                   aria-hidden="true"
                 >+</span>
               </div>
             </button>
-            <div v-if="settingsExpandedDomains.has(domain.id)" :id="`settings-domain-panel-${domain.id}`" class="bg-paper-deep border-t border-[color:var(--rule)] divide-y divide-[color:var(--rule)]/40">
+            <div v-if="expandedDomains.has(domain.id)" :id="`settings-domain-panel-${domain.id}`" class="bg-paper-deep border-t border-[color:var(--rule)] divide-y divide-[color:var(--rule)]/40">
               <div v-for="sub in domain.subcategories" :key="sub.id" class="px-5 py-4">
                 <p class="kicker mb-3">{{ groupName(sub) }}</p>
                 <div class="flex flex-wrap gap-2">
@@ -321,14 +286,16 @@ import { useToast } from '@/composables/useToast'
 import { useTheme, type ThemePreference } from '@/composables/useTheme'
 import { useLocale } from '@/composables/useLocale'
 import { useTopicLabels } from '@/composables/useTopicLabels'
+import { useTopicSelection } from '@/composables/useTopicSelection'
 import { api } from '@/services/api'
 import type { Locale } from '@/i18n'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import PageMasthead from '@/components/ui/PageMasthead.vue'
+import SegmentedControl from '@/components/ui/SegmentedControl.vue'
 import ApiKeyManager from '@/components/settings/ApiKeyManager.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import { TOPIC_HIERARCHY } from '@/data/topics'
-import type { TopicL1 } from '@/data/topics'
 import { detectBrowserTimezone } from '@/utils/timezone'
 import { getApiErrorMessage } from '@/utils/apiError'
 
@@ -353,9 +320,9 @@ const themeOptions = computed<Array<{ value: ThemePreference; label: string }>>(
 // radio reflects the SAVED account edition, falling back to the UI locale until
 // preferences have loaded.
 const { locale, setLocale } = useLocale()
-const localeOptions = computed<Array<{ value: Locale; label: string }>>(() => [
-  { value: 'en', label: t('common.language.en') },
-  { value: 'ko', label: t('common.language.ko') },
+const localeOptions = computed<Array<{ value: Locale; label: string; lang: Locale }>>(() => [
+  { value: 'en', label: t('common.language.en'), lang: 'en' },
+  { value: 'ko', label: t('common.language.ko'), lang: 'ko' },
 ])
 const edition = computed<Locale>(() => (userStore.language as Locale | null) ?? locale.value)
 const chooseEdition = async (value: Locale) => {
@@ -420,18 +387,9 @@ const isOAuthUser = computed(() => userStore.profile?.hasPassword === false)
 
 const topicHierarchy = TOPIC_HIERARCHY
 
-const settingsExpandedDomains = ref<Set<string>>(new Set())
-const toggleSettingsDomain = (id: string) => {
-  if (settingsExpandedDomains.value.has(id)) settingsExpandedDomains.value.delete(id)
-  else settingsExpandedDomains.value.add(id)
-}
-const selectedTopics = ref<string[]>([])
-
-const getDomainCount = (domain: TopicL1) =>
-  domain.subcategories.reduce(
-    (acc, sub) => acc + sub.topics.filter((t) => selectedTopics.value.includes(t)).length,
-    0
-  )
+// The Beats editor works on its own copy of the topic list (filled from the
+// store on mount) so edits only reach the server through its own Save button.
+const { selectedTopics, toggleTopic, expandedDomains, toggleDomain, domainCount } = useTopicSelection()
 
 const savingPreferences = ref(false)
 
@@ -457,15 +415,6 @@ onMounted(async () => {
     error(t('settings.toasts.loadFailed'))
   }
 })
-
-const toggleTopic = (topic: string) => {
-  const index = selectedTopics.value.indexOf(topic)
-  if (index === -1) {
-    selectedTopics.value.push(topic)
-  } else {
-    selectedTopics.value.splice(index, 1)
-  }
-}
 
 const handleProfileUpdate = async () => {
   savingProfile.value = true

@@ -9,9 +9,7 @@
 /* `inline` makes the generated utilities (bg-paper, text-ink, …) emit
  * `var(--paper)` directly instead of freezing the hex at build time. That is
  * what lets the Tailwind color utilities flip with the theme — the runtime
- * `--paper`/`--ink`/… variables below are redefined under [data-theme='dark'].
- * Without `inline`, these tokens stayed on their light values in dark mode
- * (the long-standing "two parallel color systems" bug). */
+ * `--paper`/`--ink`/… variables below are redefined under [data-theme='dark']. */
 @theme inline {
   --color-paper: var(--paper);
   --color-paper-deep: var(--paper-deep);
@@ -156,7 +154,6 @@
     letter-spacing: 0.16em;
     color: var(--mute);
   }
-  .kicker-ink { color: var(--ink); }
   .kicker-signal { color: var(--signal-deep); }
 
   /* Horizontal newsprint rule */
@@ -169,22 +166,13 @@
     box-sizing: content-box;
   }
 
-  /* Vertical rule */
-  .rule-l { border-left: 1px solid var(--rule); }
-  .rule-r { border-right: 1px solid var(--rule); }
-
   /* Paper backgrounds */
   .bg-paper { background-color: var(--paper); }
   .bg-paper-deep { background-color: var(--paper-deep); }
   .bg-ink { background-color: var(--ink); color: var(--paper); }
   .bg-signal { background-color: var(--signal); color: var(--paper); }
 
-  /* Ink-on-paper card — sharp corners, single-stroke border */
-  .card-ink {
-    background-color: var(--paper-deep);
-    border: 1px solid var(--rule);
-    color: var(--ink);
-  }
+  /* Paper card — sharp corners, single-stroke border */
   .card-paper {
     background-color: var(--paper);
     border: 1px solid var(--rule);
@@ -300,7 +288,6 @@
   .rise-d-3 { animation-delay: 0.2s; }
   .rise-d-4 { animation-delay: 0.3s; }
   .rise-d-5 { animation-delay: 0.42s; }
-  .rise-d-6 { animation-delay: 0.55s; }
 
   /* Page (route) transitions — subtle fade + rise, matches .rise vibe */
   .page-enter-active {

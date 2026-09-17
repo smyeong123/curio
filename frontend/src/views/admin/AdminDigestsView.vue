@@ -1,12 +1,11 @@
 <template>
   <div class="mx-auto max-w-[1100px] px-5 py-10 sm:px-8 lg:px-12">
-    <header class="mb-10">
-      <p class="kicker kicker-signal mb-3">{{ t('admin.digests.kicker') }}</p>
-      <i18n-t scope="global" keypath="admin.digests.headline" tag="h1" class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
-        <template #editions><em class="italic-display">{{ t('admin.digests.editions') }}</em></template>
-      </i18n-t>
-      <div class="rule-double w-full"></div>
-    </header>
+    <PageMasthead
+      :kicker="t('admin.digests.kicker')"
+      keypath="admin.digests.headline"
+      emphasis="editions"
+      :emphasis-text="t('admin.digests.editions')"
+    />
 
     <!-- Filters -->
     <div class="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-b border-[color:var(--rule)] py-4">
@@ -41,10 +40,11 @@
       </div>
     </div>
 
-    <section v-if="errorOccurred" class="border border-[color:var(--rule)] bg-paper-deep p-12 text-center">
-      <p class="kicker kicker-signal mb-3">{{ t('admin.common.loadFailed') }}</p>
-      <button class="btn-editorial-ghost" @click="loadDigests(page)">{{ t('admin.common.retry') }}</button>
-    </section>
+    <ErrorState
+      v-if="errorOccurred"
+      :kicker="t('admin.common.loadFailed')"
+      @retry="loadDigests(page)"
+    />
 
     <section v-else-if="loading" class="border-t-2 border-[color:var(--rule)] pt-12 text-center">
       <p class="kicker">{{ t('admin.digests.loading') }}</p>
@@ -97,10 +97,10 @@
                   </span>
                 </div>
               </td>
-              <td class="py-3 text-right font-mono-curio text-[12px] text-[color:var(--ink-soft)]">{{ formatDate(digest.generatedAt) }}</td>
+              <td class="py-3 text-right font-mono-curio text-[12px] text-[color:var(--ink-soft)]">{{ formatDateTime(digest.generatedAt, 'short') }}</td>
               <td class="py-3 text-right">
                 <span class="kicker" :style="digest.emailSentAt ? 'color: var(--leaf)' : 'color: var(--mute)'">
-                  {{ digest.emailSentAt ? '● ' + formatDate(digest.emailSentAt) : '○ ' + t('admin.digests.notSent') }}
+                  {{ digest.emailSentAt ? '● ' + formatDateTime(digest.emailSentAt, 'short') : '○ ' + t('admin.digests.notSent') }}
                 </span>
               </td>
               <td class="py-3 text-right">
@@ -131,20 +131,15 @@
         </tbody>
       </table>
 
-      <nav v-if="totalPages > 1" class="flex items-center justify-between border-t-2 border-[color:var(--rule)] pt-6 mt-2">
-        <button class="btn-editorial-ghost" :disabled="page === 0" @click="loadDigests(page - 1)">
-          <span aria-hidden="true">←</span>
-          {{ t('admin.common.pagination.earlier') }}
-        </button>
-        <i18n-t scope="global" keypath="admin.common.pagination.pageOf" tag="span" class="kicker">
-          <template #page><span class="num-tab text-[color:var(--ink)]">{{ page + 1 }}</span></template>
-          <template #total><span class="num-tab text-[color:var(--ink)]">{{ totalPages }}</span></template>
-        </i18n-t>
-        <button class="btn-editorial-ghost" :disabled="page >= totalPages - 1" @click="loadDigests(page + 1)">
-          {{ t('admin.common.pagination.older') }}
-          <span aria-hidden="true">→</span>
-        </button>
-      </nav>
+      <PagerNav
+        v-if="totalPages > 1"
+        class="border-t-2 border-[color:var(--rule)] pt-6 mt-2"
+        :page="page"
+        :total-pages="totalPages"
+        :newer-label="t('admin.common.pagination.earlier')"
+        :older-label="t('admin.common.pagination.older')"
+        @change="loadDigests"
+      />
     </section>
   </div>
 </template>
@@ -154,12 +149,17 @@ import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/services/api'
 import { useToast } from '@/composables/useToast'
-import { useLocale } from '@/composables/useLocale'
+import { useFormat } from '@/composables/useFormat'
+import { usePagedAdminList } from '@/composables/usePagedAdminList'
 import { useTopicLabels } from '@/composables/useTopicLabels'
 import { ALL_TOPICS } from '@/data/topics'
+import type { AdminDigest } from '@/types/admin'
+import ErrorState from '@/components/ui/ErrorState.vue'
+import PageMasthead from '@/components/ui/PageMasthead.vue'
+import PagerNav from '@/components/ui/PagerNav.vue'
 
 const { t } = useI18n()
-const { intlLocale } = useLocale()
+const { formatDateTime } = useFormat()
 const { topicLabel } = useTopicLabels()
 const { error } = useToast()
 
@@ -167,19 +167,9 @@ const { error } = useToast()
 // the raw name and only the visible label goes through topicLabel().
 const allTopics = ALL_TOPICS
 
-interface DigestEntry {
-  id: string
-  userId: string
-  userEmail: string
-  userFullName: string | null
-  content?: { generatedFor?: string[]; summaries?: Array<{ topic?: string }> } | null
-  generatedAt: string
-  emailSentAt: string | null
-}
-
 // Backend AdminDigestResponse only exposes content + sent-at metadata;
 // derive the rest for display.
-const digestTopics = (d: DigestEntry): string[] => {
+const digestTopics = (d: AdminDigest): string[] => {
   if (d.content?.generatedFor && d.content.generatedFor.length) return d.content.generatedFor
   if (d.content?.summaries) {
     const set = new Set<string>()
@@ -189,45 +179,29 @@ const digestTopics = (d: DigestEntry): string[] => {
   return []
 }
 
-const loading = ref(false)
-const errorOccurred = ref(false)
-const digests = ref<DigestEntry[]>([])
-const page = ref(0)
 const pageSize = ref(20)
-const totalPages = ref(0)
-const totalElements = ref(0)
 const expandedId = ref<string | null>(null)
-
 const filters = reactive({ topic: '', userSearch: '' })
 
-const formatDate = (value: string) =>
-  new Date(value).toLocaleDateString(intlLocale.value, {
-    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
+const { items: digests, page, totalPages, totalElements, loading, errorOccurred, load } = usePagedAdminList<AdminDigest>(
+  (nextPage) =>
+    api.admin.getDigests({
+      page: nextPage,
+      size: pageSize.value,
+      topic: filters.topic || undefined,
+      userEmail: filters.userSearch.trim() || undefined,
+    }),
+  () => error(t('admin.digests.toast.loadFailed'))
+)
 
 const toggleExpand = (id: string) => {
   expandedId.value = expandedId.value === id ? null : id
 }
 
-const loadDigests = async (nextPage = 0) => {
-  loading.value = true
-  errorOccurred.value = false
+// Collapse the open row first so a reloaded list never shows a stale detail panel.
+const loadDigests = (nextPage = 0) => {
   expandedId.value = null
-  try {
-    const params: Record<string, unknown> = { page: nextPage, size: pageSize.value }
-    if (filters.topic) params.topic = filters.topic
-    if (filters.userSearch.trim()) params.userEmail = filters.userSearch.trim()
-    const response = await api.admin.getDigests(params as { page?: number; size?: number; topic?: string; userEmail?: string })
-    digests.value = response.data.content
-    page.value = response.data.number
-    totalPages.value = response.data.totalPages
-    totalElements.value = response.data.totalElements
-  } catch {
-    errorOccurred.value = true
-    error(t('admin.digests.toast.loadFailed'))
-  } finally {
-    loading.value = false
-  }
+  return load(nextPage)
 }
 
 onMounted(() => loadDigests(0))

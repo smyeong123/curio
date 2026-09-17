@@ -59,8 +59,7 @@
     "tail": "remembered",
     "error": {
       "kicker": "— Couldn't load —",
-      "headline": "The scoreboard wouldn't load.",
-      "retry": "Retry"
+      "headline": "The scoreboard wouldn't load."
     },
     "empty": {
       "kicker": "— No attempts on file —",

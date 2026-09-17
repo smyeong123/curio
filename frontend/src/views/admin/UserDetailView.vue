@@ -1,23 +1,24 @@
 <template>
   <div class="mx-auto max-w-[1100px] px-5 py-10 sm:px-8 lg:px-12">
-    <header class="mb-10">
-      <router-link
-        to="/admin/users"
-        class="kicker mb-4 inline-flex items-baseline gap-2 hover:text-[color:var(--ink)]"
-      >
-        <span aria-hidden="true">←</span> {{ t('admin.userDetail.back') }}
-      </router-link>
-      <p class="kicker kicker-signal mb-3">{{ t('admin.userDetail.kicker') }}</p>
-      <i18n-t scope="global" keypath="admin.userDetail.headline" tag="h1" class="display-headline text-[clamp(40px,6vw,72px)] leading-[0.95]">
-        <template #details><em class="italic-display">{{ t('admin.userDetail.details') }}</em></template>
-      </i18n-t>
-      <div class="rule-double w-full mt-6"></div>
-    </header>
+    <router-link
+      to="/admin/users"
+      class="kicker mb-4 inline-flex items-baseline gap-2 hover:text-[color:var(--ink)]"
+    >
+      <span aria-hidden="true">←</span> {{ t('admin.userDetail.back') }}
+    </router-link>
+    <PageMasthead
+      :kicker="t('admin.userDetail.kicker')"
+      keypath="admin.userDetail.headline"
+      emphasis="details"
+      :emphasis-text="t('admin.userDetail.details')"
+      size="compact"
+    />
 
-    <section v-if="errorOccurred" class="border border-[color:var(--rule)] bg-paper-deep p-12 text-center">
-      <p class="kicker kicker-signal mb-3">{{ t('admin.common.loadFailed') }}</p>
-      <button class="btn-editorial-ghost" @click="loadUser">{{ t('admin.common.retry') }}</button>
-    </section>
+    <ErrorState
+      v-if="errorOccurred"
+      :kicker="t('admin.common.loadFailed')"
+      @retry="loadUser"
+    />
 
     <section v-else-if="loading" class="border-t-2 border-[color:var(--rule)] pt-12 text-center">
       <p class="kicker">{{ t('admin.userDetail.loading') }}</p>
@@ -88,7 +89,7 @@
               class="font-body-curio text-[14px] text-[color:var(--ink)] flex items-baseline gap-3"
             >
               <span class="num-tab text-[10px] text-[color:var(--mute)]">●</span>
-              {{ formatDate(digest.generatedAt) }}
+              {{ formatDate(digest.generatedAt, 'short') }}
             </li>
             <li v-if="detail.recentDigests.length === 0" class="kicker">{{ t('admin.userDetail.noDigests') }}</li>
           </ul>
@@ -101,7 +102,7 @@
               :key="attempt.id"
               class="font-body-curio text-[14px] text-[color:var(--ink)] flex items-baseline justify-between"
             >
-              <span>{{ formatDate(attempt.completedAt) }}</span>
+              <span>{{ formatDate(attempt.completedAt, 'short') }}</span>
               <span class="num-tab text-[14px] font-bold">{{ t('admin.userDetail.pts', { score: attempt.score }) }}</span>
             </li>
             <li v-if="detail.recentQuizAttempts.length === 0" class="kicker">{{ t('admin.userDetail.noQuizzes') }}</li>
@@ -118,35 +119,21 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/services/api'
 import { useToast } from '@/composables/useToast'
-import { useLocale } from '@/composables/useLocale'
+import { useFormat } from '@/composables/useFormat'
 import { useTopicLabels } from '@/composables/useTopicLabels'
+import type { AdminUserDetail } from '@/types/admin'
+import ErrorState from '@/components/ui/ErrorState.vue'
+import PageMasthead from '@/components/ui/PageMasthead.vue'
 
 const route = useRoute()
 const { t } = useI18n()
-const { intlLocale } = useLocale()
+const { formatDate } = useFormat()
 const { topicLabel } = useTopicLabels()
 const { error } = useToast()
 
-interface UserDetail {
-  user: import('@/types/user').User
-  topics: string[]
-  metrics: {
-    digestCount: number
-    quizAttempts: number
-    averageQuizScore: number | null
-  }
-  recentDigests: { id: string; generatedAt: string }[]
-  recentQuizAttempts: { id: string; completedAt: string; score: number }[]
-}
-
 const loading = ref(false)
 const errorOccurred = ref(false)
-const detail = ref<UserDetail | null>(null)
-
-// Declared before profileFields (a computed that calls it) so evaluating the
-// computed during setup can never hit a temporal dead zone.
-const formatDate = (value: string) =>
-  new Date(value).toLocaleDateString(intlLocale.value, { year: 'numeric', month: 'short', day: 'numeric' })
+const detail = ref<AdminUserDetail | null>(null)
 
 // Computed (not a plain array) so labels and dates re-render on an edition switch.
 const profileFields = computed(() => {
@@ -158,7 +145,7 @@ const profileFields = computed(() => {
     { label: t('admin.userDetail.profile.admin'), value: u.isAdmin ? t('admin.common.yes') : t('admin.common.no') },
     { label: t('admin.common.columns.delivery'), value: u.deliveryEnabled ? t('admin.common.on') : t('admin.common.off') },
     { label: t('admin.userDetail.profile.verified'), value: u.emailVerified ? t('admin.common.yes') : t('admin.common.no') },
-    { label: t('admin.common.columns.joined'), value: formatDate(u.createdAt) },
+    { label: t('admin.common.columns.joined'), value: formatDate(u.createdAt, 'short') },
   ]
 })
 

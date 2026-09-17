@@ -1,6 +1,5 @@
 {
   "app": {
-    "name": "Curio",
     "title": "Curio — AI 모델 뉴스 일간지",
     "tagline": "— AI 모델 뉴스 일간지",
     "loading": "Curio 불러오는 중",
@@ -16,10 +15,7 @@
     "back": "뒤로 가기",
     "home": "홈으로",
     "retry": "다시 시도",
-    "close": "닫기",
-    "cancel": "취소",
-    "save": "저장",
-    "dismiss": "닫기"
+    "cancel": "취소"
   },
   "a11y": {
     "closeDialog": "대화상자 닫기",

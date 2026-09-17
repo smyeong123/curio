@@ -1,7 +1,6 @@
 {
   "common": {
     "loadFailed": "— 불러오지 못했어요 —",
-    "retry": "다시 시도",
     "search": "검색",
     "allBeats": "전체 토픽",
     "on": "켜짐",
@@ -68,7 +67,11 @@
       "digests": "{success} / {total}명 · 실패 {fail}건",
       "digestsSkipped": "{success} / {total}명 · 실패 {fail}건 · 건너뜀 {skipped}건",
       "emails": "발송 {sent}건, 실패 {fail}건 (사용자 {total}명)",
-      "cleanup": "다이제스트 {count}건 재활용 (기준일: {cutoff})"
+      "cleanup": "다이제스트 {count}건 재활용 (기준일: {cutoff})",
+      "quizzes": "퀴즈 · 생성 {success}건 · 실패 {fail}건",
+      "beats": "비트 · {beats}",
+      "due": "이번 시간 발송 대상 {due}명",
+      "took": "소요 {duration}"
     },
     "beats": {
       "kicker": "— 토픽 현황 —",

@@ -33,8 +33,13 @@ const mountSettings = () =>
     }
   })
 
+// A SegmentedControl is named by its screen-reader legend (aria-labelledby).
+const radioGroup = (wrapper: ReturnType<typeof mountSettings>, label: string) => {
+  const legend = wrapper.findAll('legend').find((l) => l.text() === label)!
+  return wrapper.findAll('[role="radiogroup"]').find((g) => g.attributes('aria-labelledby') === legend.attributes('id'))!
+}
 const editionRadios = (wrapper: ReturnType<typeof mountSettings>, label: string) =>
-  wrapper.findAll(`[role="radiogroup"][aria-label="${label}"] [role="radio"]`)
+  radioGroup(wrapper, label).findAll('[role="radio"]')
 
 describe('SettingsView editions', () => {
   beforeEach(() => {

@@ -20,11 +20,3 @@ export interface Digest {
   generatedAt: string
   emailSentAt: string | null
 }
-
-export interface DigestPage {
-  content: Digest[]
-  totalPages: number
-  totalElements: number
-  number: number
-  size: number
-}

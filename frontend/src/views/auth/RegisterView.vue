@@ -2,10 +2,7 @@
   <div class="min-h-screen bg-paper text-[color:var(--ink)] lg:grid lg:grid-cols-[1.05fr_0.95fr]">
     <!-- ── Editorial aside (preview of beats) ─────────────────── -->
     <aside class="relative hidden flex-col bg-ink p-12 text-[color:var(--paper)] lg:flex">
-      <router-link to="/" class="flex items-baseline gap-3">
-        <span class="display-headline text-[36px] leading-none">Curio</span>
-        <span class="kicker" style="color: var(--paper); opacity: 0.6;">Vol. 047</span>
-      </router-link>
+      <AuthMasthead on-ink />
 
       <div class="my-auto max-w-[460px]">
         <p class="kicker mb-5" style="color: var(--signal);">{{ t('auth.register.aside.kicker') }}</p>
@@ -30,25 +27,13 @@
         </ul>
       </div>
 
-      <div class="flex items-end justify-between">
-        <p class="kicker" style="color: var(--paper); opacity: 0.5;">{{ t('auth.common.colophon') }}</p>
-        <div class="flex items-baseline gap-5">
-          <LanguageToggle class="text-[11px]" style="color: var(--paper); opacity: 0.6;" />
-          <p class="kicker" style="color: var(--paper); opacity: 0.5;">{{ todayShort }}</p>
-        </div>
-      </div>
+      <AuthColophon />
     </aside>
 
     <!-- ── Form panel ─────────────────────────────────────────── -->
     <section class="flex items-center justify-center px-6 py-14">
       <div class="w-full max-w-[460px]">
-        <div class="mb-10 flex items-baseline justify-between gap-4 lg:hidden">
-          <router-link to="/" class="flex items-baseline gap-3">
-            <span class="display-headline text-[28px] leading-none">Curio</span>
-            <span class="kicker">Vol. 047</span>
-          </router-link>
-          <LanguageToggle class="text-[12px]" />
-        </div>
+        <AuthMasthead class="lg:hidden" />
 
         <header class="mb-10">
           <p class="kicker kicker-signal mb-3">{{ t('auth.register.kicker') }}</p>
@@ -78,19 +63,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
-import { useLocale } from '@/composables/useLocale'
 import { useTopicLabels } from '@/composables/useTopicLabels'
+import AuthMasthead from '@/components/auth/AuthMasthead.vue'
+import AuthColophon from '@/components/auth/AuthColophon.vue'
 import RegisterForm from '@/components/auth/RegisterForm.vue'
-import LanguageToggle from '@/components/ui/LanguageToggle.vue'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()
-const { intlLocale } = useLocale()
 const { topicLabel } = useTopicLabels()
 const authStore = useAuthStore()
 const router = useRouter()
@@ -110,11 +94,6 @@ const sampleTopics = [
   'Benchmarks & Evaluations',
   'New & Emerging Models',
 ] as const
-
-const todayShort = computed(() => {
-  const d = new Date()
-  return d.toLocaleDateString(intlLocale.value, { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase()
-})
 
 const handleRegister = async (data: { email: string; password: string; fullName: string }) => {
   loading.value = true
