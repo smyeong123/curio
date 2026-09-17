@@ -42,9 +42,4 @@ public class UserApiKeyJpaAdapter implements UserApiKeyPort {
     public void deleteByUserIdAndProvider(UUID userId, UserApiKey.Provider provider) {
         repository.deleteByUserIdAndProvider(userId, provider);
     }
-
-    @Override
-    public boolean existsValidatedForUser(UUID userId) {
-        return repository.existsValidatedForUser(userId);
-    }
 }

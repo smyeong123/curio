@@ -1,8 +1,9 @@
 package com.curio.user.service;
 
 import com.curio.auth.port.out.RefreshTokenPort;
-import com.curio.auth.service.UnsubscribeTokenService;
+import com.curio.shared.security.UnsubscribeTokenService;
 import com.curio.user.dto.PreferencesRequest;
+import com.curio.user.dto.PreferencesResponse;
 import com.curio.user.entity.User;
 import com.curio.user.entity.UserPreferences;
 import com.curio.user.port.out.UserPort;
@@ -17,7 +18,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -100,11 +100,45 @@ class UserServicePreferencesTest {
     void preferencesDetail_exposesTheEdition_andDefaultsToEnglish() {
         when(userPreferencesPort.findByUserId(userId))
                 .thenReturn(Optional.of(UserPreferences.builder().user(user).topics(new String[]{"DeepSeek"}).language("ko").build()));
-        Map<String, Object> detail = userService.getPreferencesDetail(userId);
-        assertThat(detail.get("language")).isEqualTo("ko");
+        PreferencesResponse detail = userService.getPreferencesDetail(userId);
+        assertThat(detail.language()).isEqualTo("ko");
+        assertThat(detail.topics()).containsExactly("DeepSeek");
 
         UUID nobody = UUID.randomUUID();
         when(userPreferencesPort.findByUserId(nobody)).thenReturn(Optional.empty());
-        assertThat(userService.getPreferencesDetail(nobody).get("language")).isEqualTo("en");
+        assertThat(userService.getPreferencesDetail(nobody).language()).isEqualTo("en");
+    }
+
+    @Test
+    void preferencesDetail_returnsPlatformDefaults_whenNothingIsSavedYet() {
+        when(userPreferencesPort.findByUserId(userId)).thenReturn(Optional.empty());
+
+        PreferencesResponse detail = userService.getPreferencesDetail(userId);
+
+        assertThat(detail.topics()).isEmpty();
+        assertThat(detail.timezone()).isNull();
+        assertThat(detail.deliveryHour()).isNull();
+        assertThat(detail.timezoneAuto()).isTrue();
+        assertThat(detail.language()).isEqualTo("en");
+    }
+
+    @Test
+    void preferencesDetail_mirrorsEverySavedSetting() {
+        when(userPreferencesPort.findByUserId(userId)).thenReturn(Optional.of(UserPreferences.builder()
+                .user(user)
+                .topics(new String[]{"DeepSeek", "Claude (Anthropic)"})
+                .timezone("Asia/Seoul")
+                .deliveryHour(7)
+                .timezoneAuto(false)
+                .language("KO")
+                .build()));
+
+        PreferencesResponse detail = userService.getPreferencesDetail(userId);
+
+        assertThat(detail.topics()).containsExactly("DeepSeek", "Claude (Anthropic)");
+        assertThat(detail.timezone()).isEqualTo("Asia/Seoul");
+        assertThat(detail.deliveryHour()).isEqualTo(7);
+        assertThat(detail.timezoneAuto()).isFalse();
+        assertThat(detail.language()).isEqualTo("ko");
     }
 }

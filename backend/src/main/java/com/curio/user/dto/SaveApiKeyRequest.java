@@ -23,7 +23,6 @@ public class SaveApiKeyRequest {
     @ToString.Exclude   // never let the password reach a log / toString dump
     private String currentPassword;
 
-    // Note: keys are ALWAYS validated against the provider before storage — the
-    // old opt-out `validate` flag was accepted-but-ignored and has been removed
-    // (unknown JSON properties from older clients are ignored by Jackson).
+    // Keys are always validated against the provider before storage; there is no
+    // opt-out (unknown JSON properties from older clients are ignored by Jackson).
 }

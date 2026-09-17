@@ -44,6 +44,20 @@ class UserControllerUnsubscribeIntegrationTest {
     }
 
     @Test
+    void getEchoesTheTokenInAHiddenInput_escaped() throws Exception {
+        String hostile = "abc\"><script>alert(1)</script>";
+        doNothing().when(userService).validateUnsubscribeToken(hostile);
+
+        mockMvc.perform(get("/api/v1/user/unsubscribe")
+                        .param("token", hostile))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "<input type=\"hidden\" name=\"token\" value=\"abc&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;\">")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("<script>"))));
+    }
+
+    @Test
     void getReturnsBadRequestForInvalidToken() throws Exception {
         doThrow(new IllegalArgumentException("Invalid unsubscribe link."))
                 .when(userService).validateUnsubscribeToken("invalid-token");

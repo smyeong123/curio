@@ -43,7 +43,7 @@ class QuizAttemptRecorderTest {
         when(quizAttemptPort.findByUserIdAndQuizIdForUpdate(userId, quizId)).thenReturn(Optional.empty());
         when(userPort.getReferenceById(userId)).thenReturn(User.builder().id(userId).build());
 
-        QuizAttemptRecorder.Result r = recorder.record(userId, quizId, quiz(), answers, 4);
+        QuizAttemptRecorder.Outcome r = recorder.record(userId, quizId, quiz(), answers, 4);
 
         assertThat(r.improved()).isTrue();
         assertThat(r.bestScore()).isEqualTo(4);
@@ -55,7 +55,7 @@ class QuizAttemptRecorderTest {
         QuizAttempt prior = QuizAttempt.builder().id(UUID.randomUUID()).score(2).answers(Map.of()).build();
         when(quizAttemptPort.findByUserIdAndQuizIdForUpdate(userId, quizId)).thenReturn(Optional.of(prior));
 
-        QuizAttemptRecorder.Result r = recorder.record(userId, quizId, quiz(), answers, 5);
+        QuizAttemptRecorder.Outcome r = recorder.record(userId, quizId, quiz(), answers, 5);
 
         assertThat(r.improved()).isTrue();
         assertThat(r.bestScore()).isEqualTo(5);
@@ -69,7 +69,7 @@ class QuizAttemptRecorderTest {
         QuizAttempt prior = QuizAttempt.builder().id(UUID.randomUUID()).score(5).answers(Map.of()).build();
         when(quizAttemptPort.findByUserIdAndQuizIdForUpdate(userId, quizId)).thenReturn(Optional.of(prior));
 
-        QuizAttemptRecorder.Result r = recorder.record(userId, quizId, quiz(), answers, 3);
+        QuizAttemptRecorder.Outcome r = recorder.record(userId, quizId, quiz(), answers, 3);
 
         assertThat(r.improved()).isFalse();
         assertThat(r.bestScore()).isEqualTo(5);
@@ -82,7 +82,7 @@ class QuizAttemptRecorderTest {
         QuizAttempt prior = QuizAttempt.builder().id(UUID.randomUUID()).score(2).answers(Map.of()).build();
         when(quizAttemptPort.findByUserIdAndQuizIdForUpdate(userId, quizId)).thenReturn(Optional.of(prior));
 
-        QuizAttemptRecorder.Result r = recorder.recover(userId, quizId, answers, 4);
+        QuizAttemptRecorder.Outcome r = recorder.recover(userId, quizId, answers, 4);
 
         assertThat(r.improved()).isTrue();
         assertThat(r.bestScore()).isEqualTo(4);

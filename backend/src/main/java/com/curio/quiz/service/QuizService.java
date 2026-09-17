@@ -1,7 +1,13 @@
 package com.curio.quiz.service;
 
+import com.curio.quiz.dto.PreviousAttempt;
+import com.curio.quiz.dto.QuizHistoryEntry;
+import com.curio.quiz.dto.QuizQuestionSet;
+import com.curio.quiz.dto.QuizQuestionSet.QuizQuestionView;
 import com.curio.quiz.dto.QuizSubmitRequest;
 import com.curio.quiz.dto.QuizResponse;
+import com.curio.quiz.dto.QuizSubmitResponse;
+import com.curio.quiz.dto.QuizSubmitResponse.QuestionResult;
 import com.curio.news.entity.Digest;
 import com.curio.quiz.entity.Quiz;
 import com.curio.quiz.entity.QuizAttempt;
@@ -15,7 +21,7 @@ import com.curio.shared.exception.ResourceNotFoundException;
 import com.curio.shared.i18n.Language;
 import com.curio.news.dto.QuizGenerationResult;
 import com.curio.news.dto.QuizQuestionItem;
-import com.curio.news.service.AiService;
+import com.curio.news.port.out.AiService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -59,7 +65,7 @@ public class QuizService implements QuizUseCase {
      * {@link #generateQuizForDigest}. The DB work is split into short read
      * transactions ({@link #inReadTx}); the AI call runs between them with no
      * transaction active, mirroring
-     * {@link com.curio.news.service.NewsService#generateDigestForUser}.
+     * {@link com.curio.news.service.NewsService#generate}.
      */
     public QuizResponse getQuizForDigest(UUID digestId, UUID userId) {
         // Fast path: a quiz already exists. Load + answer-strip inside a short read
@@ -222,7 +228,7 @@ public class QuizService implements QuizUseCase {
     }
 
     @Transactional
-    public Map<String, Object> submitQuiz(UUID quizId, UUID userId, QuizSubmitRequest request) {
+    public QuizSubmitResponse submitQuiz(UUID quizId, UUID userId, QuizSubmitRequest request) {
         Quiz quiz = quizPort.findById(quizId)
                 .orElseThrow(() -> new ResourceNotFoundException("Quiz not found"));
 
@@ -235,30 +241,25 @@ public class QuizService implements QuizUseCase {
             throw new ResourceNotFoundException("Quiz not found");
         }
 
-        // Score the quiz
-        Map<String, Object> questions = quiz.getQuestions();
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> questionList = (List<Map<String, Object>>) questions.get("questions");
-
+        // Score the quiz against the stored answer key.
+        List<QuizQuestionItem> questions = storedQuestions(quiz.getQuestions());
         int score = 0;
-        int total = questionList != null ? questionList.size() : 0;
-        List<Map<String, Object>> results = new ArrayList<>();
+        int total = questions != null ? questions.size() : 0;
+        List<QuestionResult> results = new ArrayList<>();
 
-        if (questionList != null) {
-            for (Map<String, Object> q : questionList) {
-                int qId = ((Number) q.get("id")).intValue();
-                String correct = (String) q.get("correct");
-                String userAnswer = request.getAnswers().get(qId);
+        if (questions != null) {
+            for (QuizQuestionItem question : questions) {
+                String correct = question.getCorrect();
+                String userAnswer = request.getAnswers().get(question.getId());
 
                 boolean isCorrect = correct != null && correct.equals(userAnswer);
                 if (isCorrect) score++;
 
-                results.add(Map.of(
-                        "questionId", qId,
-                        "correct", isCorrect,
-                        "correctAnswer", correct != null ? correct : "",
-                        "explanation", q.getOrDefault("explanation", "")
-                ));
+                results.add(new QuestionResult(
+                        question.getId(),
+                        isCorrect,
+                        correct != null ? correct : "",
+                        question.getExplanation() != null ? question.getExplanation() : ""));
             }
         }
 
@@ -270,7 +271,7 @@ public class QuizService implements QuizUseCase {
         // the (user_id, quiz_id) unique-constraint violation, so a concurrent first
         // submit recovers as a normal "better score wins" update instead of a 500.
         Map<String, Object> answers = Map.of("answers", request.getAnswers());
-        QuizAttemptRecorder.Result outcome;
+        QuizAttemptRecorder.Outcome outcome;
         try {
             outcome = quizAttemptRecorder.record(userId, quizId, quiz, answers, score);
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
@@ -278,49 +279,32 @@ public class QuizService implements QuizUseCase {
             outcome = quizAttemptRecorder.recover(userId, quizId, answers, score);
         }
 
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("score", score);                    // this attempt's score (honest live feedback)
-        response.put("totalQuestions", total);
-        response.put("results", results);
-        response.put("bestScore", outcome.bestScore());  // the score now stored for this quiz
-        response.put("improved", outcome.improved());    // whether this attempt updated the record
-        return response;
+        // score = this attempt (honest live feedback); bestScore = what is now on file.
+        return new QuizSubmitResponse(score, total, results, outcome.bestScore(), outcome.improved());
     }
 
     @Transactional(readOnly = true)
-    public Page<Map<String, Object>> getHistory(UUID userId, int page) {
+    public Page<QuizHistoryEntry> getHistory(UUID userId, int page) {
         Page<QuizAttempt> attempts = quizAttemptPort.findByUserIdWithQuiz(
                 userId, PageRequest.of(page, 10));
 
-        return attempts.map(a -> {
-            Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("id", a.getId());
-            entry.put("quizId", a.getQuiz().getId());
-            entry.put("score", a.getScore());
-
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> questionList = a.getQuiz().getQuestions() != null
-                    ? (List<Map<String, Object>>) a.getQuiz().getQuestions().get("questions")
-                    : null;
-            entry.put("totalQuestions", questionList != null ? questionList.size() : 5);
-
-            entry.put("completedAt", a.getCompletedAt());
-            return entry;
+        return attempts.map(attempt -> {
+            List<QuizQuestionItem> questions = storedQuestions(attempt.getQuiz().getQuestions());
+            return new QuizHistoryEntry(
+                    attempt.getId(),
+                    attempt.getQuiz().getId(),
+                    attempt.getScore(),
+                    questions != null ? questions.size() : 5,
+                    attempt.getCompletedAt());
         });
     }
 
     private QuizResponse toQuizResponse(Quiz quiz, UUID userId) {
         // Surface the caller's existing attempt (if any) so a revisit shows
         // "your best score" instead of a blank form. Retakes are better-score-wins.
-        Map<String, Object> previousAttempt = quizAttemptPort
+        PreviousAttempt previousAttempt = quizAttemptPort
                 .findByUserIdAndQuizId(userId, quiz.getId())
-                .map(attempt -> {
-                    Map<String, Object> m = new java.util.LinkedHashMap<String, Object>();
-                    m.put("score", attempt.getScore());
-                    m.put("completedAt", attempt.getCompletedAt() != null
-                            ? attempt.getCompletedAt().toString() : null);
-                    return (Map<String, Object>) m;
-                })
+                .map(PreviousAttempt::from)
                 .orElse(null);
         return QuizResponse.builder()
                 .id(quiz.getId())
@@ -336,20 +320,22 @@ public class QuizService implements QuizUseCase {
      * submission — scoring is entirely server-side (see {@link #submitQuiz}),
      * which reads straight off the entity and is unaffected by this copy.
      */
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> sanitizeQuestions(Map<String, Object> questions) {
+    private QuizQuestionSet sanitizeQuestions(Map<String, Object> questions) {
         if (questions == null) return null;
-        List<Map<String, Object>> list = (List<Map<String, Object>>) questions.get("questions");
-        if (list == null) return Map.of("questions", List.of());
-        List<Map<String, Object>> safe = new ArrayList<>();
-        for (Map<String, Object> item : list) {
-            Map<String, Object> s = new LinkedHashMap<>();
-            s.put("id", item.get("id"));
-            s.put("question", item.get("question"));
-            s.put("options", item.get("options"));
-            safe.add(s);
-        }
-        return Map.of("questions", safe);
+        List<QuizQuestionItem> items = storedQuestions(questions);
+        if (items == null) return new QuizQuestionSet(List.of());
+        return new QuizQuestionSet(items.stream().map(QuizQuestionView::from).toList());
+    }
+
+    /**
+     * Read the quiz back out of its jsonb column in the shape it was generated in
+     * ({@link QuizGenerationResult}), so scoring and answer-key stripping work on
+     * typed questions. Returns null when the stored document carries no
+     * {@code questions} entry.
+     */
+    private List<QuizQuestionItem> storedQuestions(Map<String, Object> questions) {
+        if (questions == null) return null;
+        return objectMapper.convertValue(questions, QuizGenerationResult.class).getQuestions();
     }
 
     /**
