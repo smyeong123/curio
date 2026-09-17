@@ -1,20 +1,20 @@
 package com.curio.shared.email;
 
-import com.curio.auth.service.UnsubscribeTokenService;
+import com.curio.shared.security.UnsubscribeTokenService;
 import com.curio.news.entity.Digest;
 import com.curio.news.port.out.DigestPort;
 import com.curio.quiz.entity.Quiz;
 import com.curio.quiz.port.out.QuizPort;
 import com.curio.shared.i18n.Language;
 import com.curio.user.entity.User;
-import com.curio.user.port.out.UserPort;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.curio.user.entity.UserPreferences;
+import com.curio.user.port.out.UserPreferencesPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.thymeleaf.spring6.SpringTemplateEngine;
@@ -28,7 +28,9 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -40,10 +42,10 @@ import static org.mockito.Mockito.when;
 class EmailServiceRenderTest {
 
     @Mock private DigestPort digestPort;
-    @Mock private UserPort userPort;
     @Mock private QuizPort quizPort;
-    @Mock private RestTemplateBuilder restTemplateBuilder;
+    @Mock private UserPreferencesPort preferencesPort;
     @Mock private UnsubscribeTokenService unsubscribeTokenService;
+    @Mock private EmailTransport transport;
 
     private EmailService emailService;
 
@@ -71,8 +73,8 @@ class EmailServiceRenderTest {
         messageSource.setFallbackToSystemLocale(false);
         templateEngine.setMessageSource(messageSource);
 
-        emailService = new EmailService(digestPort, userPort, quizPort, templateEngine, new ObjectMapper(),
-                restTemplateBuilder, unsubscribeTokenService, messageSource);
+        emailService = new EmailService(digestPort, quizPort, preferencesPort, templateEngine,
+                unsubscribeTokenService, messageSource, transport);
         ReflectionTestUtils.setField(emailService, "frontendUrl", "https://curio.test");
         ReflectionTestUtils.setField(emailService, "backendUrl", "https://api.curio.test");
 
@@ -142,5 +144,46 @@ class EmailServiceRenderTest {
                 .matches("Curio 데일리 다이제스트 — \\d{4}년 \\d{1,2}월 \\d{1,2}일");
         assertThat(emailService.digestSubject(Language.EN))
                 .matches("Your Curio Daily Digest — [A-Z][a-z]+ \\d{1,2}, \\d{4}");
+    }
+    // --- account emails: the same shell, the reader's edition ---
+
+    @Test
+    void passwordResetEmail_followsTheAccountEdition_andCarriesTheLink() {
+        User reader = user("Alex");
+        when(preferencesPort.findByUserId(reader.getId()))
+                .thenReturn(Optional.of(UserPreferences.builder().language("ko").build()));
+
+        emailService.sendPasswordResetEmail(reader, "tok en");
+
+        ArgumentCaptor<String> html = ArgumentCaptor.forClass(String.class);
+        verify(transport).send(eq("reader@example.com"), eq("Curio 비밀번호 재설정"), html.capture());
+        assertThat(html.getValue()).contains("lang=\"ko\"").contains("비밀번호를 재설정하세요")
+                .contains("<strong>1시간</strong>").contains("https://curio.test/reset-password?token=tok+en")
+                .doesNotContain("Reset your password");
+    }
+
+    @Test
+    void signInCodeEmail_defaultsToEnglish_andQuotesCodeAndTtl() {
+        User reader = user("Alex");
+        when(preferencesPort.findByUserId(reader.getId())).thenReturn(Optional.empty());
+
+        emailService.sendLoginVerificationEmail(reader, "123456", 10);
+
+        ArgumentCaptor<String> html = ArgumentCaptor.forClass(String.class);
+        verify(transport).send(eq("reader@example.com"), eq("Your Curio sign-in code: 123456"), html.capture());
+        assertThat(html.getValue()).contains("lang=\"en\"").contains(">123456<")
+                .contains("Here&#39;s your code").contains("<strong>10 minutes</strong>")
+                .contains("https://curio.test/verify?code=123456")
+                .contains("Your Curio sign-in code is 123456 — it expires in 10 minutes.")
+                .doesNotContain("Reset password");
+    }
+
+    @Test
+    void signInCodeEmail_inKorean() {
+        String html = emailService.renderAuthEmail("code", Language.KO,
+                Map.of("code", "654321", "ttl", 10L, "verifyLink", "https://curio.test/verify?code=654321"));
+
+        assertThat(html).contains("인증 코드가 도착했어요").contains("<strong>10분</strong>").contains("코드 복사")
+                .contains("Curio · 계정 보안").doesNotContain("Sign-in verification");
     }
 }

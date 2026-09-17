@@ -1,7 +1,7 @@
 package com.curio.shared.webhook;
 
 import com.curio.shared.security.WebhookSignatureVerifier;
-import com.curio.shared.port.in.EmailUseCase;
+import com.curio.shared.port.in.EmailEventUseCase;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,7 +21,7 @@ import java.util.Map;
 @Slf4j
 public class WebhookController {
 
-    private final EmailUseCase emailService;
+    private final EmailEventUseCase emailEvents;
     private final WebhookSignatureVerifier webhookSignatureVerifier;
     private final ObjectMapper objectMapper;
 
@@ -38,7 +38,7 @@ public class WebhookController {
 
         try {
             Map<String, Object> event = objectMapper.readValue(payload, new TypeReference<>() {});
-            emailService.processWebhookEvent(event);
+            emailEvents.processWebhookEvent(event);
             return ResponseEntity.ok().build();
         } catch (Exception ex) {
             log.warn("Rejected email webhook due to invalid payload", ex);

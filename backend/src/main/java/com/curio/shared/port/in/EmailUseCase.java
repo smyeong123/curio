@@ -3,12 +3,10 @@ package com.curio.shared.port.in;
 import com.curio.news.entity.Digest;
 import com.curio.user.entity.User;
 
-import java.util.Map;
-
 /**
- * Inbound port for email use cases.
- * Scheduled jobs and webhook handlers (driving adapters) depend on this interface,
- * not on the concrete EmailService implementation.
+ * Inbound port for the emails Curio sends. Jobs, batches, Studio and the auth
+ * flow (driving adapters) depend on this interface, not on EmailService.
+ * Provider delivery events arrive through {@link EmailEventUseCase}.
  */
 public interface EmailUseCase {
 
@@ -31,5 +29,6 @@ public interface EmailUseCase {
 
     void sendPasswordResetEmail(User user, String resetToken);
 
-    void processWebhookEvent(Map<String, Object> event);
+    /** The one-time sign-in code; {@code ttlMinutes} is quoted in the copy. */
+    void sendLoginVerificationEmail(User user, String code, long ttlMinutes);
 }
