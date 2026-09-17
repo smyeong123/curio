@@ -211,32 +211,9 @@ Prod additionally needs self-generated secrets (`JWT_SECRET`, `JWT_REFRESH_SECRE
 
 ## Architecture Overview
 
-```
-                                 +----------+
-                                 | NewsAPI  |
-                                 +----+-----+
-                                      |
-+-----------+   /api/v1   +-----------v-----------+   JPA   +-------------+
-| Vue SPA   +----------->| Spring Boot           +-------->| PostgreSQL  |
-| (Tailwind |  HTTPS via | (hexagonal, V1-V28,    |         |  (Flyway)   |
-| editorial)|  nginx     | Resilience4j, ShedLock|         +-------------+
-+-----------+            +--+------+------+------+
-                            |      |      |
-                  +---------+      |      +-----------+
-                  |                |                  |
-            +-----v----+    +------v------+
-            | Claude / |    |  Resend     |
-            | Gemini / |    |  (email +   |
-            | OpenAI   |    |   webhook)  |
-            +----+-----+    +-------------+
-                 |
-            +----v----+
-            |  Redis  |
-            | (cache, |
-            | jobs,   |
-            | idemp.) |
-            +---------+
-```
+![Curio architecture overview: Vue SPA, Spring Boot, PostgreSQL, AI providers, Resend, and Redis](docs/diagrams/architecture-overview.png)
+
+[Edit in Excalidraw](docs/diagrams/architecture-overview.excalidraw)
 
 - **Auth** — JWT access (15 min) + SHA-256-hashed refresh cookie (3-hour sliding idle timeout, single-use rotation), plus Google OAuth2 and the emailed-code login step.
 - **Content pipeline** — one `DigestPipeline` (digest + quiz per user) behind `DigestBatch` / `DigestEmailBatch`, driven by `DigestGenerationJob` (06:00 UTC), hourly `EmailSendJob` (per-user delivery hour, catch-up gate, claim-before-send), the admin triggers and Studio; `CleanupJob` (00:00 UTC) and `ExpiredAuthRowReaper` — all ShedLock-coordinated.
