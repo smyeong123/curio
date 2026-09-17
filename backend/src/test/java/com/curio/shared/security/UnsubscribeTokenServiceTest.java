@@ -1,4 +1,4 @@
-package com.curio.auth.service;
+package com.curio.shared.security;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

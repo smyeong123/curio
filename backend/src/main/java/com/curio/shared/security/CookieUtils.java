@@ -15,9 +15,8 @@ public class CookieUtils {
     @Value("${app.cookie.secure:true}")
     private boolean secure;
 
-    // Fallback matches the real session length (3h sliding idle timeout,
-    // JWT_REFRESH_EXPIRATION) — the property is always present, but a stale 7-day
-    // fallback here would hand out a cookie that long outlives its token.
+    // The cookie max-age must equal the refresh token's lifetime, or a cookie could
+    // outlive its token; the fallback is the documented 3h sliding idle timeout.
     @Value("${jwt.refresh-expiration:10800000}")
     private long refreshTokenExpirationMs;
 
@@ -39,9 +38,5 @@ public class CookieUtils {
                 .maxAge(0)
                 .sameSite("Strict")
                 .build();
-    }
-
-    public static String getCookieName() {
-        return REFRESH_TOKEN_COOKIE;
     }
 }

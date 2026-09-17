@@ -2,6 +2,7 @@ package com.curio.shared.security;
 
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
+import io.github.bucket4j.ConsumptionProbe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -12,18 +13,20 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Reusable per-key token-bucket limiter for authenticated, app-layer throttling
- * (e.g. BYOK validate / re-auth) where the IP-based {@link RateLimitingFilter}
- * (which only guards {@code /api/v1/auth/}) does not reach.
+ * The one in-process token-bucket store. {@link RateLimitingFilter} keys it by
+ * client IP for the auth endpoints; services key it by {@code scope:userId} for
+ * authenticated, app-layer throttling (e.g. BYOK re-auth).
  *
  * <p>Buckets are held in-process keyed by an arbitrary string (typically
  * {@code scope:userId}). The first call for a key fixes its capacity/refill;
  * later calls with the same key reuse that bucket regardless of the limits
  * passed, so always use a stable {@code (capacity, refill)} per scope.
  *
- * <p>Like {@link RateLimitingFilter}, idle buckets are swept periodically so the
- * map can't grow without bound. NOTE: per-instance state — multiple replicas
- * need a shared store (e.g. Redis-backed Bucket4j).
+ * <p>Idle buckets are swept periodically so the map can't grow without bound
+ * (a survivor would have fully refilled by then, so dropping it is equivalent).
+ *
+ * <p>Per-instance state: multiple replicas need a shared store (e.g. a
+ * Redis-backed Bucket4j).
  */
 @Component
 public class InMemoryRateLimiter {
@@ -50,10 +53,18 @@ public class InMemoryRateLimiter {
      * @return {@code true} if allowed, {@code false} if the bucket is exhausted.
      */
     public boolean tryConsume(String key, int capacity, Duration refill) {
+        return probe(key, capacity, refill).isConsumed();
+    }
+
+    /**
+     * Like {@link #tryConsume} but returns the full probe (remaining tokens, wait
+     * until refill) for callers that surface rate-limit headers.
+     */
+    public ConsumptionProbe probe(String key, int capacity, Duration refill) {
         Entry entry = buckets.computeIfAbsent(key,
                 k -> new Entry(newBucket(capacity, refill), System.nanoTime()));
         entry.lastAccessNanos = System.nanoTime();
-        return entry.bucket.tryConsume(1);
+        return entry.bucket.tryConsumeAndReturnRemaining(1);
     }
 
     private Bucket newBucket(int capacity, Duration refill) {
