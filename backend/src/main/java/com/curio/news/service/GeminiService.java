@@ -41,8 +41,9 @@ public class GeminiService extends AbstractAiProvider {
         return "Gemini";
     }
 
+    /** {@code webSearch} is ignored: no Gemini search tool is wired here (see {@link #supportsWebSearch()}). */
     @Override
-    protected String callApiRaw(String prompt, String overrideApiKey) {
+    protected String callApiRaw(String prompt, String overrideApiKey, boolean webSearch) {
         String keyInUse = (overrideApiKey != null && !overrideApiKey.isBlank()) ? overrideApiKey : apiKey;
         // Pass the key via header, never the URL query string — keys in URLs leak
         // into access logs, proxies and RestTemplate request logging.

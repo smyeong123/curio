@@ -1,5 +1,6 @@
 package com.curio.news.service;
 
+import com.curio.news.port.out.AiService;
 import com.curio.news.dto.NewsSummary;
 import com.curio.news.dto.QuizGenerationResult;
 import com.curio.shared.concurrent.SingleFlight;

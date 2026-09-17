@@ -44,8 +44,9 @@ public class OpenAiService extends AbstractAiProvider {
         return "OpenAI";
     }
 
+    /** {@code webSearch} is ignored: no OpenAI search tool is wired here (see {@link #supportsWebSearch()}). */
     @Override
-    protected String callApiRaw(String prompt, String overrideApiKey) {
+    protected String callApiRaw(String prompt, String overrideApiKey, boolean webSearch) {
         String keyInUse = (overrideApiKey != null && !overrideApiKey.isBlank()) ? overrideApiKey : apiKey;
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
