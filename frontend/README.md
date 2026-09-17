@@ -123,7 +123,7 @@ For the API contract, see [`../docs/CODEBASE.md`](../docs/CODEBASE.md).
 
 ## Testing
 
-**Unit (Vitest)** — `npm run test:unit`. 22 test files in `src/__tests__/` covering stores (auth, user, news, quiz), components, composables (`useToast`, `useTopicLabels`), the i18n layer (`useLocale`, catalog key-tree parity), views in both editions, and `safeUrl` utils. Runs in jsdom; `setup.ts` installs the app i18n singleton and resets it to English before each test.
+**Unit (Vitest)** — `npm run test:unit`. 42 test files / 214 tests in `src/__tests__/` (as of 2026-09-17) covering stores (auth, user, news, quiz), the extracted components (mastheads, pager, segmented control, archive/studio/admin pieces), composables (`useToast`, `useTopicLabels`, `useFormat`, `usePoller`, `usePagedAdminList`, `useTopicSelection`, `useDisclosureSet`), the i18n layer (`useLocale`, catalog key-tree parity), views in both editions, and `safeUrl`. Runs in jsdom; `setup.ts` installs the app i18n singleton, resets it to English and stubs `matchMedia` before each test.
 
 **E2E (Cypress)** — `npm run test:e2e`. 10 specs in `tests/e2e/` (as of 2026-09-16): `auth`, `onboarding`, `quiz`, `archive`, `settings`, `admin`, `reset-password`, `not-found`, `i18n`, `ui-screenshots`. The support file (`tests/e2e/support.ts`) pins the UI edition to English before boot unless a test already chose one. Session mocking is centralized in `tests/e2e/helpers.ts`: the app keeps the access token in memory and re-establishes sessions via silent `POST /auth/refresh`, so specs seed the localStorage `user` (`withAuth()`) and stub the refresh call (`stubSession()`) — **never seed localStorage tokens**.
 
