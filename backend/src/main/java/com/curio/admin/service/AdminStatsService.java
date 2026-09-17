@@ -9,7 +9,7 @@ import com.curio.shared.config.TopicConstants;
 import com.curio.shared.scheduler.CleanupJob;
 import com.curio.shared.scheduler.DigestGenerationJob;
 import com.curio.shared.scheduler.EmailSendJob;
-import com.curio.shared.scheduler.JobStatusRegistry;
+import com.curio.shared.jobs.JobStatusRegistry;
 import com.curio.news.entity.Digest;
 import com.curio.news.port.out.DigestPort;
 import com.curio.quiz.port.out.QuizAttemptPort;
@@ -130,11 +130,9 @@ public class AdminStatsService implements AdminStatsUseCase {
         }
 
         // Page through ALL digests (ordered by generated_at DESC) to compute
-        // per-topic stats. Aggregates are accumulated page-by-page so heap use
-        // stays bounded to a single page. The previous single 1000-row slice
-        // silently undercounted 'digestsGeneratedToday' and dropped
-        // 'latestDigestGeneratedAt' for lower-frequency topics once total digest
-        // volume exceeded 1000 (e.g. >1000 users each getting a daily digest).
+        // per-topic stats; aggregates accumulate page by page so heap use stays
+        // bounded to one page. Every digest must be visited — a bounded slice
+        // would undercount low-frequency topics once volume passes the slice size.
         int pageIndex = 0;
         Page<Digest> digestPage;
         do {

@@ -1,8 +1,10 @@
 package com.curio.news.service;
 
+import com.curio.news.port.out.AiService;
 import com.curio.news.dto.DigestResponse;
 import com.curio.news.dto.NewsSummary;
 import com.curio.news.entity.Digest;
+import com.curio.news.port.in.DigestGeneration;
 import com.curio.news.port.in.DigestProgressListener;
 import com.curio.news.port.in.NewsUseCase;
 import com.curio.news.port.out.DigestPort;
@@ -95,17 +97,14 @@ public class NewsService implements NewsUseCase {
     }
 
     /**
-     * Intentionally NOT @Transactional. This orchestrates several Claude calls
-     * (each up to ~90s); holding a pooled JDBC connection open across them would
-     * exhaust the connection pool under the digest job's concurrency. The DB
+     * Intentionally NOT @Transactional. This orchestrates several AI-provider
+     * calls (each up to ~90s); holding a pooled JDBC connection open across them
+     * would exhaust the connection pool under the digest job's concurrency. The DB
      * touches here (existence check, preferences load, final save) each run in
      * their own short transaction via the repository layer.
      */
-    public Digest generateDigestForUser(User user) {
-        return generateDigestForUser(user, DigestProgressListener.NOOP);
-    }
-
-    public Digest generateDigestForUser(User user, DigestProgressListener progressListener) {
+    @Override
+    public DigestGeneration generate(User user, DigestProgressListener progressListener) {
         DigestProgressListener listener = (progressListener != null)
                 ? progressListener : DigestProgressListener.NOOP;
 
@@ -115,7 +114,7 @@ public class NewsService implements NewsUseCase {
         LocalDateTime endOfDay = startOfDay.plusDays(1);
         if (digestPort.existsByUserIdAndGeneratedAtBetween(user.getId(), startOfDay, endOfDay)) {
             log.info("Digest already exists for user {} today, skipping", user.getId());
-            return null;
+            return DigestGeneration.alreadyExists();
         }
 
         UserPreferences preferences = userPreferencesPort.findByUserId(user.getId())
@@ -123,7 +122,7 @@ public class NewsService implements NewsUseCase {
 
         if (preferences == null || preferences.getTopics().length == 0) {
             log.warn("User {} has no preferences set, skipping digest generation", user.getId());
-            return null;
+            return DigestGeneration.noTopics();
         }
 
         // BYOK: if the user has a validated API key for the platform's
@@ -183,7 +182,7 @@ public class NewsService implements NewsUseCase {
 
         if (allSummaries.isEmpty()) {
             log.warn("No summaries generated for user {}", user.getId());
-            return null;
+            return DigestGeneration.nothingGenerated();
         }
 
         List<Map<String, Object>> summaryMaps = allSummaries.stream()
@@ -201,13 +200,13 @@ public class NewsService implements NewsUseCase {
                 .build();
 
         try {
-            return digestPort.save(digest);
+            return DigestGeneration.generated(digestPort.save(digest));
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
             // Lost a race with a concurrent run for this user/day (the
             // one-digest-per-user-per-UTC-day unique index, V23). Treat as
             // already-generated rather than a failure.
             log.info("Digest for user {} was generated concurrently, skipping", user.getId());
-            return null;
+            return DigestGeneration.alreadyExists();
         }
     }
 

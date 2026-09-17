@@ -1,7 +1,6 @@
 package com.curio.news.port.in;
 
 import com.curio.news.dto.DigestResponse;
-import com.curio.news.entity.Digest;
 import com.curio.user.entity.User;
 import org.springframework.data.domain.Page;
 
@@ -9,8 +8,8 @@ import java.util.UUID;
 
 /**
  * Inbound port for news digest use cases.
- * Controllers and scheduled jobs (driving adapters) depend on this interface,
- * not on the concrete NewsService implementation.
+ * Controllers and the digest pipeline (driving adapters) depend on this
+ * interface, not on the concrete NewsService implementation.
  */
 public interface NewsUseCase {
 
@@ -21,11 +20,10 @@ public interface NewsUseCase {
 
     DigestResponse getDigest(UUID digestId, UUID userId);
 
-    Digest generateDigestForUser(User user);
-
     /**
-     * Generate a digest for the user, reporting per-topic progress to the given
-     * listener. Used by the user-facing Digest Studio to drive a live progress UI.
+     * Generate today's digest for the user, reporting per-topic progress to the
+     * listener (null for none), and say exactly what happened (see
+     * {@link DigestGeneration.Status}).
      */
-    Digest generateDigestForUser(User user, DigestProgressListener progressListener);
+    DigestGeneration generate(User user, DigestProgressListener progressListener);
 }

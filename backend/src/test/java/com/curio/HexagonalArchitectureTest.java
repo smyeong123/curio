@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
 /**
  * Enforces hexagonal architecture dependency rules.
@@ -29,9 +30,15 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  *     → port.out, repository, entity
  *     ✗ must NOT depend on other adapters
  *
+ *   ..repository.. (Spring Data)
+ *     ✗ reachable ONLY from ..adapter.. — no service, job, batch or controller
+ *
+ *   shared.* sub-packages
+ *     ✗ must NOT form dependency cycles with each other
+ *
  * <p>Written as plain JUnit 5 tests (not {@code @ArchTest} fields): the ArchUnit
- * JUnit engine stopped being discovered by Surefire after the Spring Boot 3.5 /
- * JUnit Platform upgrade — the class silently reported "Tests run: 0", which
+ * JUnit engine is not discovered by Surefire on this Spring Boot / JUnit
+ * Platform combination — the class would silently report "Tests run: 0", which
  * disables the rules without failing anything. Plain {@code @Test} methods can't
  * silently vanish.
  */
@@ -60,15 +67,16 @@ public class HexagonalArchitectureTest {
     }
 
     /**
-     * Services (application layer) must not import Spring Data JPA repositories directly.
-     * They must go through outbound port interfaces (port.out).
+     * Spring Data repositories are reachable only through the persistence adapters.
+     * Everything else — services, scheduled jobs, batches, controllers — goes through
+     * outbound port interfaces (port.out).
      */
     @Test
-    void services_must_not_import_repositories() {
+    void only_adapters_may_touch_repositories() {
         ArchRule rule = noClasses()
-                .that().resideInAPackage("com.curio..service..")
+                .that().resideOutsideOfPackages("com.curio..adapter..", "com.curio..repository..")
                 .should().dependOnClassesThat().resideInAPackage("com.curio..repository..")
-                .as("Services must use outbound port interfaces, not JPA repositories directly");
+                .as("Only persistence adapters may use JPA repositories; everyone else uses outbound ports");
         rule.check(productionClasses);
     }
 
@@ -95,6 +103,20 @@ public class HexagonalArchitectureTest {
                 .that().resideInAPackage("com.curio..adapter..")
                 .should().dependOnClassesThat().resideInAPackage("com.curio..adapter..")
                 .as("Adapters must not depend on other adapter classes directly");
+        rule.check(productionClasses);
+    }
+
+    /**
+     * The shared sub-packages (batch, config, digest, email, jobs, scheduler, ...)
+     * form a DAG: a cycle between two of them means neither can be understood, or
+     * tested, without the other.
+     */
+    @Test
+    void shared_sub_packages_must_be_free_of_cycles() {
+        ArchRule rule = slices()
+                .matching("com.curio.shared.(*)..")
+                .should().beFreeOfCycles()
+                .as("shared.* sub-packages must not depend on each other in a cycle");
         rule.check(productionClasses);
     }
 }

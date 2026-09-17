@@ -1,6 +1,7 @@
 package com.curio.shared.scheduler;
 
 import com.curio.news.port.out.DigestPort;
+import com.curio.shared.jobs.JobStatusRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;

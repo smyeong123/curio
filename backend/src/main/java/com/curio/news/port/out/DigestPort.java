@@ -28,8 +28,6 @@ public interface DigestPort {
 
     long countByEmailSentAtAfter(LocalDateTime date);
 
-    long countByGeneratedAtAfter(LocalDateTime date);
-
     /**
      * Delete all digests generated before the cutoff (quizzes/attempts cascade at
      * the DB level), in bounded batches so no single statement holds a long lock.
@@ -41,9 +39,10 @@ public interface DigestPort {
 
     boolean existsByUserIdAndGeneratedAtBetween(UUID userId, LocalDateTime start, LocalDateTime end);
 
-    Page<Digest> findByUserIdAndGeneratedAtAfterOrderByGeneratedAtDesc(UUID userId, LocalDateTime after, Pageable pageable);
-
     Optional<Digest> findFirstByUserIdAndEmailSentAtIsNullOrderByGeneratedAtDesc(UUID userId);
+
+    /** The user's newest digest, sent or not. */
+    Optional<Digest> findFirstByUserIdOrderByGeneratedAtDesc(UUID userId);
 
     Page<Digest> findByTopicInContent(String topic, Pageable pageable);
 

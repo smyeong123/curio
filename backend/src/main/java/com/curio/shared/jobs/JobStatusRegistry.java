@@ -1,4 +1,4 @@
-package com.curio.shared.scheduler;
+package com.curio.shared.jobs;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
