@@ -1,20 +1,18 @@
 <template>
   <div class="mx-auto max-w-[920px] px-5 py-10 sm:px-8 lg:px-12">
-    <!-- ── Header ─────────────────────────────────────── -->
-    <header class="mb-10">
-      <p class="kicker kicker-signal mb-3">{{ t('quiz.history.kicker') }}</p>
-      <i18n-t scope="global" keypath="quiz.history.headline" tag="h1" class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
-        <template #tail><em class="italic-display">{{ t('quiz.history.tail') }}</em></template>
-      </i18n-t>
-      <div class="rule-double w-full"></div>
-    </header>
+    <PageMasthead
+      :kicker="t('quiz.history.kicker')"
+      keypath="quiz.history.headline"
+      emphasis="tail"
+      :emphasis-text="t('quiz.history.tail')"
+    />
 
-    <!-- ── Error ─────────────────────────────────────── -->
-    <section v-if="errorOccurred" class="border border-[color:var(--rule)] bg-paper-deep p-12 text-center">
-      <p class="kicker kicker-signal mb-4">{{ t('quiz.history.error.kicker') }}</p>
-      <h3 class="display-headline text-[28px] mb-3">{{ t('quiz.history.error.headline') }}</h3>
-      <button class="btn-editorial-ghost" @click="loadHistory">{{ t('quiz.history.error.retry') }}</button>
-    </section>
+    <ErrorState
+      v-if="errorOccurred"
+      :kicker="t('quiz.history.error.kicker')"
+      :headline="t('quiz.history.error.headline')"
+      @retry="loadHistory"
+    />
 
     <!-- ── Loading ────────────────────────────────────── -->
     <section v-else-if="loading" class="space-y-4">
@@ -81,7 +79,7 @@
               {{ String(history.length - idx).padStart(3, '0') }}
             </span>
             <div class="col-span-6">
-              <p class="font-display text-[18px] leading-tight">{{ formatDate(attempt.completedAt) }}</p>
+              <p class="font-display text-[18px] leading-tight">{{ formatDate(attempt.completedAt, 'full') }}</p>
               <p class="kicker mt-1">{{ formatTime(attempt.completedAt) }}</p>
             </div>
             <div class="col-span-2 hidden sm:flex justify-center gap-1">
@@ -113,13 +111,15 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useQuizStore } from '@/stores/quiz'
 import { useToast } from '@/composables/useToast'
-import { useLocale } from '@/composables/useLocale'
+import { useFormat } from '@/composables/useFormat'
+import PageMasthead from '@/components/ui/PageMasthead.vue'
+import ErrorState from '@/components/ui/ErrorState.vue'
 
 const quizStore = useQuizStore()
 const { quizHistory: history } = storeToRefs(quizStore)
 const { error: showError } = useToast()
 const { t } = useI18n()
-const { intlLocale } = useLocale()
+const { formatDate, formatTime } = useFormat()
 
 const loading = ref(true)
 const errorOccurred = ref(false)
@@ -153,14 +153,6 @@ const scoreText = (score: number, total: number) => {
   if (p >= 0.6) return 'text-[color:var(--ink)]'
   return 'text-[color:var(--mute)]'
 }
-
-const formatDate = (dateStr: string) =>
-  new Date(dateStr).toLocaleDateString(intlLocale.value, {
-    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
-  })
-
-const formatTime = (dateStr: string) =>
-  new Date(dateStr).toLocaleTimeString(intlLocale.value, { hour: '2-digit', minute: '2-digit' })
 
 const loadHistory = async () => {
   loading.value = true

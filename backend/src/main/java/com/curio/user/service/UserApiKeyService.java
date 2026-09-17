@@ -59,10 +59,9 @@ public class UserApiKeyService implements UserApiKeyUseCase {
             throw new IllegalArgumentException("API key looks too short to be valid");
         }
 
-        // Always validate before persisting. A key with validatedAt == null is inert:
-        // the digest/quiz pipeline never resolves it, so a "skip validation" path would
-        // silently store a key that does nothing while billing falls back to the
-        // platform key. (The old opt-out `validate` request flag was removed.)
+        // Always validate before persisting: a key with validatedAt == null is inert
+        // (the digest/quiz pipeline never resolves it), so storing one unvalidated
+        // would silently bill the platform key while looking configured.
         boolean validatedNow = false;
         ApiKeyValidator v = validatorProvider.getIfAvailable();
         if (v == null) {

@@ -1,0 +1,12 @@
+<html xmlns:th="http://www.thymeleaf.org">
+<!-- Step one of the two-step unsubscribe (GET /api/v1/user/unsubscribe): nothing
+     changes until the reader presses the button, so a mail gateway that prefetches
+     the link can't unsubscribe them. The token comes back in the hidden input. -->
+<body style="font-family:Arial,sans-serif;padding:24px;">
+<h2>Unsubscribe from Curio?</h2>
+<p>You will no longer receive daily Curio digest emails.</p>
+<form method="POST" action="/api/v1/user/unsubscribe">
+<input type="hidden" name="token" th:value="${token}">
+<button type="submit" style="padding:10px 18px;font-size:15px;cursor:pointer;">Yes, unsubscribe me</button>
+</form>
+</body></html>

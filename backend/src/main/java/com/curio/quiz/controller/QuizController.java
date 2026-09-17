@@ -1,7 +1,9 @@
 package com.curio.quiz.controller;
 
+import com.curio.quiz.dto.QuizHistoryEntry;
 import com.curio.quiz.dto.QuizSubmitRequest;
 import com.curio.quiz.dto.QuizResponse;
+import com.curio.quiz.dto.QuizSubmitResponse;
 import com.curio.user.entity.User;
 import com.curio.quiz.port.in.QuizUseCase;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,7 +15,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -34,7 +35,7 @@ public class QuizController {
 
     @PostMapping("/{quizId}/submit")
     @Operation(summary = "Submit quiz answers")
-    public ResponseEntity<Map<String, Object>> submitQuiz(
+    public ResponseEntity<QuizSubmitResponse> submitQuiz(
             @AuthenticationPrincipal User user,
             @PathVariable String quizId,
             @Valid @RequestBody QuizSubmitRequest request) {
@@ -44,7 +45,7 @@ public class QuizController {
 
     @GetMapping("/history")
     @Operation(summary = "Get quiz attempt history")
-    public ResponseEntity<Page<Map<String, Object>>> getHistory(
+    public ResponseEntity<Page<QuizHistoryEntry>> getHistory(
             @AuthenticationPrincipal User user,
             @RequestParam(defaultValue = "0") int page) {
         return ResponseEntity.ok(quizService.getHistory(user.getId(), page));

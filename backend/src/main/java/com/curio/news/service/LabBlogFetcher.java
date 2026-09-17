@@ -17,7 +17,6 @@ import jakarta.annotation.PostConstruct;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -54,34 +53,21 @@ public class LabBlogFetcher {
 
     private RestTemplate restTemplate;
     private DocumentBuilderFactory documentBuilderFactory;
-    private final java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.LongAdder> successByFeed
-            = new java.util.concurrent.ConcurrentHashMap<>();
-    private final java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.LongAdder> emptyByFeed
-            = new java.util.concurrent.ConcurrentHashMap<>();
-    private final java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.LongAdder> errorByFeed
-            = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * A feed is fetched once per {@link #FEED_TTL} per instance, not once per
+     * (topic, edition) cache miss and per BYOK user: the Hugging Face feed alone
+     * sits on every topic, so without this memo a cold day downloads it dozens of
+     * times. Errors are not memoized, so a flaky feed is retried on the next call.
+     */
+    static final Duration FEED_TTL = Duration.ofMinutes(45);
+    private record CachedFeed(List<Map<String, String>> items, long fetchedAtNanos) { }
+    private final java.util.concurrent.ConcurrentHashMap<String, CachedFeed> feedCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     public LabBlogFetcher(RestTemplateBuilder restTemplateBuilder,
                           ObjectProvider<MeterRegistry> meterRegistryProvider) {
         this.restTemplateBuilder = restTemplateBuilder;
         this.meterRegistry = meterRegistryProvider.getIfAvailable();
-    }
-
-    /** Snapshot of per-feed (success / empty / error) counts since startup, useful for health pages. */
-    public Map<String, Map<String, Long>> getCounters() {
-        Map<String, Map<String, Long>> snapshot = new LinkedHashMap<>();
-        java.util.Set<String> allFeeds = new java.util.LinkedHashSet<>();
-        allFeeds.addAll(successByFeed.keySet());
-        allFeeds.addAll(emptyByFeed.keySet());
-        allFeeds.addAll(errorByFeed.keySet());
-        for (String feed : allFeeds) {
-            Map<String, Long> row = new LinkedHashMap<>();
-            row.put("success", successByFeed.getOrDefault(feed, new java.util.concurrent.atomic.LongAdder()).sum());
-            row.put("empty", emptyByFeed.getOrDefault(feed, new java.util.concurrent.atomic.LongAdder()).sum());
-            row.put("error", errorByFeed.getOrDefault(feed, new java.util.concurrent.atomic.LongAdder()).sum());
-            snapshot.put(feed, row);
-        }
-        return snapshot;
     }
 
     @PostConstruct
@@ -120,6 +106,20 @@ public class LabBlogFetcher {
     }
 
     private List<Map<String, String>> fetchFeed(String feedUrl) {
+        CachedFeed cached = feedCache.get(feedUrl);
+        if (cached != null && System.nanoTime() - cached.fetchedAtNanos() < FEED_TTL.toNanos()) {
+            return cached.items();
+        }
+        List<Map<String, String>> items = download(feedUrl);
+        if (items != null) {
+            feedCache.put(feedUrl, new CachedFeed(items, System.nanoTime()));
+            return items;
+        }
+        return List.of();
+    }
+
+    /** The parsed items, or null when the fetch failed (so it is not memoized). */
+    private List<Map<String, String>> download(String feedUrl) {
         try {
             // Streamed with a byte ceiling (see MAX_FEED_BYTES) rather than
             // exchange(..., byte[].class), which would buffer an unbounded body
@@ -160,7 +160,7 @@ public class LabBlogFetcher {
                 msg = msg.substring(0, 200) + "…";
             }
             log.warn("Lab blog fetch failed for {}: {}", feedUrl, msg);
-            return List.of();
+            return null;
         }
     }
 
@@ -179,7 +179,6 @@ public class LabBlogFetcher {
     }
 
     private void recordSuccess(String feedUrl, int items) {
-        successByFeed.computeIfAbsent(feedUrl, k -> new java.util.concurrent.atomic.LongAdder()).increment();
         if (meterRegistry != null) {
             meterRegistry.counter("curio.labblog.fetch", "feed", feedUrl, "result", "success").increment();
             meterRegistry.counter("curio.labblog.items", "feed", feedUrl).increment(items);
@@ -187,14 +186,12 @@ public class LabBlogFetcher {
     }
 
     private void recordEmpty(String feedUrl) {
-        emptyByFeed.computeIfAbsent(feedUrl, k -> new java.util.concurrent.atomic.LongAdder()).increment();
         if (meterRegistry != null) {
             meterRegistry.counter("curio.labblog.fetch", "feed", feedUrl, "result", "empty").increment();
         }
     }
 
     private void recordError(String feedUrl) {
-        errorByFeed.computeIfAbsent(feedUrl, k -> new java.util.concurrent.atomic.LongAdder()).increment();
         if (meterRegistry != null) {
             meterRegistry.counter("curio.labblog.fetch", "feed", feedUrl, "result", "error").increment();
         }
@@ -284,10 +281,5 @@ public class LabBlogFetcher {
         if (raw == null) return "";
         String noTags = raw.replaceAll("<[^>]+>", " ");
         return noTags.replaceAll("\\s+", " ").trim();
-    }
-
-    /** Escape-hatch for tests. */
-    byte[] testEncode(String s) {
-        return s.getBytes(StandardCharsets.UTF_8);
     }
 }

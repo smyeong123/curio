@@ -19,78 +19,12 @@
         <p class="font-display text-[15px] leading-tight">{{ todayLong }}</p>
       </div>
 
-      <!-- Nav -->
-      <nav class="flex-1 px-3 py-5 space-y-1">
-        <p class="px-3 mb-2 kicker">{{ t('layout.sections') }}</p>
-        <router-link
-          v-for="(item, i) in navItems"
-          :key="item.to"
-          :to="item.to"
-          :class="[
-            'group flex items-baseline gap-3 px-3 py-2.5 transition-colors',
-            isActive(item.match)
-              ? 'bg-ink text-[color:var(--paper)]'
-              : 'text-[color:var(--ink)] hover:bg-paper-deep'
-          ]"
-        >
-          <span
-            :class="[
-              'num-tab text-[10px] flex-shrink-0',
-              isActive(item.match) ? 'opacity-70' : 'text-[color:var(--mute)]'
-            ]"
-          >{{ String(i + 1).padStart(2, '0') }}</span>
-          <span class="font-display text-[16px] leading-tight">{{ item.label }}</span>
-        </router-link>
-
-        <template v-if="authStore.user?.isAdmin">
-          <div class="my-4 mx-3 border-t border-[color:var(--rule)]"></div>
-          <p class="px-3 mb-2 kicker kicker-signal">{{ t('layout.newsroom') }}</p>
-          <router-link
-            v-for="(item, i) in adminNavItems"
-            :key="item.to"
-            :to="item.to"
-            :class="[
-              'group flex items-baseline gap-3 px-3 py-2.5 transition-colors',
-              isActive(item.match)
-                ? 'bg-ink text-[color:var(--paper)]'
-                : 'text-[color:var(--ink)] hover:bg-paper-deep'
-            ]"
-          >
-            <span
-              :class="[
-                'num-tab text-[10px] flex-shrink-0',
-                isActive(item.match) ? 'opacity-70' : 'text-[color:var(--mute)]'
-              ]"
-            >{{ String(i + 1).padStart(2, '0') }}</span>
-            <span class="font-display text-[16px] leading-tight">{{ item.label }}</span>
-          </router-link>
-        </template>
-      </nav>
-
-      <!-- Foot: edition + theme toggles + sign out -->
-      <div class="border-t border-[color:var(--rule)] p-4 space-y-2">
-        <LanguageToggle variant="switch" />
-        <button
-          class="w-full flex items-center justify-between px-3 py-2 border border-[color:var(--rule)] hover:bg-paper-deep transition-colors"
-          :aria-pressed="isDark"
-          :aria-label="t('layout.theme.toggle')"
-          @click="toggleTheme"
-        >
-          <span class="kicker">{{ t('layout.theme.label') }}</span>
-          <span class="font-mono-curio text-[11px] tracking-[0.18em] uppercase">
-            <span :class="!isDark ? 'text-[color:var(--ink)]' : 'text-[color:var(--mute)]'">{{ t('layout.theme.day') }}</span>
-            <span class="mx-2 text-[color:var(--mute)]">·</span>
-            <span :class="isDark ? 'text-[color:var(--ink)]' : 'text-[color:var(--mute)]'">{{ t('layout.theme.night') }}</span>
-          </span>
-        </button>
-        <button
-          class="w-full flex items-center justify-between px-3 py-2 hover:bg-paper-deep transition-colors"
-          @click="handleLogout"
-        >
-          <span class="font-display text-[15px]">{{ t('layout.signOut') }}</span>
-          <span aria-hidden="true" class="font-mono-curio text-[14px] text-[color:var(--mute)]">↗</span>
-        </button>
-      </div>
+      <DashboardMenu
+        :nav-items="navItems"
+        :admin-items="adminNavItems"
+        :show-admin="isAdmin"
+      />
+      <DashboardMenuFoot :is-dark="isDark" @toggle-theme="toggleTheme" @sign-out="handleLogout" />
     </aside>
 
     <!-- ── Mobile masthead ────────────────────────────────────────── -->
@@ -136,68 +70,14 @@
             </button>
           </div>
 
-          <nav class="flex-1 px-3 py-5 space-y-1">
-            <p class="px-3 mb-2 kicker">{{ t('layout.sections') }}</p>
-            <router-link
-              v-for="(item, i) in navItems"
-              :key="`mobile-${item.to}`"
-              :to="item.to"
-              :class="[
-                'flex items-baseline gap-3 px-3 py-3 transition-colors',
-                isActive(item.match)
-                  ? 'bg-ink text-[color:var(--paper)]'
-                  : 'text-[color:var(--ink)]'
-              ]"
-              @click="closeMenu"
-            >
-              <span class="num-tab text-[10px] text-[color:var(--mute)]">{{ String(i + 1).padStart(2, '0') }}</span>
-              <span class="font-display text-[16px] leading-tight">{{ item.label }}</span>
-            </router-link>
-
-            <template v-if="authStore.user?.isAdmin">
-              <div class="my-4 mx-3 border-t border-[color:var(--rule)]"></div>
-              <p class="px-3 mb-2 kicker kicker-signal">{{ t('layout.newsroom') }}</p>
-              <router-link
-                v-for="(item, i) in adminNavItems"
-                :key="`mobile-${item.to}`"
-                :to="item.to"
-                :class="[
-                  'flex items-baseline gap-3 px-3 py-3 transition-colors',
-                  isActive(item.match)
-                    ? 'bg-ink text-[color:var(--paper)]'
-                    : 'text-[color:var(--ink)]'
-                ]"
-                @click="closeMenu"
-              >
-                <span class="num-tab text-[10px] text-[color:var(--mute)]">{{ String(i + 1).padStart(2, '0') }}</span>
-                <span class="font-display text-[16px] leading-tight">{{ item.label }}</span>
-              </router-link>
-            </template>
-          </nav>
-
-          <div class="border-t border-[color:var(--rule)] p-4 space-y-2">
-            <LanguageToggle variant="switch" />
-            <button
-              class="w-full flex items-center justify-between px-3 py-2 border border-[color:var(--rule)]"
-              :aria-pressed="isDark"
-              :aria-label="t('layout.theme.toggle')"
-              @click="toggleTheme"
-            >
-              <span class="kicker">{{ t('layout.theme.label') }}</span>
-              <span class="font-mono-curio text-[11px] tracking-[0.18em] uppercase">
-                <span :class="!isDark ? 'text-[color:var(--ink)]' : 'text-[color:var(--mute)]'">{{ t('layout.theme.day') }}</span>
-                <span class="mx-2 text-[color:var(--mute)]">·</span>
-                <span :class="isDark ? 'text-[color:var(--ink)]' : 'text-[color:var(--mute)]'">{{ t('layout.theme.night') }}</span>
-              </span>
-            </button>
-            <button
-              class="w-full flex items-center justify-between px-3 py-2"
-              @click="handleLogout"
-            >
-              <span class="font-display text-[15px]">{{ t('layout.signOut') }}</span>
-              <span aria-hidden="true" class="font-mono-curio text-[14px] text-[color:var(--mute)]">↗</span>
-            </button>
-          </div>
+          <DashboardMenu
+            compact
+            :nav-items="navItems"
+            :admin-items="adminNavItems"
+            :show-admin="isAdmin"
+            @navigate="closeMenu"
+          />
+          <DashboardMenuFoot :is-dark="isDark" @toggle-theme="toggleTheme" @sign-out="handleLogout" />
         </aside>
       </div>
     </Transition>
@@ -246,16 +126,19 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useTheme } from '@/composables/useTheme'
 import { useLocale } from '@/composables/useLocale'
+import { useFormat } from '@/composables/useFormat'
 import { useFocusTrap } from '@/composables/useFocusTrap'
 import { focusPageHeading } from '@/composables/useFocusOnEnter'
 import { useEnsureTimezone } from '@/composables/useEnsureTimezone'
-import LanguageToggle from '@/components/ui/LanguageToggle.vue'
+import DashboardMenu from '@/components/layout/DashboardMenu.vue'
+import DashboardMenuFoot from '@/components/layout/DashboardMenuFoot.vue'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const { t } = useI18n()
 const { locale, intlLocale } = useLocale()
+const { formatDate } = useFormat()
 
 // One-time announcement: free testing period ends July 2026, paid plans Aug–Sep.
 const PLAN_NOTICE_KEY = 'curio.notice.paidPlans2026'
@@ -277,15 +160,15 @@ const todayLong = computed(() => {
   const d = new Date()
   // Korean reads naturally as one Intl-formatted string ("2026년 9월 16일 수요일");
   // the English masthead keeps its hand-set "Wednesday, September 16 · 2026".
-  if (locale.value === 'ko') {
-    return d.toLocaleDateString(intlLocale.value, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
-  }
+  if (locale.value === 'ko') return formatDate(d, 'full')
   const w = d.toLocaleDateString(intlLocale.value, { weekday: 'long' })
   const m = d.toLocaleDateString(intlLocale.value, { month: 'long' })
   const day = d.getDate()
   const year = d.getFullYear()
   return `${w}, ${m} ${day} · ${year}`
 })
+
+const isAdmin = computed(() => authStore.user?.isAdmin === true)
 
 const navItems = computed(() => [
   { label: t('layout.nav.today'), to: '/dashboard/archive', match: ['/dashboard/archive', '/dashboard/quiz/'] },
@@ -302,19 +185,15 @@ const adminNavItems = computed(() => [
   { label: t('layout.adminNav.audit'), to: '/admin/audit', match: ['/admin/audit'] },
 ])
 
-const isActive = (matches: readonly string[]) =>
-  matches.some((path) => route.path.startsWith(path))
-
 const closeMenu = () => {
   isMenuOpen.value = false
 }
 
-// Declared before handleLogout (which assigns it) so every reference follows
-// the declaration; used by the drawer focus-trap section further down.
+// Set when the drawer closes because of a sign-out: the page is being left, so
+// the focus trap must not hand focus back to a trigger that is about to unmount.
 let skipFocusRestore = false
 
 const handleLogout = async () => {
-  // Skip focus restoration; we're navigating away, not returning to the trigger.
   skipFocusRestore = true
   closeMenu()
   await authStore.logout()
@@ -323,9 +202,8 @@ const handleLogout = async () => {
 
 watch(() => route.path, closeMenu)
 
-// ── Theme toggle (single source of truth: useTheme) ───────────────
-// Reuse the shared composable so the sidebar toggle stays in sync with the
-// Settings selector and preserves the 'system' preference.
+// The menu's Lights switch shares useTheme with the Settings selector, so the
+// two stay in sync and a saved 'system' preference survives a toggle.
 const { preference, setTheme } = useTheme()
 const isDark = computed(
   () =>
@@ -339,8 +217,6 @@ const toggleTheme = () => setTheme(isDark.value ? 'light' : 'dark')
 const drawerRef = ref<HTMLElement | null>(null)
 useFocusTrap(drawerRef, isMenuOpen, {
   onEscape: closeMenu,
-  // On a sign-out close we're navigating away, so the trigger no longer exists —
-  // skip the focus restore for that case only.
   restoreFocus: () => {
     const restore = !skipFocusRestore
     skipFocusRestore = false

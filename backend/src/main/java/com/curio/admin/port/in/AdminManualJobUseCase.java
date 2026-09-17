@@ -1,7 +1,8 @@
 package com.curio.admin.port.in;
 
+import com.curio.admin.dto.JobTriggerResponse;
+
 import java.util.List;
-import java.util.Map;
 
 /**
  * Inbound port for dispatching the manual admin batch jobs (digest generation,
@@ -20,18 +21,18 @@ public interface AdminManualJobUseCase {
      * Start a digest-generation run in the background.
      *
      * @param topics optional topic filter (null/empty = all topics)
-     * @return a small status map: {@code {"status":"started"}} on dispatch, or
-     *         {@code {"status":"already_running"}} if a run is already in flight.
+     * @return {@code started} on dispatch, or {@code already_running} if a run is
+     *         already in flight.
      */
-    Map<String, Object> startDigestGeneration(List<String> topics);
+    JobTriggerResponse startDigestGeneration(List<String> topics);
 
     /**
      * Start an email-send run in the background.
      *
-     * @return a small status map: {@code {"status":"started"}} on dispatch, or
-     *         {@code {"status":"already_running"}} if a run is already in flight.
+     * @return {@code started} on dispatch, or {@code already_running} if a run is
+     *         already in flight.
      */
-    Map<String, Object> startEmailSend();
+    JobTriggerResponse startEmailSend();
 
     /**
      * @return {@code true} while a manually-triggered digest-generation run is in

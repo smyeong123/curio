@@ -1,7 +1,6 @@
 {
   "common": {
     "loadFailed": "— Couldn't load —",
-    "retry": "Retry",
     "search": "Search",
     "allBeats": "All beats",
     "on": "On",
@@ -68,7 +67,11 @@
       "digests": "{success} / {total} users · {fail} failed",
       "digestsSkipped": "{success} / {total} users · {fail} failed · {skipped} skipped",
       "emails": "{sent} sent, {fail} failed ({total} users)",
-      "cleanup": "{count} digests recycled (cutoff: {cutoff})"
+      "cleanup": "{count} digests recycled (cutoff: {cutoff})",
+      "quizzes": "Quizzes · {success} filed · {fail} failed",
+      "beats": "Beats · {beats}",
+      "due": "{due} due this hour",
+      "took": "Took {duration}"
     },
     "beats": {
       "kicker": "— Beats overview —",

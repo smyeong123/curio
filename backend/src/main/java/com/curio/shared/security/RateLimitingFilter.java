@@ -1,30 +1,21 @@
 package com.curio.shared.security;
 
-import io.github.bucket4j.Bandwidth;
-import io.github.bucket4j.Bucket;
 import io.github.bucket4j.ConsumptionProbe;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class RateLimitingFilter extends OncePerRequestFilter {
-
-    private static final Logger log = LoggerFactory.getLogger(RateLimitingFilter.class);
 
     private static final int AUTH_CAPACITY = 10;
     private static final Duration AUTH_REFILL = Duration.ofMinutes(1);
@@ -42,16 +33,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private static final int PASSWORD_CHANGE_CAPACITY = 5;
     private static final Duration PASSWORD_CHANGE_REFILL = Duration.ofMinutes(5);
 
-    // Buckets are held in-process keyed by client IP. Without eviction this map
-    // would grow once per distinct attacker/client IP and never shrink — an
-    // unbounded leak on a long-running instance. A periodic sweep drops buckets
-    // that have been idle longer than IDLE_TTL (any survivor would have fully
-    // refilled by then anyway, so dropping it is behaviourally equivalent to
-    // keeping it). NOTE: this is per-instance state; running more than one
-    // backend replica needs a shared store (e.g. Redis-backed Bucket4j).
-    private static final Duration IDLE_TTL = Duration.ofMinutes(15);
-
-    private final Map<String, BucketEntry> buckets = new ConcurrentHashMap<>();
+    // Buckets live in the shared in-process store, keyed "scope:clientIp" (see
+    // InMemoryRateLimiter for eviction and the single-replica caveat).
+    private final InMemoryRateLimiter limiter;
 
     // Number of trusted reverse-proxy hops in front of this app. The client IP is
     // the X-Forwarded-For element this many positions from the RIGHT (each trusted
@@ -61,13 +45,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     @Value("${app.rate-limit.trusted-proxy-hops:1}")
     private int trustedProxyHops;
 
-    private static final class BucketEntry {
-        final Bucket bucket;
-        volatile long lastAccessNanos;
-        BucketEntry(Bucket bucket, long nowNanos) {
-            this.bucket = bucket;
-            this.lastAccessNanos = nowNanos;
-        }
+    public RateLimitingFilter(InMemoryRateLimiter limiter) {
+        this.limiter = limiter;
     }
 
     @Override
@@ -82,10 +61,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
         BucketSpec spec = specFor(path);
         String key = spec.scope() + ":" + clientKey(request);
-        BucketEntry entry = buckets.computeIfAbsent(key, k -> new BucketEntry(newBucket(spec), System.nanoTime()));
-        entry.lastAccessNanos = System.nanoTime();
-        Bucket bucket = entry.bucket;
-        ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
+        ConsumptionProbe probe = limiter.probe(key, spec.capacity(), spec.refill());
 
         if (probe.isConsumed()) {
             response.addHeader("X-RateLimit-Remaining", String.valueOf(probe.getRemainingTokens()));
@@ -98,30 +74,6 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         response.addHeader("Retry-After", String.valueOf(Math.max(1, waitSeconds)));
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.getWriter().write("{\"error\":\"rate_limited\",\"message\":\"Too many auth requests. Try again shortly.\"}");
-    }
-
-    /**
-     * Drop idle buckets so the map can't grow without bound. Runs every 5
-     * minutes; a bucket untouched for {@link #IDLE_TTL} is removed (it would be
-     * fully refilled by now, so a returning client just gets a fresh bucket).
-     */
-    @Scheduled(fixedDelay = 5 * 60 * 1000L)
-    void evictIdleBuckets() {
-        long cutoff = System.nanoTime() - IDLE_TTL.toNanos();
-        int before = buckets.size();
-        buckets.values().removeIf(e -> e.lastAccessNanos < cutoff);
-        int removed = before - buckets.size();
-        if (removed > 0) {
-            log.debug("Rate-limit bucket eviction: removed {} idle buckets, {} remain", removed, buckets.size());
-        }
-    }
-
-    private Bucket newBucket(BucketSpec spec) {
-        Bandwidth limit = Bandwidth.builder()
-                .capacity(spec.capacity())
-                .refillGreedy(spec.capacity(), spec.refill())
-                .build();
-        return Bucket.builder().addLimit(limit).build();
     }
 
     private BucketSpec specFor(String path) {

@@ -289,20 +289,16 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useLocale } from '@/composables/useLocale'
+import { useFormat } from '@/composables/useFormat'
 import { useTopicLabels } from '@/composables/useTopicLabels'
+import { ALL_TOPICS } from '@/data/topics'
 import LanguageToggle from '@/components/ui/LanguageToggle.vue'
 
 const { t, tm, rt } = useI18n()
-const { intlLocale } = useLocale()
+const { formatDate } = useFormat()
 const { topicLabel } = useTopicLabels()
 
-const today = computed(() => {
-  const d = new Date()
-  return d
-    .toLocaleDateString(intlLocale.value, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-    .toUpperCase()
-})
+const today = computed(() => formatDate(new Date(), 'full').toUpperCase())
 
 // Volume = the daily edition number, counting from the 1 Aug 2026 production
 // launch (Vol. 001 on launch day, +1 each day after). Clamped to ≥1 so the
@@ -317,7 +313,7 @@ const nextVolumeLabel = computed(() => String(volume.value + 1).padStart(3, '0')
 
 const liveClock = ref(formatClock())
 function formatClock() {
-  // Labelled UTC, so format in UTC (the strip previously showed local time).
+  // The strip labels the time "UTC", so it is formatted in UTC, not local time.
   return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }) + ' UTC'
 }
 let clockTimer: ReturnType<typeof setInterval> | null = null
@@ -330,7 +326,7 @@ const statRow = ref<HTMLElement | null>(null)
 const statTopics = ref(0)
 const statMinutes = ref(0)
 const statQuiz = ref(0)
-const STAT_TARGETS = { topics: 18, minutes: 5, quiz: 5 } as const
+const STAT_TARGETS = { topics: ALL_TOPICS.length, minutes: 5, quiz: 5 } as const
 
 let revealObserver: IntersectionObserver | null = null
 let statObserver: IntersectionObserver | null = null
@@ -421,25 +417,6 @@ const steps = computed(() =>
   (tm('home.method.steps') as Step[]).map((s) => ({ title: rt(s.title), body: rt(s.body) }))
 )
 
-// Canonical topic names (data/topics.ts); rendered through topicLabel().
-const beatTopics = [
-  'Claude (Anthropic)',
-  'GPT & ChatGPT (OpenAI)',
-  'Gemini (Google DeepMind)',
-  'Grok (xAI)',
-  'Llama (Meta AI)',
-  'DeepSeek',
-  'Qwen (Alibaba)',
-  'Mistral',
-  'Claude Code & CLI Agents',
-  'Cursor, Aider & IDE Agents',
-  'Devin & Autonomous Coders',
-  'Browser & Computer-Use Agents',
-  'Agent Frameworks & SDKs',
-  'Reasoning & Context',
-  'Multimodal (Vision, Audio, Video)',
-  'Pricing & Availability',
-  'Benchmarks & Evaluations',
-  'New & Emerging Models',
-] as const
+// Every beat a reader can subscribe to, in catalogue order; rendered through topicLabel().
+const beatTopics = ALL_TOPICS
 </script>

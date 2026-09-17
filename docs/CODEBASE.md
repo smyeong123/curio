@@ -56,7 +56,9 @@ curio/
 │       │   │   ├── CurioApplication.java
 │       │   │   ├── auth/
 │       │   │   │   ├── controller/   AuthController
-│       │   │   │   ├── service/      AuthService, UserDetailsServiceImpl, UnsubscribeTokenService
+│       │   │   │   ├── service/      AuthService (register/login/refresh/logout/password reset, session issuance),
+│       │   │   │   │                 EmailVerificationChallengeService (2FA code lifecycle), GoogleIdTokenVerifier → GoogleIdentity,
+│       │   │   │   │                 TokenHasher (SHA-256 at-rest form of every auth secret), UserDetailsServiceImpl, UnsubscribeTokenService
 │       │   │   │   ├── dto/          LoginRequest, RegisterRequest, GoogleLoginRequest,
 │       │   │   │   │                 ForgotPasswordRequest, ResetPasswordRequest, AuthResponse,
 │       │   │   │   │                 LoginResponse, VerifyCodeRequest, VerifyCodeResponse,
@@ -69,7 +71,7 @@ curio/
 │       │   │   ├── user/
 │       │   │   │   ├── controller/   UserController, UserApiKeyController (BYOK)
 │       │   │   │   ├── service/      UserService, UserApiKeyService (BYOK)
-│       │   │   │   ├── dto/          PreferencesRequest, UserResponse, UpdateProfileRequest
+│       │   │   │   ├── dto/          PreferencesRequest, PreferencesResponse, UserResponse, UpdateProfileRequest
 │       │   │   │   ├── entity/       User, UserPreferences, UserApiKey (V17)
 │       │   │   │   ├── repository/   UserRepository, UserPreferencesRepository, UserApiKeyRepository
 │       │   │   │   ├── port/in/      UserUseCase, UserApiKeyUseCase, ApiKeyValidator
@@ -77,20 +79,21 @@ curio/
 │       │   │   │   └── adapter/persistence/  UserJpaAdapter, UserPreferencesJpaAdapter, UserApiKeyJpaAdapter
 │       │   │   ├── news/
 │       │   │   │   ├── controller/   NewsController
-│       │   │   │   ├── service/      NewsService, AiService (interface),
-│       │   │   │   │                 AbstractAiProvider (shared AI orchestration base),
-│       │   │   │   │                 ClaudeService, GeminiService, OpenAiService, NewsApiClient,
-│       │   │   │   │                 LabBlogFetcher, LabBlogRegistry, LlmKeyValidator
+│       │   │   │   ├── service/      NewsService, AbstractAiProvider (shared AI orchestration base:
+│       │   │   │   │                 cache, single-flight, retry, breaker, parse), AiPrompts (the summary + quiz
+│       │   │   │   │                 prompt text, pure functions), ClaudeService, GeminiService, OpenAiService, NewsApiClient,
+│       │   │   │   │                 LabBlogFetcher (45-min feed memo), LabBlogRegistry, LlmKeyValidator
 │       │   │   │   ├── dto/          DigestResponse, NewsSummary, QuizGenerationResult, QuizQuestionItem
 │       │   │   │   ├── entity/       Digest
 │       │   │   │   ├── repository/   DigestRepository
-│       │   │   │   ├── port/in/      NewsUseCase, DigestProgressListener
-│       │   │   │   ├── port/out/     DigestPort
+│       │   │   │   ├── port/in/      NewsUseCase, DigestProgressListener, DigestGeneration (status + digest)
+│       │   │   │   ├── port/out/     DigestPort, AiService (outbound AI port: summaries + quiz per edition)
 │       │   │   │   └── adapter/persistence/  DigestJpaAdapter
 │       │   │   ├── quiz/
 │       │   │   │   ├── controller/   QuizController
 │       │   │   │   ├── service/      QuizService, QuizAttemptRecorder (REQUIRES_NEW attempt persistence)
-│       │   │   │   ├── dto/          QuizSubmitRequest, QuizResponse
+│       │   │   │   ├── dto/          QuizSubmitRequest, QuizResponse (+PreviousAttempt), QuizQuestionSet (answer-key-free questions),
+│       │   │   │   │                 QuizSubmitResponse (+QuestionResult), QuizHistoryEntry
 │       │   │   │   ├── entity/       Quiz, QuizAttempt
 │       │   │   │   ├── repository/   QuizRepository, QuizAttemptRepository
 │       │   │   │   ├── port/in/      QuizUseCase
@@ -99,55 +102,66 @@ curio/
 │       │   │   ├── studio/
 │       │   │   │   ├── controller/   StudioController
 │       │   │   │   ├── service/      StudioService, StudioTaskStatusService
+│       │   │   │   ├── dto/          StudioStatusResponse, TaskStatus (NON_NULL snapshot of one task), StudioOverview
 │       │   │   │   └── port/in/      StudioUseCase
 │       │   │   ├── admin/
 │       │   │   │   ├── controller/   AdminController
 │       │   │   │   ├── service/      AdminUserService, AdminDigestService, AdminStatsService, AdminOperationsService, AdminManualJobService, AuditLogService
-│       │   │   │   ├── dto/          StatsResponse, AdminDigestResponse, GenerateDigestsRequest, TopicStatusResponse, JobStatusResponse, AuditLogResponse
+│       │   │   │   ├── dto/          StatsResponse, AdminDigestResponse, GenerateDigestsRequest, TopicStatusResponse, JobStatusResponse, AuditLogResponse,
+│       │   │   │   │                 AdminUserSummary, AdminUserDetail (+Metrics/RecentDigest/RecentQuizAttempt), JobTriggerResponse
 │       │   │   │   ├── entity/       AuditLog (V18)
 │       │   │   │   ├── repository/   AuditLogRepository
 │       │   │   │   ├── port/in/      AdminUserUseCase, AdminDigestUseCase, AdminStatsUseCase, AdminOperationsUseCase, AdminManualJobUseCase
 │       │   │   │   └── adapter/persistence/  AuditLogJpaAdapter
 │       │   │   └── shared/
-│       │   │       ├── config/       SecurityConfig, CorsConfig, RedisConfig, OpenApiConfig, AsyncConfig, RequestLoggingConfig, ShedLockConfig, TopicConstants, WebhookSecretsValidator, JwtSecretsValidator, SentryTaggingConfig, WebConfig
+│       │   │       ├── config/       SecurityConfig, CorsConfig, RedisConfig, OpenApiConfig, AsyncConfig (batch pools core==max), ClockConfig, RequestLoggingConfig, ShedLockConfig, TopicConstants, WebhookSecretsValidator, JwtSecretsValidator, SentryTaggingConfig, WebConfig
 │       │   │       ├── security/     JwtTokenProvider, JwtAuthenticationFilter, WebhookSignatureVerifier, CookieUtils, UserDetailsAdapter, UserPrincipalResolver,
-│       │   │       │                 RateLimitingFilter, InMemoryRateLimiter, WebhookBodyLimitFilter, CorrelationIdFilter, ApiKeyCipher
+│       │   │       │                 RateLimitingFilter, InMemoryRateLimiter, WebhookBodyLimitFilter, CorrelationIdFilter, ApiKeyCipher, UnsubscribeTokenService
 │       │   │       ├── concurrent/   SingleFlight
 │       │   │       ├── util/         EmailNormalizer
-│       │   │       ├── scheduler/    DigestGenerationJob, EmailSendJob, CleanupJob, ExpiredAuthRowReaper, JobStatusRegistry, JobFailureNotifier
+│       │   │       ├── batch/        SubscriberBatch (chunked per-subscriber runner: bounded in-flight, per-user timeout, Tally of outcomes)
+│       │   │       ├── digest/       DigestPipeline (generate digest + quiz for one user), DigestBatch (generation for every subscriber),
+│       │   │       │                 DigestEmailBatch (hourly "due" send / admin "send all unsent")
+│       │   │       ├── jobs/         JobStatusRegistry (last run per job, Redis), JobFailureNotifier (Sentry), JobRunRecorder (one result shape + failure recording)
+│       │   │       ├── scheduler/    DigestGenerationJob, EmailSendJob (thin @Scheduled delegators to shared/digest), CleanupJob, ExpiredAuthRowReaper
 │       │   │       ├── exception/    GlobalExceptionHandler, ResourceNotFoundException, UnauthorizedException, RootCauses
-│       │   │       ├── email/        EmailService
+│       │   │       ├── email/        EmailService (render + orchestrate), EmailTransport (Resend wire call, retry, SMTP fallback)
 │       │   │       ├── i18n/         Language (EN/KO edition: codes, locales, digest-content stamp)
-│       │   │       ├── webhook/      WebhookController
-│       │   │       └── port/in/      EmailUseCase
+│       │   │       ├── webhook/      WebhookController, EmailEventProcessor (open/click stamps, bounce/complaint suppression)
+│       │   │       └── port/in/      EmailUseCase (send), EmailEventUseCase (webhook events)
 │       │   └── resources/
 │       │       ├── application.yml
 │       │       ├── application-dev.yml
 │       │       ├── application-prod.yml
 │       │       ├── application-test.yml
 │       │       ├── db/migration/    # V1-V28 Flyway SQL scripts
-│       │       ├── messages.properties      # digest-email chrome, English (subject, labels, date patterns)
+│       │       ├── messages.properties      # email chrome, English (digest + auth mails: subject, labels, date patterns)
 │       │       ├── messages_ko.properties   # same keys, Korean edition
 │       │       └── templates/
-│       │           └── digest-email.html   # Thymeleaf email template (all copy via #{...} keys, lang from the digest)
+│       │           ├── digest-email.html   # Thymeleaf email template (all copy via #{...} keys, lang from the digest)
+│       │           ├── auth-email.html     # 2FA code + password-reset mails (kind=code|reset), edition from the user's preference
+│       │           └── unsubscribe-{confirm,done,invalid}.html   # the two-step unsubscribe pages served by UserController
 │       └── test/java/com/curio/
 │           ├── CurioApplicationTests.java
-│           ├── HexagonalArchitectureTest.java  # ArchUnit rules (4 rules)
+│           ├── HexagonalArchitectureTest.java  # ArchUnit rules (5 rules, incl. no cycles among shared.* packages)
 │           ├── admin/controller/    AdminControllerSecurityIntegrationTest
-│           ├── admin/service/       AdminOperationsServiceTest, AdminStatsServiceTest, AuditLogServiceTest
+│           ├── admin/service/       AdminOperationsServiceTest, AdminStatsServiceTest, AdminUserServiceTest, AuditLogServiceTest
 │           ├── auth/controller/     AuthControllerIntegrationTest
-│           ├── auth/service/        AuthServiceTest, UnsubscribeTokenServiceTest
+│           ├── auth/service/        AuthServiceTest, EmailVerificationChallengeServiceTest, GoogleIdTokenVerifierTest
 │           ├── user/controller/     UserControllerPasswordIntegrationTest, UserControllerUnsubscribeIntegrationTest
 │           ├── user/service/        UserServicePasswordTest, UserApiKeyServiceTest, UserServicePreferencesTest
 │           ├── quiz/service/        QuizServiceTest, QuizAttemptRecorderTest
-│           ├── news/service/        ClaudeServiceTest, GeminiServiceTest, OpenAiServiceTest, NewsApiClientTest, NewsServiceTest
-│           ├── shared/webhook/      WebhookControllerSignatureIntegrationTest
-│           ├── shared/scheduler/    DigestGenerationJobTest
+│           ├── studio/service/      StudioServiceTest
+│           ├── news/service/        ClaudeServiceTest, GeminiServiceTest, OpenAiServiceTest, NewsApiClientTest, NewsServiceTest, AiPromptsTest
+│           ├── shared/webhook/      WebhookControllerSignatureIntegrationTest, EmailEventProcessorTest
+│           ├── shared/batch/        SubscriberBatchTest (+ InlinePool test helper)
+│           ├── shared/digest/       DigestPipelineTest, DigestBatchTest, DigestEmailBatchTest
+│           ├── shared/jobs/         JobRunRecorderTest
 │           ├── shared/concurrent/   SingleFlightTest
 │           ├── shared/config/       JwtSecretsValidatorTest
 │           ├── shared/i18n/         LanguageTest
-│           ├── shared/email/        EmailServiceRenderTest
-│           └── shared/security/     ApiKeyCipherTest
+│           ├── shared/email/        EmailServiceRenderTest, EmailTransportTest
+│           └── shared/security/     ApiKeyCipherTest, UnsubscribeTokenServiceTest
 │
 ├── frontend/                        # Vue 3 SPA (TypeScript + Vite)
 │   ├── Dockerfile
@@ -174,19 +188,28 @@ curio/
 │       │   └── sentry.ts            # Optional Sentry init (VITE_SENTRY_DSN)
 │       ├── utils/                   # apiError.ts, safeUrl.ts, timezone.ts
 │       ├── composables/
+│       │   ├── useDisclosureSet.ts  # Open/closed set for accordions and filters (toggle/isOpen), shared by three pickers
 │       │   ├── useEnsureTimezone.ts # Device-timezone auto-follow (wired in DashboardLayout)
 │       │   ├── useFocusOnEnter.ts
 │       │   ├── useFocusTrap.ts
+│       │   ├── useFormat.ts         # Edition-aware date/time/number/duration formatting (styles named by role: full/short/stamp/compact)
 │       │   ├── useLocale.ts         # Edition (en/ko) state: persist on explicit choice, <html lang>, document.title
+│       │   ├── usePagedAdminList.ts # load(page) + page envelope shared by the admin roster/ledger/editions tables
+│       │   ├── usePoller.ts         # Non-overlapping poll loop with attempt/failure caps (Studio + admin job status)
 │       │   ├── useTheme.ts          # Light/dark theme toggle
 │       │   ├── useTopicLabels.ts    # Localized labels for the topic taxonomy (names stay canonical)
-│       │   └── useToast.ts          # Actively used
-│       ├── types/                   # user.ts, news.ts, quiz.ts
+│       │   ├── useTopicSelection.ts # Beat-picker state shared by onboarding and Settings
+│       │   └── useToast.ts
+│       ├── types/                   # user.ts, news.ts, quiz.ts, studio.ts, admin.ts, page.ts (SpringPage<T>), google-identity.d.ts
 │       ├── components/
-│       │   ├── ui/                  # BaseButton, BaseInput, BaseModal, BaseSpinner, ToastContainer, AppIcon, LanguageToggle
-│       │   ├── auth/                # LoginForm, RegisterForm
-│       │   ├── layout/              # DashboardLayout, LegalLayout
+│       │   ├── ui/                  # BaseButton, BaseInput, BaseModal, BaseSpinner, ToastContainer, AppIcon, LanguageToggle,
+│       │   │                        # PageMasthead, ErrorState, PagerNav, SegmentedControl
+│       │   ├── auth/                # LoginForm, RegisterForm, AuthMasthead, AuthColophon, MailSentPanel
+│       │   ├── layout/              # DashboardLayout, DashboardMenu, DashboardMenuFoot, LegalLayout
+│       │   ├── archive/             # ArchiveSearch, BeatFilter, DigestIssue
 │       │   ├── quiz/                # QuizQuestion, QuizResults
+│       │   ├── studio/              # TaskProgress
+│       │   ├── admin/               # JobCard
 │       │   ├── settings/            # ApiKeyManager (BYOK key UI)
 │       │   └── ErrorBoundary.vue    # Global error boundary
 │       └── views/
@@ -507,37 +530,45 @@ All providers: Redis cache check first, call NewsApiClient for articles, call AI
 | Service | Responsibilities |
 |---------|-----------------|
 | `NewsApiClient` | Shared `@Component`. Fetches articles from News API, parses responses, builds context strings for AI prompts. Gracefully returns empty list if API key is blank. |
-| `AuthService` | Register (BCrypt, auto-sets `emailVerified=true`; duplicate-email race caught as clean 400), login (AuthenticationManager), Google login (verifies via Google tokeninfo REST API with aud/iss checks; merging into a password-only account found by email clears the unproven password and revokes sessions — pre-account-hijack defense), token refresh (hashes tokens before lookup), logout, password reset (SHA-256 hashed tokens). |
+| `AuthService` | Register (BCrypt, auto-sets `emailVerified=true`; duplicate-email race caught as clean 400), login (AuthenticationManager, then hands off to the 2FA challenge when enabled), Google login policy (merging into a password-only account found by email clears the unproven password and revokes sessions — pre-account-hijack defense), token refresh (hashes tokens before lookup), logout, password reset (SHA-256 hashed tokens). Owns session issuance; ~290 lines. |
+| `EmailVerificationChallengeService` | The emailed-code second factor: `start` (hashed challenge id + code, attempts budget, TTL, sends the mail), `verify` → `Verification` (`VERIFIED`/`INVALID_CODE`/`LOCKED`/`EXPIRED`, attempts remaining, reset hint, user), `resend`. Constant-time compare, atomic attempt decrement, lockout marks the challenge consumed. |
+| `GoogleIdTokenVerifier` | Resolves a Google ID token via the tokeninfo endpoint and adds the audience + issuer checks Google does not do; returns a `GoogleIdentity(sub, email, name, emailVerified)` record. Fails closed without a client id. |
 | `UserService` | Profile CRUD, preferences upsert, account deletion, unsubscribe (sets `deliveryEnabled=false`). |
-| `NewsService` | Digest retrieval (paginated, ownership check), digest generation per user (iterates topics, calls AiService). The old `generateDigestsForAllUsers()` bulk method was dead code and removed — the scheduled path is `DigestGenerationJob`'s chunked run. |
-| `QuizService` | Quiz retrieval by digest ID, quiz generation via AI (if not exists), quiz submission scoring, paginated history (hardcoded page size 10). |
-| `AdminUserService` | User listing with search, user detail with metrics (topics, digest count, quiz stats). |
-| `AdminDigestService` | Digest listing with pagination and filters (topic, userEmail), manual trigger of digest generation. |
+| `NewsService` | Digest retrieval (paginated, ownership check) and digest generation for one user: `generate(user, listener)` returns a `DigestGeneration` (`GENERATED` / `ALREADY_EXISTS` / `NO_TOPICS` / `NOTHING_GENERATED`), round-robins the user's topics through `AiService` in the account's edition and stamps `content.language`. Bulk runs are `shared/digest/DigestBatch`, not this class. |
+| `QuizService` | Quiz retrieval by digest ID (questions served as `QuizQuestionSet`, answer key stripped), quiz generation via AI (if not exists), quiz submission scoring (`QuizSubmitResponse`), paginated history (`QuizHistoryEntry`, page size 10). Stored quiz JSON is read back through `objectMapper.convertValue(..., QuizGenerationResult.class)` — no unchecked casts. |
+| `AdminUserService` | User listing with search (`AdminUserSummary` rows), user detail (`AdminUserDetail`: profile, topics, metrics, recent digests/attempts). |
+| `AdminDigestService` | Digest listing with pagination and filters (topic, userEmail); the synchronous admin triggers delegate to `DigestBatch` (optionally topic-filtered). |
 | `AdminStatsService` | Stats aggregation (total users, emails sent, quiz completions), topic distribution, topic status per-topic stats, job status retrieval. |
-| `AdminOperationsService` | Manual trigger of email send batch and 30-day cleanup job. |
-| `AdminManualJobService` | Backs the async admin triggers (`POST /admin/generate-digests`, `/admin/send-emails`): returns 202 `started`/`already_running` immediately and runs the batch on a background executor. |
-| `EmailService` | Sends digest emails via Resend API + Thymeleaf templates, password reset emails (inline HTML), webhook event processing (open/click/bounce/complaint). Retry: 3 attempts. |
-| `UnsubscribeTokenService` | HMAC-SHA256 signed tokens with configurable TTL (default 720 hours / 30 days). |
+| `AdminOperationsService` | Manual triggers: `DigestEmailBatch.sendAllUnsent()` (every unsent digest, no hour gate) and the 30-day cleanup job. |
+| `AdminManualJobService` | Backs the async admin triggers (`POST /admin/generate-digests`, `/admin/send-emails`): returns 202 `JobTriggerResponse(status)` `started`/`already_running` immediately and runs the batch on a background executor. |
+| `EmailService` | Renders and orchestrates mail: digest email (claim → render `digest-email.html` in the digest's edition → send → release the claim on failure → record provider id), 2FA-code and password-reset mails (`auth-email.html`, edition from the user's preference). |
+| `EmailTransport` | The wire call: Resend HTTP with 3 attempts on 429/5xx, fail-fast on other 4xx, SMTP fallback when no Resend key. Returns the provider message id. |
+| `EmailEventProcessor` | Resend webhook events: open/click stamp the digest, hard bounce/complaint disable delivery for the address. |
+| `UnsubscribeTokenService` | HMAC-SHA256 signed tokens with configurable TTL (default 720 hours / 30 days) — `shared/security`. |
 | `UserDetailsServiceImpl` | Implements Spring Security `UserDetailsService`, loads users by email. |
-| `StudioService` | Manual, user-driven digest generation and emailing of the latest unsent digest (Studio dashboard). |
+| `StudioService` | Manual, user-driven digest generation (via `DigestPipeline`, with live progress) and emailing of the latest unsent digest (Studio dashboard). `GET /studio/status` returns `StudioStatusResponse` (two `TaskStatus` snapshots converted from the Redis maps + `StudioOverview`). |
 | `StudioTaskStatusService` | Tracks live Studio task status and context for `GET /studio/status`. |
 | `LabBlogFetcher` | Fetches lab/company blog (RSS) content for digest sourcing. |
 | `LabBlogRegistry` | Registry of lab blog feed URLs consumed by `LabBlogFetcher`. |
 | `LlmKeyValidator` | Validates user-supplied (BYOK) provider API keys. |
+| `DigestPipeline` | `shared/digest` — one user end to end: `NewsService.generate` then `QuizService.generateQuizForDigest`; returns digest status + quiz status. Used by the scheduled batch, admin triggers and Studio. |
+| `DigestBatch` / `DigestEmailBatch` | `shared/digest` — the two subscriber-wide runs, built on `SubscriberBatch`: generation for every subscriber and the hourly delivery run (`sendDue`: hour gate, today-only, generate-if-missing) or the admin `sendAllUnsent`. Each batch owns its job status through `JobRunRecorder` (success with the result map, or FAILED + Sentry when the run dies). A quiet news day (every topic empty) is a *skip*, not a failure, so it cannot trip the partial-failure alert. |
+| `SubscriberBatch` | `shared/batch` — chunked (500) runner over `deliveryEnabled` users: at most `maxPool + 2` tasks in flight (a semaphore, so the per-user timeout clock starts when the task can actually run), per-user timeout, a failing chunk preload is recorded and skipped rather than aborting the run, outcome tally (success/skipped/failed, sampled errors, errors by type) in one result shape. |
+| `JobRunRecorder` | `shared/jobs` — `recordRun(jobName, tally, durationMs, extras)` builds the result map, records success and raises chunk / partial-failure notifications; `recordFailure(jobName, e)` records FAILED with the root cause. `JobStatusRegistry` and `JobFailureNotifier` live beside it. |
 
 ### Scheduled Jobs
 
 | Job | Schedule (UTC) | What it Does |
 |-----|---------------|--------------|
-| `DigestGenerationJob` | 6:00 AM | Pre-generates digests for users with `deliveryEnabled=true` and preferences set (plus a bounded generate-if-missing at send time) |
-| `EmailSendJob` | Hourly (`:00`) | Runs every hour and emails each user whose local hour is at or past their delivery hour (catch-up gate — DST spring-forward cannot skip a day; only a digest generated today UTC is sent; claim-before-send prevents doubles; default 08:00 local) — NOT a fixed daily send. Also generates quizzes (`quizService.generateQuizForDigest()`) |
+| `DigestGenerationJob` | 6:00 AM | `DigestBatch.runForAll()`: digest **and quiz** for every user with `deliveryEnabled=true` and preferences set (the same pipeline Studio and the admin trigger use) |
+| `EmailSendJob` | Hourly (`:00`) | `DigestEmailBatch.sendDue()`: emails each user whose local hour is at or past their delivery hour (catch-up gate — DST spring-forward cannot skip a day; only a digest generated today UTC is sent; claim-before-send prevents doubles; default 08:00 local) — NOT a fixed daily send. Generates the digest + quiz just in time if the morning run missed the user |
 | `CleanupJob` | Midnight | Deletes digests/quizzes older than 30 days via `digestRepository.deleteByGeneratedAtBefore()` |
 | `ExpiredAuthRowReaper` | - | Reaps expired refresh tokens, password-reset tokens, and email-verification codes |
 | `JobFailureNotifier` | - | Surfaces/notifies on scheduled-job failures (alongside `JobStatusRegistry`) |
 
 **Note on CleanupJob:** Deletes digests directly; quiz and quiz_attempt rows are removed via the database `ON DELETE CASCADE` constraints.
 
-**Note on EmailSendJob:** Quiz generation happens here, not in DigestGenerationJob. This means quizzes are generated just before email sending, not during digest generation.
+**Note on job results:** every batch run (scheduled or admin) reports the same shape through `JobRunRecorder` — `durationMs`, `usersProcessed` (attempted: for the email job, users past their delivery hour), `usersScanned` (every delivery-enabled user paged through), `chunks`, `chunkSize`, `sampleErrors` (`[{userEmail, message}]`) and `errorsByType` — plus per-run counters (`digestSuccess`/`digestFail`/`digestSkipped`/`quizSuccess`/`quizFail` + `topicFilter` for generation, `sentCount`/`failCount` for delivery). `frontend/src/types/admin.ts` `JobResult` is the mirror; the admin job cards render the counts, quiz totals, beat filter and duration.
 
 ### Security Configuration
 
@@ -707,9 +738,7 @@ Single Axios instance with:
 | GET | `api.apiKeys.list()` | `/user/api-keys` |
 | POST | `api.apiKeys.save(provider, apiKey, currentPassword)` | `/user/api-keys` |
 | DELETE | `api.apiKeys.delete(provider, currentPassword)` | `/user/api-keys/{provider}` |
-| POST | `api.apiKeys.validate(provider, apiKey)` | `/user/api-keys/validate` |
 | GET | `api.news.getDigests(page, size)` | `/news/digests` |
-| GET | `api.news.getDigest(id)` | `/news/digests/{id}` |
 | GET | `api.news.search(q, page, size)` | `/news/search` |
 | GET | `api.quiz.getQuiz(digestId)` | `/quiz/digest/{digestId}` |
 | POST | `api.quiz.submitQuiz(quizId, answers)` | `/quiz/{quizId}/submit` |
@@ -729,17 +758,23 @@ Single Axios instance with:
 | GET | `api.admin.getJobsStatus()` | `/admin/jobs/status` |
 | GET | `api.admin.getAuditLog(page, size)` | `/admin/audit-log` |
 
-All 39 frontend API calls (across the `auth`, `user`, `apiKeys`, `news`, `quiz`, `studio`, and `admin` groups) have matching backend endpoints. Admin API responses are **partially typed** in TypeScript (digest endpoints are typed).
+All 37 frontend API calls (across the `auth`, `user`, `apiKeys`, `news`, `quiz`, `studio`, and `admin` groups) have matching backend endpoints and are typed end to end (`src/types/{user,news,quiz,studio,admin,page}.ts`). The backend also exposes `POST /user/api-keys/validate` and `GET /news/digests/{id}`, which the SPA no longer calls.
 
 ### Components
 
-**UI (7):** `BaseButton`, `BaseInput`, `BaseModal`, `BaseSpinner`, `ToastContainer`, `AppIcon` (custom inline SVG icon system with 18+ icons), `LanguageToggle` (edition switch — `link` variant for mastheads/footers, `switch` variant for the sidebar foot)
+**UI (11):** `BaseButton`, `BaseInput`, `BaseModal`, `BaseSpinner`, `ToastContainer`, `AppIcon` (inline stroke SVG icons; 8 names, every one rendered somewhere), `LanguageToggle` (edition switch — `link` variant for mastheads/footers, `switch` variant for the sidebar foot), `PageMasthead` (kicker + `<i18n-t>` headline with an emphasised word; `display`/`compact` sizes), `ErrorState` (kicker/headline/body + retry), `PagerNav` (newer/older pager; `counterKeypath` picks the "page X of Y" copy so admin and archive share it), `SegmentedControl` (`defineModel` radiogroup with one `label`, used by the Settings edition/theme pickers and onboarding)
 
-**Auth (2):** `LoginForm`, `RegisterForm`
+**Auth (5):** `LoginForm`, `RegisterForm`, `AuthMasthead` (shared auth-page header with the edition link), `AuthColophon` (the dated ink-aside row under the auth forms), `MailSentPanel` ("check your inbox" state for reset/verify)
 
-**Layout (2):** `DashboardLayout` (sidebar nav for desktop, slide-out drawer for mobile), `LegalLayout` (wrapper for the legal/privacy/terms/contact pages)
+**Layout (4):** `DashboardLayout` (desktop sidebar + mobile drawer shell), `DashboardMenu` (nav links), `DashboardMenuFoot` (theme + edition switches, sign-out), `LegalLayout` (wrapper for the legal/privacy/terms/contact pages)
+
+**Archive (3):** `ArchiveSearch` (full-text search box + results), `BeatFilter` (topic chips), `DigestIssue` (one digest rendered as an issue)
 
 **Quiz (2):** `QuizQuestion`, `QuizResults`
+
+**Studio (1):** `TaskProgress` (live generate/send progress bar driven by `GET /studio/status`)
+
+**Admin (1):** `JobCard` (one job's state, last-run summary and optional detail line — quiz counts, beat filter, duration — on the admin dashboard)
 
 **Settings (1):** `ApiKeyManager` (BYOK key management UI, embedded in Studio/Settings)
 
@@ -758,6 +793,11 @@ All 39 frontend API calls (across the `auth`, `user`, `apiKeys`, `news`, `quiz`,
 | `useTopicLabels()` | Active | `topicLabel(name)`, `groupName(l1\|l2)`, `groupDescription(l1)` — render-time labels for the canonical topic taxonomy. |
 | `useFocusTrap()` | Active | Traps focus within modals/drawers for keyboard accessibility. |
 | `useFocusOnEnter()` | Active | Moves focus to a target element on mount/enter. |
+| `useFormat()` | Active | `formatDate(x, 'full'\|'short'\|'stamp')`, `formatDateTime(x, 'short'\|'compact')`, `formatTime`, `formatNumber`, `formatDuration(ms)` — every `toLocale*String` / `Intl` call in the UI goes through here with `intlLocale`. |
+| `useDisclosureSet()` | Active | `toggle(key)` / `isOpen(key)` over a reactive `Set` — the open/closed state of the onboarding + Settings beat accordions and the archive beat filter. |
+| `usePoller()` | Active | `{ start, stop, active }` around an async `tick(isCurrent)`; the next tick is armed only after the previous response lands, with `maxAttempts` / `maxConsecutiveFailures` caps. Studio status and admin job status. |
+| `usePagedAdminList()` | Active | `load(page)` + `{ rows, page, totalPages, loading, error }` for the admin users/digests/audit tables; each view supplies its `fetcher`. |
+| `useTopicSelection()` | Active | Chosen leaf topics, unfolded L1 domains and per-group counts for the beat picker (onboarding + Settings). |
 
 ### Internationalization (i18n)
 
@@ -879,49 +919,60 @@ The full variable reference (what each var is, why it's needed, prod-required vs
 
 ### Backend Test Inventory
 
-25 test classes (as of 2026-07-18) including unit, integration, and architecture tests. All tests pass, including ArchUnit enforcement of hexagonal architecture rules.
+39 test classes / 274 tests (as of 2026-09-17) including unit, integration, and architecture tests. All tests pass, including ArchUnit enforcement of hexagonal architecture rules.
 
 | Test Class | Type | What It Tests |
 |---|---|---|
 | `CurioApplicationTests` | Smoke | Spring context loads |
-| `HexagonalArchitectureTest` | Architecture | ArchUnit rules (ports ≠ adapters, services ≠ repos, controllers depend on inbound ports, adapters isolated) |
-| `AuthServiceTest` | Unit | Register/login/refresh/logout/password-reset paths, token rotation, used-token rejection |
+| `HexagonalArchitectureTest` | Architecture | ArchUnit rules (ports ≠ adapters, only adapters/repositories touch repositories, controllers depend on inbound ports, adapters isolated, no cycles among `shared.*` packages) |
+| `AuthServiceTest` | Unit | Register/login/refresh/logout/password-reset paths, token rotation, used-token rejection, 2FA hand-off mapping, Google merge policy (unverified email rejected, password cleared + sessions revoked on merge) |
+| `EmailVerificationChallengeServiceTest` | Unit | Challenge start persists hashes not plaintext, 6-digit code, mail failure still issues the challenge, attempts/lockout/expiry outcomes and copy, resend rotates code + expiry |
+| `GoogleIdTokenVerifierTest` | Unit | tokeninfo success, bare/https issuer, audience mismatch, blank client id fails closed, missing sub/email, empty response, transport error |
 | `ClaudeServiceTest` | Unit | Cache hit/miss, API calls, JSON parsing, code-fence stripping, error handling, retry, quiz generation |
 | `GeminiServiceTest` | Unit | Same matrix as Claude + API-key-in-URL verification |
 | `OpenAiServiceTest` | Unit | Same matrix as Claude + Bearer auth header verification |
 | `NewsApiClientTest` | Unit | Blank API key guard, article parsing, error handling, context building |
-| `NewsServiceTest` | Unit | Digest generation, filtering, pagination |
-| `QuizServiceTest` | Unit | Quiz fetch/generate, ownership enforcement, scoring, per-question feedback |
+| `NewsServiceTest` | Unit | Digest generation statuses (`GENERATED`/`ALREADY_EXISTS`/`NO_TOPICS`/`NOTHING_GENERATED`), edition stamp, filtering, pagination |
+| `QuizServiceTest` | Unit | Quiz fetch/generate, ownership enforcement, scoring, per-question feedback, stored-JSON round-trip via `convertValue`, answer-key stripping, history mapping |
 | `QuizAttemptRecorderTest` | Unit | REQUIRES_NEW attempt persistence, concurrent-first-submit recovery, "better score wins" |
-| `UnsubscribeTokenServiceTest` | Unit | HMAC-SHA256 token roundtrip, expiry enforcement, tampering detection |
+| `UnsubscribeTokenServiceTest` | Unit | HMAC-SHA256 token roundtrip, expiry enforcement, tampering detection (`shared/security`) |
 | `UserApiKeyServiceTest` | Unit | BYOK key save (encrypt + live-validate), masked preview, rotation staleness |
 | `UserServicePasswordTest` | Unit | In-session password change, session revocation on change |
 | `AuthControllerIntegrationTest` | API | Forgot password, reset password, Google login |
 | `AdminControllerSecurityIntegrationTest` | Security | Anonymous rejected, regular user rejected, admin user allowed |
-| `AdminOperationsServiceTest` | Unit | Manual email-send batch + 30-day cleanup trigger |
+| `AdminOperationsServiceTest` | Unit | Delegation to `DigestEmailBatch.sendAllUnsent()` + 30-day cleanup trigger |
 | `AdminStatsServiceTest` | Unit | Stats aggregation, topic distribution, topic status |
+| `AdminUserServiceTest` | Unit | User roster rows and detail record (metrics rounding, recent digests/attempts) |
+| `StudioServiceTest` | Unit | Redis status map → `TaskStatus` record (unset keys omitted, unknown keys tolerated), overview assembly |
 | `AuditLogServiceTest` | Unit | Admin-action audit record write + paginated read |
 | `UserControllerPasswordIntegrationTest` | API | Password change functionality |
-| `UserControllerUnsubscribeIntegrationTest` | API | Valid/invalid unsubscribe token |
+| `UserControllerUnsubscribeIntegrationTest` | API | Two-step unsubscribe pages: confirm (GET, no state change), done (POST), invalid token, token HTML-escaped in the hidden input |
 | `WebhookControllerSignatureIntegrationTest` | Security | Invalid/valid HMAC signature verification |
 | `ApiKeyCipherTest` | Unit | API key encryption/decryption |
 | `JwtSecretsValidatorTest` | Unit | Boot-time JWT secret validation (length, distinctness, non-placeholder) |
 | `SingleFlightTest` | Unit | In-process per-key single-flight lock (one cold-cache call per topic+date) |
-| `DigestGenerationJobTest` | Job | Scheduled job execution, digest generation, idempotency |
+| `SubscriberBatchTest` | Unit | Chunked runner: include predicate, outcome tally, per-user timeout → failed, a queued user is not timed out before it can run, chunk preload failure recorded and skipped, sampled errors / errors by type in the result map |
+| `JobRunRecorderTest` | Unit | Result map assembly + success record, chunk / partial-failure notifications, FAILED with root cause |
+| `AiPromptsTest` | Unit | Summary + quiz prompt text: edition blocks, difficulty mix, source context placement |
+| `DigestPipelineTest` | Unit | One-user pipeline: status pass-through, quiz generated / failed / not attempted, listener hooks |
+| `DigestBatchTest` | Unit | Subscriber-wide generation: counters, topic filter, job record via `JobRunRecorder`, a quiet news day counts as skipped (no partial-failure alert), FAILED recorded when the run dies |
+| `DigestEmailBatchTest` | Unit | Hourly gate (at-or-past delivery hour in the user's zone, fixed `Clock`), today-only, generate-if-missing (a thrown generation error is a failed send), claim-before-send, `sendAllUnsent` ignores the gate, FAILED recorded when the run dies |
+| `EmailTransportTest` | Unit | Resend retry on 429/5xx, fail-fast on 4xx, SMTP fallback id, missing-key behaviour |
+| `EmailEventProcessorTest` | Unit | open/click stamp the digest; hard bounce/complaint disable delivery; unknown events ignored |
 | `LanguageTest` | Unit | Edition parsing: lenient `fromCode` for stored values, strict `isSupportedCode` for API input, digest-content stamp with English fallback |
 | `EmailServiceRenderTest` | Unit | Renders the real digest template through the real `messages*.properties` (no Spring context): Korean vs English chrome, `<html lang>`, generic-reader fallback, quiz block omission, localized subject |
 | `UserServicePreferencesTest` | Unit | `language` on PUT /preferences: lowercased on store, unchanged when omitted, rejected when unsupported, exposed on GET with English default |
 
 ### Frontend Test Inventory
 
-**Unit tests (Vitest): 22 test files** in `src/__tests__/` (as of 2026-09-16)
-- Components: BaseButton, BaseInput, BaseModal, LoginForm, RegisterForm, QuizQuestion, QuizResults, LanguageToggle
-- Views (both editions — each mounts in English, switches to Korean, asserts translated copy and unchanged English): HomeView, LoginView, ArchiveView, SettingsView, StatsView, LegalViews
+**Unit tests (Vitest): 42 test files / 214 tests** in `src/__tests__/` (as of 2026-09-17)
+- Components: BaseButton, BaseInput, BaseModal, LoginForm, RegisterForm, QuizQuestion, QuizResults, LanguageToggle, PageMasthead, ErrorState, PagerNav, SegmentedControl, AuthMasthead, AuthColophon, DashboardLayout, DashboardMenu, ArchiveSearch, BeatFilter, DigestIssue, TaskProgress, JobCard
+- Views (both editions — each mounts in English, switches to Korean, asserts translated copy and unchanged English): HomeView, LoginView, ArchiveView, SettingsView, StatsView, LegalViews, StudioView, AdminDashboardView
 - Stores: Pinia store tests (auth, user, news, quiz)
-- Composables / i18n: `useToast`, `useTopicLabels`, `useLocale` + catalog key-tree parity (every key in `en` exists in `ko` and vice versa)
+- Composables / i18n: `useToast`, `useTopicLabels`, `useFormat`, `usePoller`, `usePagedAdminList`, `useTopicSelection`, `useDisclosureSet`, `useLocale` + catalog key-tree parity (every key in `en` exists in `ko` and vice versa)
 - Utils: `safeUrl`
 
-**E2E tests (Cypress): 10 spec files** (as of 2026-09-16; `tests/e2e/support.ts` pins the edition to English before boot)
+**E2E tests (Cypress): 10 spec files / 67 tests** (as of 2026-09-17; `tests/e2e/support.ts` pins the edition to English before boot)
 
 | Spec | Coverage |
 |---|---|

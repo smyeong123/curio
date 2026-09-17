@@ -1,12 +1,13 @@
 package com.curio.quiz.port.in;
 
 import com.curio.news.entity.Digest;
+import com.curio.quiz.dto.QuizHistoryEntry;
 import com.curio.quiz.dto.QuizResponse;
 import com.curio.quiz.dto.QuizSubmitRequest;
+import com.curio.quiz.dto.QuizSubmitResponse;
 import com.curio.quiz.entity.Quiz;
 import org.springframework.data.domain.Page;
 
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -20,7 +21,7 @@ public interface QuizUseCase {
 
     Quiz generateQuizForDigest(Digest digest);
 
-    Map<String, Object> submitQuiz(UUID quizId, UUID userId, QuizSubmitRequest request);
+    QuizSubmitResponse submitQuiz(UUID quizId, UUID userId, QuizSubmitRequest request);
 
-    Page<Map<String, Object>> getHistory(UUID userId, int page);
+    Page<QuizHistoryEntry> getHistory(UUID userId, int page);
 }

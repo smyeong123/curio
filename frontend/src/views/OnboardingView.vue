@@ -80,8 +80,8 @@
               <div class="min-w-0">
                 <div class="flex items-baseline gap-3 mb-1">
                   <span class="kicker">{{ t('onboarding.hierarchy.chapter') }}</span>
-                  <span v-if="getDomainSelectedCount(domain) > 0" class="kicker kicker-signal">
-                    {{ t('onboarding.hierarchy.onTheBeat', { count: getDomainSelectedCount(domain) }) }}
+                  <span v-if="domainCount(domain) > 0" class="kicker kicker-signal">
+                    {{ t('onboarding.hierarchy.onTheBeat', { count: domainCount(domain) }) }}
                   </span>
                 </div>
                 <h3 class="display-headline text-[clamp(24px,3.5vw,38px)] leading-tight flex items-center gap-3">
@@ -110,7 +110,7 @@
               <!-- L2 -->
               <button
                 class="w-full flex items-center justify-between px-6 py-4 hover:bg-paper transition-colors text-left"
-                :aria-expanded="expandedSubcategories.has(subcategory.id)"
+                :aria-expanded="isSubcategoryOpen(subcategory.id)"
                 :aria-controls="`subcategory-panel-${subcategory.id}`"
                 @click="toggleSubcategory(subcategory.id)"
               >
@@ -120,16 +120,16 @@
                 </div>
                 <div class="flex items-center gap-3">
                   <span
-                    v-if="getSubcategorySelectedCount(subcategory) > 0"
+                    v-if="subcategoryCount(subcategory) > 0"
                     class="kicker"
                     style="color: var(--leaf);"
                   >
-                    {{ getSubcategorySelectedCount(subcategory) }}/{{ subcategory.topics.length }}
+                    {{ subcategoryCount(subcategory) }}/{{ subcategory.topics.length }}
                   </span>
                   <span
                     :class="[
                       'font-mono-curio text-[16px]',
-                      expandedSubcategories.has(subcategory.id) ? 'text-[color:var(--ink)] rotate-180' : 'text-[color:var(--mute)]'
+                      isSubcategoryOpen(subcategory.id) ? 'text-[color:var(--ink)] rotate-180' : 'text-[color:var(--mute)]'
                     ]"
                     aria-hidden="true"
                   >∨</span>
@@ -137,7 +137,7 @@
               </button>
 
               <!-- L3 -->
-              <div v-if="expandedSubcategories.has(subcategory.id)" :id="`subcategory-panel-${subcategory.id}`" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 px-6 pb-5 bg-paper-deep">
+              <div v-if="isSubcategoryOpen(subcategory.id)" :id="`subcategory-panel-${subcategory.id}`" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 px-6 pb-5 bg-paper-deep">
                 <button
                   v-for="topic in subcategory.topics"
                   :key="topic"
@@ -214,8 +214,10 @@ import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/user'
 import { useToast } from '@/composables/useToast'
 import { useTopicLabels } from '@/composables/useTopicLabels'
+import { useTopicSelection } from '@/composables/useTopicSelection'
+import { useDisclosureSet } from '@/composables/useDisclosureSet'
 import { TOPIC_HIERARCHY } from '@/data/topics'
-import type { TopicL1, TopicL2, TopicIcon } from '@/data/topics'
+import type { TopicIcon } from '@/data/topics'
 import { detectBrowserTimezone } from '@/utils/timezone'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import LanguageToggle from '@/components/ui/LanguageToggle.vue'
@@ -258,7 +260,8 @@ const quickPicks = computed<QuickPick[]>(() => [
   }
 ])
 
-const selectedTopics = ref<string[]>([])
+const { selectedTopics, toggleTopic, expandedDomains, toggleDomain, domainCount, subcategoryCount } =
+  useTopicSelection()
 
 const applyPreset = (topics: string[]) => {
   topics.forEach(topic => {
@@ -270,34 +273,9 @@ const authStore = useAuthStore()
 const userStore = useUserStore()
 const router = useRouter()
 const { success, error } = useToast()
-const expandedDomains = ref<Set<string>>(new Set())
-const expandedSubcategories = ref<Set<string>>(new Set())
+// Onboarding unfolds a second level (L2 subcategories) that Settings does not.
+const { isOpen: isSubcategoryOpen, toggle: toggleSubcategory } = useDisclosureSet()
 const saving = ref(false)
-
-const toggleDomain = (id: string) => {
-  if (expandedDomains.value.has(id)) expandedDomains.value.delete(id)
-  else expandedDomains.value.add(id)
-}
-
-const toggleSubcategory = (id: string) => {
-  if (expandedSubcategories.value.has(id)) expandedSubcategories.value.delete(id)
-  else expandedSubcategories.value.add(id)
-}
-
-const toggleTopic = (topic: string) => {
-  const index = selectedTopics.value.indexOf(topic)
-  if (index === -1) {
-    selectedTopics.value.push(topic)
-  } else {
-    selectedTopics.value.splice(index, 1)
-  }
-}
-
-const getDomainSelectedCount = (domain: TopicL1) =>
-  domain.subcategories.reduce((acc, sub) => acc + sub.topics.filter(t => selectedTopics.value.includes(t)).length, 0)
-
-const getSubcategorySelectedCount = (sub: TopicL2) =>
-  sub.topics.filter(t => selectedTopics.value.includes(t)).length
 
 const handleLogout = async () => {
   await authStore.logout()

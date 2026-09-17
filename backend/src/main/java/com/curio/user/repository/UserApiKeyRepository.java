@@ -18,7 +18,4 @@ public interface UserApiKeyRepository extends JpaRepository<UserApiKey, UUID> {
     List<UserApiKey> findByUserId(UUID userId);
 
     void deleteByUserIdAndProvider(UUID userId, UserApiKey.Provider provider);
-
-    @Query("SELECT COUNT(k) > 0 FROM UserApiKey k WHERE k.user.id = :userId AND k.validatedAt IS NOT NULL")
-    boolean existsValidatedForUser(@Param("userId") UUID userId);
 }

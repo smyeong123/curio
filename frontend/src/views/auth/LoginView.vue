@@ -2,10 +2,7 @@
   <div class="min-h-screen bg-paper text-[color:var(--ink)] lg:grid lg:grid-cols-[1.05fr_0.95fr]">
     <!-- ── Editorial aside ─────────────────────────────────────── -->
     <aside class="relative hidden flex-col bg-ink p-12 text-[color:var(--paper)] lg:flex">
-      <router-link to="/" class="flex items-baseline gap-3">
-        <span class="display-headline text-[36px] leading-none">Curio</span>
-        <span class="kicker" style="color: var(--paper); opacity: 0.6;">Vol. 047</span>
-      </router-link>
+      <AuthMasthead on-ink />
 
       <div class="my-auto max-w-[420px]">
         <p class="kicker mb-5" style="color: var(--signal);">{{ t('auth.login.aside.kicker') }}</p>
@@ -26,25 +23,13 @@
         </div>
       </div>
 
-      <div class="flex items-end justify-between">
-        <p class="kicker" style="color: var(--paper); opacity: 0.5;">{{ t('auth.common.colophon') }}</p>
-        <div class="flex items-baseline gap-5">
-          <LanguageToggle class="text-[11px]" style="color: var(--paper); opacity: 0.6;" />
-          <p class="kicker" style="color: var(--paper); opacity: 0.5;">{{ todayShort }}</p>
-        </div>
-      </div>
+      <AuthColophon />
     </aside>
 
     <!-- ── Form panel ─────────────────────────────────────────── -->
     <section class="flex items-center justify-center px-6 py-14">
       <div class="w-full max-w-[460px]">
-        <div class="mb-10 flex items-baseline justify-between gap-4 lg:hidden">
-          <router-link to="/" class="flex items-baseline gap-3">
-            <span class="display-headline text-[28px] leading-none">Curio</span>
-            <span class="kicker">Vol. 047</span>
-          </router-link>
-          <LanguageToggle class="text-[12px]" />
-        </div>
+        <AuthMasthead class="lg:hidden" />
 
         <header class="mb-10">
           <p class="kicker kicker-signal mb-3">{{ t('auth.login.kicker') }}</p>
@@ -83,14 +68,13 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
-import { useLocale } from '@/composables/useLocale'
+import AuthMasthead from '@/components/auth/AuthMasthead.vue'
+import AuthColophon from '@/components/auth/AuthColophon.vue'
 import LoginForm from '@/components/auth/LoginForm.vue'
-import LanguageToggle from '@/components/ui/LanguageToggle.vue'
 import { safeRedirectPath } from '@/utils/safeUrl'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 const { t, tm, rt } = useI18n()
-const { intlLocale } = useLocale()
 const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
@@ -100,11 +84,6 @@ const loading = ref(false)
 const serverError = ref('')
 
 const features = computed(() => (tm('auth.login.aside.features') as string[]).map((line) => rt(line)))
-
-const todayShort = computed(() => {
-  const d = new Date()
-  return d.toLocaleDateString(intlLocale.value, { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase()
-})
 
 const handleLogin = async (email: string, password: string) => {
   loading.value = true
@@ -125,22 +104,6 @@ const handleLogin = async (email: string, password: string) => {
     serverError.value = getApiErrorMessage(err, t('auth.login.errors.invalidCredentials'))
   } finally {
     loading.value = false
-  }
-}
-
-declare global {
-  interface Window {
-    google?: {
-      accounts?: {
-        id?: {
-          initialize: (config: {
-            client_id: string
-            callback: (response: { credential?: string }) => void
-          }) => void
-          prompt: (momentListener?: (notification: unknown) => void) => void
-        }
-      }
-    }
   }
 }
 

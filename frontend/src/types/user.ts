@@ -15,11 +15,6 @@ export interface RegisterRequest {
   fullName: string
 }
 
-export interface LoginRequest {
-  email: string
-  password: string
-}
-
 export interface AuthResponse {
   accessToken: string
   refreshToken: string
@@ -83,4 +78,14 @@ export interface DeliverySettings {
 export interface UpdateProfileRequest {
   fullName?: string
   deliveryEnabled?: boolean
+}
+
+/** BYOK API-key summary as returned by list/save — the key itself is never returned. */
+export interface ApiKeySummary {
+  provider: 'CLAUDE' | 'GEMINI' | 'OPENAI'
+  keyPreview: string
+  validated: boolean
+  validatedAt: string | null
+  lastUsedAt: string | null
+  updatedAt: string
 }

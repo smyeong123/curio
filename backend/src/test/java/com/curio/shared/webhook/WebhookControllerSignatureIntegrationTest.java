@@ -1,6 +1,6 @@
 package com.curio.shared.webhook;
 
-import com.curio.shared.email.EmailService;
+import com.curio.shared.port.in.EmailEventUseCase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -33,7 +33,7 @@ class WebhookControllerSignatureIntegrationTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private EmailService emailService;
+    private EmailEventUseCase emailService;
 
     @Test
     void rejectsWebhookWithInvalidSignature() throws Exception {

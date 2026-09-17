@@ -5,11 +5,17 @@ import java.util.Map;
 
 /**
  * Maps Curio topics to the official RSS/Atom feeds of the relevant AI labs.
- * Feeds are tried in order; failures are logged and the next one is tried.
+ * {@link LabBlogFetcher#fetchForTopic} fetches every feed listed for a topic
+ * and merges the results; a feed that fails is logged and skipped while the
+ * others still contribute.
  *
  * A small set of feeds intentionally — the goal is to surface first-party
  * release-note / product-update signal, then fall back to NewsAPI for the
- * long tail. Any feed that 404s is simply skipped (see {@link LabBlogFetcher}).
+ * long tail.
+ *
+ * Feeds rot: labs move or drop their RSS without notice and a dead feed fails
+ * quietly per fetch, so recheck these URLs when digests thin out (the
+ * {@code curio.labblog.fetch} meter shows per-feed errors).
  *
  * Keep the string keys in sync with TopicConstants.ALL_TOPICS.
  */
@@ -17,14 +23,11 @@ public final class LabBlogRegistry {
 
     private LabBlogRegistry() {}
 
-    // Anthropic + Meta no longer publish public RSS. The former HF-papers-feed
-    // workaround for Anthropic started returning 401 (verified 2026-07-05), so
-    // Anthropic now rides a Google News RSS query — third-party, but the only
-    // live Anthropic-specific feed until they ship RSS. Meta stays on the Meta
-    // Research blog feed (alive). Mistral moved their feed from /news/rss.xml
-    // (404) to /rss.xml (verified 2026-07-05). All six URLs below were
-    // liveness-checked 2026-07-05; failures are swallowed per-feed, so recheck
-    // these when digests thin out (admin getCounters() shows per-feed errors).
+    /**
+     * Anthropic publishes no public RSS, so its signal comes from a Google News
+     * RSS query — third-party, but Anthropic-specific. Meta likewise has no
+     * first-party product feed; the Meta Research blog feed stands in.
+     */
     private static final String ANTHROPIC_NEWS =
             "https://news.google.com/rss/search?q=Anthropic+Claude&hl=en-US&gl=US&ceid=US:en";
     private static final String OPENAI_BLOG = "https://openai.com/blog/rss.xml";

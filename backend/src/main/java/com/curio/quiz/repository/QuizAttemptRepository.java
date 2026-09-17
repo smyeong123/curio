@@ -31,8 +31,6 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, UUID> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT qa FROM QuizAttempt qa WHERE qa.user.id = :userId AND qa.quiz.id = :quizId")
     Optional<QuizAttempt> findByUserIdAndQuizIdForUpdate(@Param("userId") UUID userId, @Param("quizId") UUID quizId);
-
-    Page<QuizAttempt> findByUserIdOrderByCompletedAtDesc(UUID userId, Pageable pageable);
     List<QuizAttempt> findTop5ByUserIdOrderByCompletedAtDesc(UUID userId);
     long countByUserId(UUID userId);
     long countByCompletedAtAfter(java.time.LocalDateTime dateTime);

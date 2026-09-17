@@ -1,34 +1,25 @@
 <template>
   <div class="mx-auto max-w-[920px] px-5 py-10 sm:px-8 lg:px-12">
-    <!-- ── Edition header ─────────────────────────────────────── -->
-    <header class="mb-10">
-      <div class="flex items-end justify-between flex-wrap gap-4 mb-6">
-        <div>
-          <p class="kicker kicker-signal mb-3">{{ t('archive.header.kicker') }}</p>
-          <i18n-t scope="global" keypath="archive.header.headline" tag="h1" class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95]">
-            <template #brand><em class="italic-display">Curio</em></template>
-          </i18n-t>
-        </div>
+    <PageMasthead :kicker="t('archive.header.kicker')" keypath="archive.header.headline" emphasis="brand">
+      <template #emphasis>Curio</template>
+      <template #aside>
         <div class="text-right">
           <p class="deco-num text-[44px] leading-none">{{ readableNumber }}</p>
           <p class="kicker mt-1">{{ t('archive.header.issuesInArchive') }}</p>
         </div>
-      </div>
-      <div class="rule-double w-full"></div>
+      </template>
       <p class="font-body-curio text-[15px] text-[color:var(--ink-soft)] mt-4 leading-relaxed max-w-[64ch]">
         {{ t('archive.header.intro') }}
       </p>
-    </header>
+    </PageMasthead>
 
-    <!-- ── Error state ──────────────────────────────────────── -->
-    <section v-if="errorOccurred" class="border border-[color:var(--rule)] bg-paper-deep p-12 text-center">
-      <p class="kicker kicker-signal mb-4">{{ t('archive.error.kicker') }}</p>
-      <h3 class="display-headline text-[28px] mb-2">{{ t('archive.error.headline') }}</h3>
-      <p class="font-body-curio text-[14px] text-[color:var(--ink-soft)] mb-6 max-w-md mx-auto">
-        {{ t('archive.error.body') }}
-      </p>
-      <button class="btn-editorial-ghost" @click="load">{{ t('archive.error.retry') }}</button>
-    </section>
+    <ErrorState
+      v-if="errorOccurred"
+      :kicker="t('archive.error.kicker')"
+      :headline="t('archive.error.headline')"
+      :body="t('archive.error.body')"
+      @retry="load"
+    />
 
     <!-- ── Loading skeleton ─────────────────────────────────── -->
     <section v-else-if="loading" class="space-y-8">
@@ -57,155 +48,20 @@
 
     <!-- ── Digest feed ──────────────────────────────────────── -->
     <section v-else class="space-y-12">
-      <!-- Search — server-side full-text search over the whole retained archive
-           (30 days), wider than the 7-day browse window below. -->
-      <div class="pb-5 border-b border-[color:var(--rule)]">
-        <label for="archive-search" class="kicker">{{ t('archive.search.label') }}</label>
-        <div class="mt-3 flex items-center gap-2">
-          <input
-            id="archive-search"
-            v-model="searchQuery"
-            type="search"
-            :placeholder="t('archive.search.placeholder')"
-            autocomplete="off"
-            class="w-full max-w-md bg-transparent border border-[color:var(--rule)] px-3 py-2 font-body-curio text-[14px] text-[color:var(--ink)] placeholder:text-[color:var(--mute)] focus:border-[color:var(--ink)] focus:outline-none"
-          />
-          <button v-if="searchQuery" class="btn-editorial-ghost py-2 px-3" @click="clearSearch">
-            {{ t('archive.search.clear') }}
-          </button>
-        </div>
-        <p class="kicker mt-2 text-[color:var(--mute)]" aria-live="polite">
-          <template v-if="searchLoading">{{ t('archive.search.searching') }}</template>
-          <template v-else-if="searchActive">
-            {{ t('archive.search.matchCount', searchMatchCount) }} · {{ t('archive.search.fullArchive') }}
-          </template>
-          <template v-else>{{ t('archive.search.hint') }}</template>
-        </p>
-      </div>
+      <ArchiveSearch
+        v-model:query="searchQuery"
+        :loading="searchLoading"
+        :active="searchActive"
+        :match-count="searchMatchCount"
+        @clear="clearSearch"
+      />
 
-      <!-- Topic filter — collapsed by default so the digest leads the page. The
-           header toggle opens the full taxonomy grouped by big topic (L1); each
-           big topic is itself a nested disclosure whose subtopics stay hidden
-           until clicked. Heights animate via grid-template-rows 0fr→1fr. -->
-      <div class="pb-2" :aria-label="t('archive.filter.a11yRegion')">
-        <!-- Outer filter toggle -->
-        <button
-          type="button"
-          class="group/filter w-full flex items-center justify-between gap-3 cursor-pointer select-none"
-          :aria-expanded="filterOpen"
-          aria-controls="beat-filter-panel"
-          @click="filterOpen = !filterOpen"
-        >
-          <span class="flex items-baseline gap-3 min-w-0">
-            <span class="kicker flex-shrink-0">{{ t('archive.filter.label') }}</span>
-            <span
-              class="inline-flex items-center px-3 py-1 text-[11px] font-mono-curio uppercase tracking-[0.14em] border max-w-full truncate"
-              :class="activeTopicFilter
-                ? 'bg-signal text-[color:var(--paper)] border-[color:var(--signal)]'
-                : 'bg-ink text-[color:var(--paper)] border-[color:var(--ink)]'"
-            >{{ activeTopicFilter ? topicLabel(activeTopicFilter) : t('archive.filter.all') }}</span>
-            <span v-if="!activeTopicFilter" class="kicker text-[color:var(--mute)] flex-shrink-0 hidden sm:inline">· {{ t('archive.filter.beatCount', { count: totalActiveBeats }) }}</span>
-          </span>
-          <span
-            aria-hidden="true"
-            class="font-mono-curio text-[13px] leading-none text-[color:var(--mute)] transition-all duration-300 ease-out motion-reduce:transition-none group-hover/filter:text-[color:var(--ink)]"
-            :class="filterOpen ? 'rotate-90' : ''"
-          >▸</span>
-        </button>
-
-        <!-- Collapsible filter panel -->
-        <div
-          id="beat-filter-panel"
-          class="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
-          :class="filterOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
-        >
-          <div class="overflow-hidden" :inert="!filterOpen">
-            <div class="pt-4 space-y-3">
-              <div class="flex items-center gap-2">
-                <button
-                  type="button"
-                  :aria-pressed="!activeTopicFilter"
-                  :class="[
-                    'px-3 py-1 text-[11px] font-mono-curio uppercase tracking-[0.14em] border transition-colors',
-                    !activeTopicFilter
-                      ? 'bg-ink text-[color:var(--paper)] border-[color:var(--ink)]'
-                      : 'bg-transparent text-[color:var(--mute)] border-[color:var(--rule)] hover:text-[color:var(--ink)]'
-                  ]"
-                  @click="selectTopic('')"
-                >
-                  {{ t('archive.filter.all') }}
-                </button>
-              </div>
-
-              <div
-                v-for="group in groupedTopics"
-                :key="group.id"
-                class="border-t border-[color:var(--rule)] pt-3 first:border-t-0 first:pt-0"
-              >
-                <!-- Big-topic disclosure header -->
-                <button
-                  type="button"
-                  class="group/head w-full flex items-center justify-between gap-3 cursor-pointer select-none py-0.5"
-                  :aria-expanded="isGroupOpen(group.id)"
-                  :aria-controls="`filter-group-${group.id}`"
-                  @click="toggleGroup(group.id)"
-                >
-                  <span class="kicker flex items-center gap-1.5 text-[color:var(--ink-soft)] transition-colors group-hover/head:text-[color:var(--ink)]">
-                    <AppIcon :name="group.icon" class="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-                    {{ group.name }}
-                    <span class="text-[color:var(--mute)] normal-case tracking-normal">· {{ t('archive.filter.activeCount', { count: group.activeCount }) }}</span>
-                  </span>
-                  <span
-                    aria-hidden="true"
-                    class="font-mono-curio text-[13px] leading-none text-[color:var(--mute)] transition-transform duration-300 ease-out motion-reduce:transition-none"
-                    :class="isGroupOpen(group.id) ? 'rotate-90' : ''"
-                  >▸</span>
-                </button>
-
-                <!-- Subtopics — hidden until the big topic is clicked -->
-                <div
-                  :id="`filter-group-${group.id}`"
-                  class="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
-                  :class="isGroupOpen(group.id) ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
-                >
-                  <div class="overflow-hidden" :inert="!isGroupOpen(group.id)">
-                    <div class="flex flex-wrap gap-2 pl-0.5 pt-3">
-                      <button
-                        v-for="item in group.topics"
-                        :key="item.name"
-                        type="button"
-                        :disabled="item.count === 0"
-                        :aria-pressed="item.count > 0 ? activeTopicFilter === item.name : undefined"
-                        :class="[
-                          'inline-flex items-baseline gap-1.5 px-3 py-1 text-[11px] font-mono-curio uppercase tracking-[0.14em] border transition-colors',
-                          item.count === 0
-                            ? 'bg-transparent text-[color:var(--mute)] border-[color:var(--rule)] opacity-40 cursor-not-allowed'
-                            : activeTopicFilter === item.name
-                              ? 'bg-signal text-[color:var(--paper)] border-[color:var(--signal)]'
-                              : 'bg-transparent text-[color:var(--mute)] border-[color:var(--rule)] hover:text-[color:var(--ink)]'
-                        ]"
-                        @click="item.count > 0 && selectTopic(activeTopicFilter === item.name ? '' : item.name)"
-                      >
-                        {{ topicLabel(item.name) }}
-                        <span
-                          :class="[
-                            'num-tab text-[10px]',
-                            activeTopicFilter === item.name ? 'opacity-80' : 'opacity-60'
-                          ]"
-                        >{{ item.count }}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <p class="sr-only" aria-live="polite">
-          {{ activeTopicFilter ? t('archive.filter.a11yActive', { topic: topicLabel(activeTopicFilter) }) : t('archive.filter.a11yNone') }}
-        </p>
-      </div>
+      <BeatFilter
+        :groups="groupedTopics"
+        :active-topic="activeTopicFilter"
+        :total-active="totalActiveBeats"
+        @select="selectTopic"
+      />
 
       <!-- No issues match the search and/or active beat (archive itself is non-empty) -->
       <div
@@ -242,128 +98,27 @@
         </p>
       </div>
 
-      <!-- Issues -->
-      <article
-        v-for="(digest, idx) in pagedDigests"
-        :key="digest.id"
-        class="digest-card"
-        :lang="digest.content?.language ?? 'en'"
-      >
-        <!-- Issue masthead -->
-        <header class="border-t-2 border-[color:var(--rule)] pt-5 mb-7">
-          <div class="flex items-end justify-between flex-wrap gap-3 mb-4">
-            <div>
-              <p class="kicker">{{ t('archive.issue.label', { number: issueNumberFor(digest.id) }) }} · {{ formatDate(digest.generatedAt) }}</p>
-            </div>
-            <div class="flex items-center gap-3">
-              <span
-                v-if="digest.emailSentAt"
-                class="kicker"
-                style="color: var(--leaf);"
-              >
-                ● {{ t('archive.issue.delivered', { time: formatTime(digest.emailSentAt) }) }}
-              </span>
-              <router-link
-                :to="{ name: 'quiz', params: { digestId: digest.id } }"
-                class="btn-editorial-ghost py-2 px-3"
-                style="font-size: 0.625rem;"
-              >
-                {{ t('archive.issue.takeQuiz') }}
-                <span aria-hidden="true">→</span>
-              </router-link>
-            </div>
-          </div>
-          <div
-            v-if="getTopics(digest).length > 0"
-            class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-body-curio text-[color:var(--mute)]"
-          >
-            <span class="kicker">{{ t('archive.issue.beats') }}</span>
-            <span
-              v-for="(topic, i) in getTopics(digest)"
-              :key="topic"
-              class="flex items-center gap-3"
-            >
-              {{ topicLabel(topic) }}
-              <span v-if="i < getTopics(digest).length - 1" class="text-[color:var(--rule)]">·</span>
-            </span>
-          </div>
-        </header>
-
-        <!-- Stories (narrowed to the active beat when a filter is on) -->
-        <ol class="space-y-10">
-          <li
-            v-for="(summary, i) in visibleSummaries(digest)"
-            :key="i"
-            class="grid grid-cols-12 gap-x-6 gap-y-2"
-          >
-            <!-- Story number gutter -->
-            <div class="col-span-12 sm:col-span-1">
-              <span class="deco-num text-[28px] leading-none text-[color:var(--mute)]">{{ String(i + 1).padStart(2, '0') }}</span>
-            </div>
-
-            <!-- Body -->
-            <div class="col-span-12 sm:col-span-11">
-              <p class="kicker mb-2">{{ summary.topic ? topicLabel(summary.topic) : t('archive.story.fallbackKicker') }}</p>
-              <h3 class="display-headline text-[clamp(22px,2.4vw,32px)] leading-[1.05] mb-3">
-                {{ summary.headline }}
-              </h3>
-              <p
-                :class="[
-                  'font-body-curio text-[15.5px] leading-[1.65] text-[color:var(--ink)] mb-4',
-                  idx === 0 && i === 0 ? 'dropcap' : ''
-                ]"
-              >
-                {{ summary.summary }}
-              </p>
-              <p
-                v-if="summary.why_it_matters"
-                class="border-l-2 border-[color:var(--signal)] pl-4 font-display italic text-[15px] text-[color:var(--ink-soft)] leading-snug mb-4"
-              >
-                <span class="kicker kicker-signal not-italic mr-2">{{ t('archive.story.whyItMatters') }}</span>
-                {{ summary.why_it_matters }}
-              </p>
-              <a
-                v-if="safeExternalUrl(summary.source_url)"
-                :href="safeExternalUrl(summary.source_url) ?? undefined"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="ink-link font-mono-curio text-[11px] uppercase tracking-[0.14em]"
-              >
-                {{ t('archive.story.source', { name: summary.source_name || t('archive.story.linkFallback') }) }} →
-              </a>
-            </div>
-          </li>
-        </ol>
-
-        <!-- Issue end mark -->
-        <div class="mt-10 flex items-center justify-center">
-          <span class="kicker">{{ t('archive.issue.end') }}</span>
-        </div>
-      </article>
+      <DigestIssue
+        v-for="(issue, idx) in pagedIssues"
+        :key="issue.digest.id"
+        :digest="issue.digest"
+        :stories="issue.stories"
+        :topics="issue.topics"
+        :issue-number="issue.issueNumber"
+        :dropcap="idx === 0"
+      />
 
       <!-- Pagination — one day per page (most recent first, last 7 days only) -->
-      <nav v-if="totalPages > 1" class="flex items-center justify-between border-t-2 border-[color:var(--rule)] pt-6">
-        <button
-          class="btn-editorial-ghost"
-          :disabled="localPage === 0"
-          @click="goToPage(localPage - 1)"
-        >
-          <span aria-hidden="true">←</span>
-          {{ t('archive.paging.newer') }}
-        </button>
-        <i18n-t scope="global" keypath="archive.paging.dayOf" tag="span" class="kicker">
-          <template #page><span class="num-tab text-[color:var(--ink)]">{{ localPage + 1 }}</span></template>
-          <template #total><span class="num-tab text-[color:var(--ink)]">{{ totalPages }}</span></template>
-        </i18n-t>
-        <button
-          class="btn-editorial-ghost"
-          :disabled="localPage >= totalPages - 1"
-          @click="goToPage(localPage + 1)"
-        >
-          {{ t('archive.paging.older') }}
-          <span aria-hidden="true">→</span>
-        </button>
-      </nav>
+      <PagerNav
+        v-if="totalPages > 1"
+        class="border-t-2 border-[color:var(--rule)] pt-6"
+        :page="localPage"
+        :total-pages="totalPages"
+        :newer-label="t('archive.paging.newer')"
+        :older-label="t('archive.paging.older')"
+        counter-keypath="archive.paging.dayOf"
+        @change="goToPage"
+      />
     </section>
   </div>
 </template>
@@ -374,20 +129,24 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useNewsStore } from '@/stores/news'
 import { useToast } from '@/composables/useToast'
-import { useLocale } from '@/composables/useLocale'
+import { useFormat } from '@/composables/useFormat'
 import { useTopicLabels } from '@/composables/useTopicLabels'
-import { safeExternalUrl } from '@/utils/safeUrl'
 import { TOPIC_HIERARCHY, TOPIC_DOMAIN_MAP } from '@/data/topics'
-import type { TopicIcon } from '@/data/topics'
 import type { Digest, NewsSummary } from '@/types/news'
-import AppIcon from '@/components/ui/AppIcon.vue'
 import { getApiErrorMessage } from '@/utils/apiError'
+import PageMasthead from '@/components/ui/PageMasthead.vue'
+import ErrorState from '@/components/ui/ErrorState.vue'
+import PagerNav from '@/components/ui/PagerNav.vue'
+import ArchiveSearch from '@/components/archive/ArchiveSearch.vue'
+import BeatFilter from '@/components/archive/BeatFilter.vue'
+import DigestIssue from '@/components/archive/DigestIssue.vue'
+import type { TopicGroup, TopicItem } from '@/components/archive/BeatFilter.vue'
 
 const newsStore = useNewsStore()
 const { digests, topicFilter } = storeToRefs(newsStore)
 const { error: showError } = useToast()
 const { t } = useI18n()
-const { intlLocale } = useLocale()
+const { formatDate } = useFormat()
 // Topic names are canonical ids (backend-stored); label them per edition at render time.
 const { topicLabel, groupName } = useTopicLabels()
 
@@ -481,22 +240,6 @@ watch(activeTopicFilter, (value) => {
   topicFilter.value = value || null
 })
 
-// The whole filter is collapsed by default so the digest leads the page; the
-// user opens it to reveal the grouped beats.
-const filterOpen = ref(false)
-
-// Which big-topic (L1) groups are expanded inside the filter. Collapsed by
-// default; clicking a big topic reveals its subtopics (the disclosure region
-// animates open/closed via grid-template-rows).
-const expandedGroups = ref<Set<string>>(new Set())
-const toggleGroup = (id: string) => {
-  const next = new Set(expandedGroups.value)
-  if (next.has(id)) next.delete(id)
-  else next.add(id)
-  expandedGroups.value = next
-}
-const isGroupOpen = (id: string) => expandedGroups.value.has(id)
-
 // How many visible *stories* cover each beat (by each summary's stamped topic).
 // Counting stories, not digests, so the chip number matches what you actually
 // see when you filter — a single daily edition covers several beats at once.
@@ -513,21 +256,8 @@ const topicCounts = computed<Record<string, number>>(() => {
 })
 
 // The full taxonomy, grouped by big topic (L1), mirroring the admin Beat
-// distribution: every domain and every leaf is shown, with a per-beat digest
-// count. Beats with no digests render disabled/greyed. Each group carries an
-// `activeCount` (subtopics with digests) shown on its collapsed header.
-interface TopicItem {
-  name: string
-  count: number
-}
-interface TopicGroup {
-  id: string
-  name: string
-  icon: TopicIcon | 'archive'
-  topics: TopicItem[]
-  activeCount: number
-}
-
+// distribution: every domain and every leaf is shown, with a per-beat story
+// count. Beats with no stories render disabled/greyed.
 const groupedTopics = computed<TopicGroup[]>(() => {
   const counts = topicCounts.value
 
@@ -567,20 +297,6 @@ const totalActiveBeats = computed(() =>
   groupedTopics.value.reduce((total, group) => total + group.activeCount, 0)
 )
 
-// Defined before dayGroups (which calls formatDate) so the watch(totalPages)
-// below — which evaluates dayGroups during setup — never hits a temporal dead
-// zone once the digest store is already populated (e.g. on back-navigation).
-const formatDate = (dateStr: string) =>
-  new Date(dateStr).toLocaleDateString(intlLocale.value, {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-
-const formatTime = (dateStr: string) =>
-  new Date(dateStr).toLocaleTimeString(intlLocale.value, { hour: '2-digit', minute: '2-digit' })
-
 // A digest is shown only if it has at least one story on the active beat, so
 // filtering an all-beats daily edition narrows it instead of showing everything.
 const filteredDigests = computed(() =>
@@ -591,12 +307,58 @@ const filteredDigests = computed(() =>
     : baseDigests.value
 )
 
-// Group the visible (beat-filtered) digests by calendar day, newest first.
-// Each page of the archive is one day's edition(s) — "pagination for each day".
+// The stories shown for a digest: narrowed by the active beat and, during a
+// search, to the stories that actually match the query.
+const visibleSummaries = (digest: Digest) => {
+  const all = digest.content?.summaries ?? []
+  const beatFiltered = activeTopicFilter.value
+    ? all.filter((s) => s.topic === activeTopicFilter.value)
+    : all
+  if (searchTerms.value.length === 0) return beatFiltered
+  const matched = beatFiltered.filter(storyMatchesSearch)
+  // The server matched this digest via stemmed FTS ("regulate" ~ "regulation"),
+  // so an exact-substring miss here can be a stemming artifact — fall back to
+  // the whole (beat-filtered) edition rather than rendering an empty issue.
+  return matched.length > 0 ? matched : beatFiltered
+}
+
+// Stable issue number based on digest id (last 3 chars hex → decimal-ish).
+const issueNumberFor = (id: string) => {
+  const slice = id.slice(-3)
+  const n = parseInt(slice, 16)
+  return Number.isFinite(n) ? String(n).padStart(3, '0') : '???'
+}
+
+// Each visible digest with its narrowed stories, resolved once per render so
+// the day grouping, the match count and the issue cards share the same lists.
+interface Issue {
+  digest: Digest
+  topics: string[]
+  stories: NewsSummary[]
+  issueNumber: string
+}
+
+const issues = computed<Issue[]>(() =>
+  filteredDigests.value.map((digest) => ({
+    digest,
+    topics: digest.content?.generatedFor ?? [],
+    stories: visibleSummaries(digest),
+    issueNumber: issueNumberFor(digest.id),
+  }))
+)
+
+// Stories the active search will actually render, so the results copy counts
+// what the reader sees, not whole issues.
+const searchMatchCount = computed(() =>
+  issues.value.reduce((n, issue) => n + issue.stories.length, 0)
+)
+
+// Group the visible issues by calendar day, newest first. Each page of the
+// archive is one day's edition(s) — "pagination for each day".
 interface DayGroup {
   key: string
   label: string
-  digests: Digest[]
+  issues: Issue[]
 }
 
 const dayKey = (dateStr: string) => {
@@ -605,20 +367,20 @@ const dayKey = (dateStr: string) => {
 }
 
 const dayGroups = computed<DayGroup[]>(() => {
-  const map = new Map<string, Digest[]>()
-  for (const d of filteredDigests.value) {
-    const k = dayKey(d.generatedAt)
+  const map = new Map<string, Issue[]>()
+  for (const issue of issues.value) {
+    const k = dayKey(issue.digest.generatedAt)
     const bucket = map.get(k)
-    if (bucket) bucket.push(d)
-    else map.set(k, [d])
+    if (bucket) bucket.push(issue)
+    else map.set(k, [issue])
   }
   return [...map.entries()]
     .sort((a, b) => (a[0] < b[0] ? 1 : -1)) // newest day first
-    .map(([key, ds]) => ({
+    .map(([key, group]) => ({
       key,
-      label: formatDate(ds[0]!.generatedAt),
-      digests: [...ds].sort(
-        (x, y) => new Date(y.generatedAt).getTime() - new Date(x.generatedAt).getTime()
+      label: formatDate(group[0]!.digest.generatedAt, 'full'),
+      issues: [...group].sort(
+        (x, y) => new Date(y.digest.generatedAt).getTime() - new Date(x.digest.generatedAt).getTime()
       ),
     }))
 })
@@ -627,7 +389,7 @@ const totalPages = computed(() => Math.max(1, dayGroups.value.length))
 
 const currentDay = computed(() => dayGroups.value[localPage.value] ?? null)
 
-const pagedDigests = computed(() => currentDay.value?.digests ?? [])
+const pagedIssues = computed(() => currentDay.value?.issues ?? [])
 
 // Keep the current page valid if the day count shrinks (filter change / reload).
 watch(totalPages, (n) => {
@@ -654,44 +416,5 @@ const load = async () => {
   }
 }
 
-const getTopics = (digest: { content?: { generatedFor?: string[] } }): string[] =>
-  digest.content?.generatedFor ?? []
-
-// The stories shown for a digest: narrowed by the active beat and, during a
-// search, to the stories that actually match the query. Renumbers from 01 so a
-// filtered view reads as its own edition.
-const visibleSummaries = (digest: Digest) => {
-  const all = digest.content?.summaries ?? []
-  const beatFiltered = activeTopicFilter.value
-    ? all.filter((s) => s.topic === activeTopicFilter.value)
-    : all
-  if (searchTerms.value.length === 0) return beatFiltered
-  const matched = beatFiltered.filter(storyMatchesSearch)
-  // The server matched this digest via stemmed FTS ("regulate" ~ "regulation"),
-  // so an exact-substring miss here can be a stemming artifact — fall back to
-  // the whole (beat-filtered) edition rather than rendering an empty issue.
-  return matched.length > 0 ? matched : beatFiltered
-}
-
-// Stories the active search will actually render (post beat-filter + narrowing),
-// so the results copy counts what the reader sees, not whole issues.
-const searchMatchCount = computed(() =>
-  filteredDigests.value.reduce((n, d) => n + visibleSummaries(d).length, 0)
-)
-
-// Stable issue number based on digest id (last 3 chars hex → decimal-ish).
-const issueNumberFor = (id: string) => {
-  const slice = id.slice(-3)
-  const n = parseInt(slice, 16)
-  return Number.isFinite(n) ? String(n).padStart(3, '0') : '???'
-}
-
 onMounted(load)
 </script>
-
-<style scoped>
-.digest-card {
-  content-visibility: auto;
-  contain-intrinsic-size: 1px 800px;
-}
-</style>

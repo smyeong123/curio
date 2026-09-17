@@ -54,11 +54,6 @@ public class DigestJpaAdapter implements DigestPort {
     }
 
     @Override
-    public long countByGeneratedAtAfter(LocalDateTime date) {
-        return repository.countByGeneratedAtAfter(date);
-    }
-
-    @Override
     public long deleteByGeneratedAtBefore(LocalDateTime date) {
         // Bounded batches instead of one giant DELETE: each statement's lock window
         // stays short (quiz/attempt rows cascade at the DB level per batch) and a
@@ -87,13 +82,13 @@ public class DigestJpaAdapter implements DigestPort {
     }
 
     @Override
-    public Page<Digest> findByUserIdAndGeneratedAtAfterOrderByGeneratedAtDesc(UUID userId, LocalDateTime after, Pageable pageable) {
-        return repository.findByUserIdAndGeneratedAtAfterOrderByGeneratedAtDesc(userId, after, pageable);
+    public Optional<Digest> findFirstByUserIdAndEmailSentAtIsNullOrderByGeneratedAtDesc(UUID userId) {
+        return repository.findFirstByUserIdAndEmailSentAtIsNullOrderByGeneratedAtDesc(userId);
     }
 
     @Override
-    public Optional<Digest> findFirstByUserIdAndEmailSentAtIsNullOrderByGeneratedAtDesc(UUID userId) {
-        return repository.findFirstByUserIdAndEmailSentAtIsNullOrderByGeneratedAtDesc(userId);
+    public Optional<Digest> findFirstByUserIdOrderByGeneratedAtDesc(UUID userId) {
+        return repository.findFirstByUserIdOrderByGeneratedAtDesc(userId);
     }
 
     @Override

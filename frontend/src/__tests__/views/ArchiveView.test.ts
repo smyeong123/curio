@@ -35,14 +35,25 @@ const digest = {
   emailSentAt: new Date().toISOString()
 }
 
+// Yesterday's issue lands on its own page (one day per page).
+const yesterdayDigest = {
+  ...digest,
+  id: 'digest-0a2',
+  content: {
+    ...digest.content,
+    summaries: [{ ...digest.content.summaries[0]!, headline: 'Yesterday on the model beat' }]
+  },
+  generatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+}
+
 // Actions are stubbed by the testing pinia, so `load()` resolves without a
 // network call and the view renders straight from `initialState`.
-const mountArchive = async () => {
+const mountArchive = async (digests = [digest]) => {
   const wrapper = mount(ArchiveView, {
     global: {
       plugins: [
         router,
-        createTestingPinia({ createSpy: vi.fn, initialState: { news: { digests: [digest] } } })
+        createTestingPinia({ createSpy: vi.fn, initialState: { news: { digests } } })
       ]
     }
   })
@@ -72,6 +83,27 @@ describe('ArchiveView editions', () => {
     expect(text).toContain('All beats')
     expect(text).toContain('— End of issue —')
     expect(w.get('#archive-search').attributes('placeholder')).toBe('Search headlines and stories…')
+  })
+
+  it('pages one day at a time and scrolls to the top on a page change', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    const w = await mountArchive([digest, yesterdayDigest])
+    expect(w.text()).toContain('Day 1 of 2')
+    expect(w.text()).toContain('Claude gains longer context windows')
+    expect(w.text()).not.toContain('Yesterday on the model beat')
+
+    const nav = w.get('nav')
+    const [newer, older] = nav.findAll('button')
+    expect(newer!.text()).toContain('Newer')
+    expect(newer!.attributes('disabled')).toBeDefined()
+    expect(older!.text()).toContain('Older')
+
+    await older!.trigger('click')
+    expect(w.text()).toContain('Day 2 of 2')
+    expect(w.text()).toContain('Yesterday on the model beat')
+    expect(w.text()).not.toContain('Claude gains longer context windows')
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' })
+    scrollTo.mockRestore()
   })
 
   it('renders the Korean edition with translated chrome, topic labels and dates', async () => {

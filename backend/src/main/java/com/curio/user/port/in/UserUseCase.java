@@ -1,6 +1,7 @@
 package com.curio.user.port.in;
 
 import com.curio.user.dto.PreferencesRequest;
+import com.curio.user.dto.PreferencesResponse;
 import com.curio.user.dto.UserResponse;
 
 import java.util.UUID;
@@ -16,10 +17,8 @@ public interface UserUseCase {
 
     UserResponse updateProfile(UUID userId, String fullName, Boolean deliveryEnabled);
 
-    String[] getPreferences(UUID userId);
-
-    /** Topics + timezone + deliveryHour as a single response payload. */
-    java.util.Map<String, Object> getPreferencesDetail(UUID userId);
+    /** Topics + delivery settings as a single response payload; platform defaults when nothing is saved yet. */
+    PreferencesResponse getPreferencesDetail(UUID userId);
 
     String[] updatePreferences(UUID userId, PreferencesRequest request);
 

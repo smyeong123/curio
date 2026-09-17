@@ -1,13 +1,7 @@
 <template>
   <div class="min-h-screen bg-paper text-[color:var(--ink)] flex items-center justify-center px-6 py-14">
     <div class="w-full max-w-[480px]">
-      <div class="mb-10 flex items-baseline justify-between gap-4">
-        <router-link to="/" class="flex items-baseline gap-3">
-          <span class="display-headline text-[28px] leading-none">Curio</span>
-          <span class="kicker">Vol. 047</span>
-        </router-link>
-        <LanguageToggle class="text-[12px]" />
-      </div>
+      <AuthMasthead />
 
       <header class="mb-10">
         <p class="kicker kicker-signal mb-3">{{ hasToken ? t('auth.reset.choose.kicker') : t('auth.reset.request.kicker') }}</p>
@@ -25,21 +19,7 @@
       </header>
 
       <!-- Sent confirmation -->
-      <section
-        v-if="sent && !hasToken"
-        class="border border-[color:var(--leaf)] bg-paper-deep p-6"
-      >
-        <p class="kicker mb-3" style="color: var(--leaf);">{{ t('auth.common.mailSentKicker') }}</p>
-        <i18n-t scope="global" keypath="auth.common.mailSentHeadline" tag="p" class="display-headline text-[22px] leading-tight mb-2">
-          <template #inbox><em class="italic-display">{{ t('auth.common.inbox') }}</em></template>
-        </i18n-t>
-        <i18n-t scope="global" keypath="auth.reset.sent.body" tag="p" class="font-body-curio text-[14px] text-[color:var(--ink-soft)] mb-6 leading-relaxed">
-          <template #email><strong class="font-semibold text-[color:var(--ink)]">{{ email }}</strong></template>
-        </i18n-t>
-        <router-link to="/login" class="ink-link font-mono-curio text-[12px] uppercase tracking-[0.14em]">
-          {{ t('auth.common.backToSignIn') }}
-        </router-link>
-      </section>
+      <MailSentPanel v-if="sent && !hasToken" :email="email" body-keypath="auth.reset.sent.body" />
 
       <!-- Reset complete -->
       <section
@@ -116,7 +96,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import BaseInput from '@/components/ui/BaseInput.vue'
-import LanguageToggle from '@/components/ui/LanguageToggle.vue'
+import AuthMasthead from '@/components/auth/AuthMasthead.vue'
+import MailSentPanel from '@/components/auth/MailSentPanel.vue'
 
 const { t } = useI18n()
 const route = useRoute()

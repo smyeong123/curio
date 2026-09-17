@@ -4,9 +4,12 @@ import com.curio.news.dto.QuizGenerationResult;
 import com.curio.news.dto.QuizQuestionItem;
 import com.curio.news.entity.Digest;
 import com.curio.news.port.out.DigestPort;
-import com.curio.news.service.AiService;
+import com.curio.news.port.out.AiService;
+import com.curio.quiz.dto.QuizHistoryEntry;
+import com.curio.quiz.dto.QuizQuestionSet.QuizQuestionView;
 import com.curio.quiz.dto.QuizResponse;
 import com.curio.quiz.dto.QuizSubmitRequest;
+import com.curio.quiz.dto.QuizSubmitResponse;
 import com.curio.quiz.entity.Quiz;
 import com.curio.quiz.entity.QuizAttempt;
 import com.curio.quiz.port.out.QuizAttemptPort;
@@ -24,6 +27,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -101,9 +107,35 @@ class QuizServiceTest {
 
         QuizResponse response = quizService.getQuizForDigest(digestId, userId);
 
-        assertThat(response.getPreviousAttempt())
-                .containsEntry("score", 4)
-                .containsEntry("completedAt", "2026-07-03T09:30");
+        assertThat(response.getPreviousAttempt().score()).isEqualTo(4);
+        assertThat(response.getPreviousAttempt().completedAt()).isEqualTo("2026-07-03T09:30");
+    }
+
+    @Test
+    void getQuizForDigest_stripsTheAnswerKey_fromStoredQuestions() {
+        Quiz existing = Quiz.builder().id(quizId).digest(digest).questions(storedQuiz()).build();
+        when(quizPort.findByDigestId(digestId)).thenReturn(Optional.of(existing));
+
+        QuizResponse response = quizService.getQuizForDigest(digestId, userId);
+
+        List<QuizQuestionView> served = response.getQuestions().questions();
+        assertThat(served).hasSize(2);
+        assertThat(served.get(0).id()).isEqualTo(1);
+        assertThat(served.get(0).question()).isEqualTo("Which lab shipped it?");
+        assertThat(served.get(0).options()).containsEntry("A", "Anthropic").containsEntry("B", "DeepSeek");
+        // The record has no correct/explanation component, so the key can't leak.
+        assertThat(objectMapper.convertValue(served.get(0), Map.class))
+                .containsOnlyKeys("id", "question", "options");
+    }
+
+    @Test
+    void getQuizForDigest_servesAnEmptyQuestionList_whenTheStoredDocumentHasNone() {
+        Quiz existing = Quiz.builder().id(quizId).digest(digest).questions(Map.of()).build();
+        when(quizPort.findByDigestId(digestId)).thenReturn(Optional.of(existing));
+
+        QuizResponse response = quizService.getQuizForDigest(digestId, userId);
+
+        assertThat(response.getQuestions().questions()).isEmpty();
     }
 
     @Test
@@ -159,7 +191,6 @@ class QuizServiceTest {
         // The user's own key is threaded through; the platform-key overloads are never hit.
         verify(aiService).generateQuizQuestions(anyString(), any(Language.class), any(AiService.DifficultyHint.class), eq("user-byok-key"));
         verify(aiService, never()).generateQuizQuestions(anyString());
-        verify(aiService, never()).generateQuizQuestions(anyString(), any(AiService.DifficultyHint.class));
     }
 
     @Test
@@ -199,17 +230,17 @@ class QuizServiceTest {
         Quiz quiz = quizWithFiveQuestions();
         when(quizPort.findById(quizId)).thenReturn(Optional.of(quiz));
         when(quizAttemptRecorder.record(eq(userId), eq(quizId), any(), any(), eq(5)))
-                .thenReturn(new QuizAttemptRecorder.Result(true, 5));
+                .thenReturn(new QuizAttemptRecorder.Outcome(true, 5));
 
         QuizSubmitRequest req = new QuizSubmitRequest();
         req.setAnswers(Map.of(1, "A", 2, "B", 3, "C", 4, "D", 5, "A"));
 
-        Map<String, Object> result = quizService.submitQuiz(quizId, userId, req);
+        QuizSubmitResponse result = quizService.submitQuiz(quizId, userId, req);
 
-        assertThat(result).containsEntry("score", 5);
-        assertThat(result).containsEntry("totalQuestions", 5);
-        assertThat(result).containsEntry("bestScore", 5);
-        assertThat(result).containsEntry("improved", true);
+        assertThat(result.score()).isEqualTo(5);
+        assertThat(result.totalQuestions()).isEqualTo(5);
+        assertThat(result.bestScore()).isEqualTo(5);
+        assertThat(result.improved()).isTrue();
     }
 
     @Test
@@ -217,20 +248,63 @@ class QuizServiceTest {
         Quiz quiz = quizWithFiveQuestions();
         when(quizPort.findById(quizId)).thenReturn(Optional.of(quiz));
         when(quizAttemptRecorder.record(eq(userId), eq(quizId), any(), any(), eq(3)))
-                .thenReturn(new QuizAttemptRecorder.Result(true, 3));
+                .thenReturn(new QuizAttemptRecorder.Outcome(true, 3));
 
         QuizSubmitRequest req = new QuizSubmitRequest();
         // Three right (1A, 3C, 5A), two wrong.
         req.setAnswers(Map.of(1, "A", 2, "X", 3, "C", 4, "X", 5, "A"));
 
-        Map<String, Object> result = quizService.submitQuiz(quizId, userId, req);
+        QuizSubmitResponse result = quizService.submitQuiz(quizId, userId, req);
 
-        assertThat(result).containsEntry("score", 3);
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> results = (List<Map<String, Object>>) result.get("results");
+        assertThat(result.score()).isEqualTo(3);
+        List<QuizSubmitResponse.QuestionResult> results = result.results();
         assertThat(results).hasSize(5);
-        assertThat(results.get(0)).containsEntry("correct", true);
-        assertThat(results.get(1)).containsEntry("correct", false);
+        assertThat(results.get(0).questionId()).isEqualTo(1);
+        assertThat(results.get(0).correct()).isTrue();
+        assertThat(results.get(0).correctAnswer()).isEqualTo("A");
+        assertThat(results.get(0).explanation()).isEqualTo("Q1");
+        assertThat(results.get(1).correct()).isFalse();
+        assertThat(results.get(1).correctAnswer()).isEqualTo("B");
+    }
+
+    @Test
+    void submitQuiz_scoresTheQuizExactlyAsItWasStored_roundTrip() {
+        // The quiz goes to the jsonb column as the map form of QuizGenerationResult and
+        // is read back through convertValue; scoring must see the same ids and answers.
+        Quiz quiz = Quiz.builder().id(quizId).digest(digest).questions(storedQuiz()).build();
+        when(quizPort.findById(quizId)).thenReturn(Optional.of(quiz));
+        when(quizAttemptRecorder.record(eq(userId), eq(quizId), any(), any(), eq(1)))
+                .thenReturn(new QuizAttemptRecorder.Outcome(true, 1));
+
+        QuizSubmitRequest req = new QuizSubmitRequest();
+        req.setAnswers(Map.of(1, "A", 2, "A"));
+
+        QuizSubmitResponse result = quizService.submitQuiz(quizId, userId, req);
+
+        assertThat(result.score()).isEqualTo(1);
+        assertThat(result.totalQuestions()).isEqualTo(2);
+        assertThat(result.results()).hasSize(2);
+        assertThat(result.results().get(0).correct()).isTrue();
+        assertThat(result.results().get(0).explanation()).isEqualTo("Anthropic shipped it.");
+        assertThat(result.results().get(1).correct()).isFalse();
+        assertThat(result.results().get(1).correctAnswer()).isEqualTo("C");
+    }
+
+    @Test
+    void submitQuiz_scoresZeroOfZero_whenTheStoredDocumentHasNoQuestions() {
+        Quiz quiz = Quiz.builder().id(quizId).digest(digest).questions(Map.of()).build();
+        when(quizPort.findById(quizId)).thenReturn(Optional.of(quiz));
+        when(quizAttemptRecorder.record(eq(userId), eq(quizId), any(), any(), eq(0)))
+                .thenReturn(new QuizAttemptRecorder.Outcome(true, 0));
+
+        QuizSubmitRequest req = new QuizSubmitRequest();
+        req.setAnswers(Map.of());
+
+        QuizSubmitResponse result = quizService.submitQuiz(quizId, userId, req);
+
+        assertThat(result.score()).isZero();
+        assertThat(result.totalQuestions()).isZero();
+        assertThat(result.results()).isEmpty();
     }
 
     @Test
@@ -249,16 +323,16 @@ class QuizServiceTest {
         when(quizPort.findById(quizId)).thenReturn(Optional.of(quiz));
         // Recorder keeps the better prior score of 5; this attempt only scored 3.
         when(quizAttemptRecorder.record(eq(userId), eq(quizId), any(), any(), eq(3)))
-                .thenReturn(new QuizAttemptRecorder.Result(false, 5));
+                .thenReturn(new QuizAttemptRecorder.Outcome(false, 5));
 
         QuizSubmitRequest req = new QuizSubmitRequest();
         req.setAnswers(Map.of(1, "A", 2, "X", 3, "C", 4, "X", 5, "A")); // 3/5, lower than prior 5
 
-        Map<String, Object> result = quizService.submitQuiz(quizId, userId, req);
+        QuizSubmitResponse result = quizService.submitQuiz(quizId, userId, req);
 
-        assertThat(result).containsEntry("score", 3);       // honest live feedback
-        assertThat(result).containsEntry("bestScore", 5);   // record unchanged
-        assertThat(result).containsEntry("improved", false);
+        assertThat(result.score()).isEqualTo(3);       // honest live feedback
+        assertThat(result.bestScore()).isEqualTo(5);   // record unchanged
+        assertThat(result.improved()).isFalse();
     }
 
     @Test
@@ -269,16 +343,16 @@ class QuizServiceTest {
         when(quizAttemptRecorder.record(eq(userId), eq(quizId), any(), any(), eq(5)))
                 .thenThrow(new org.springframework.dao.DataIntegrityViolationException("dup"));
         when(quizAttemptRecorder.recover(eq(userId), eq(quizId), any(), eq(5)))
-                .thenReturn(new QuizAttemptRecorder.Result(true, 5));
+                .thenReturn(new QuizAttemptRecorder.Outcome(true, 5));
 
         QuizSubmitRequest req = new QuizSubmitRequest();
         req.setAnswers(Map.of(1, "A", 2, "B", 3, "C", 4, "D", 5, "A")); // 5/5
 
-        Map<String, Object> result = quizService.submitQuiz(quizId, userId, req);
+        QuizSubmitResponse result = quizService.submitQuiz(quizId, userId, req);
 
-        assertThat(result).containsEntry("score", 5);
-        assertThat(result).containsEntry("bestScore", 5);
-        assertThat(result).containsEntry("improved", true);
+        assertThat(result.score()).isEqualTo(5);
+        assertThat(result.bestScore()).isEqualTo(5);
+        assertThat(result.improved()).isTrue();
         verify(quizAttemptRecorder).recover(eq(userId), eq(quizId), any(), eq(5));
     }
 
@@ -287,16 +361,57 @@ class QuizServiceTest {
         Quiz quiz = quizWithFiveQuestions();
         when(quizPort.findById(quizId)).thenReturn(Optional.of(quiz));
         when(quizAttemptRecorder.record(eq(userId), eq(quizId), any(), any(), eq(5)))
-                .thenReturn(new QuizAttemptRecorder.Result(true, 5));
+                .thenReturn(new QuizAttemptRecorder.Outcome(true, 5));
 
         QuizSubmitRequest req = new QuizSubmitRequest();
         req.setAnswers(Map.of(1, "A", 2, "B", 3, "C", 4, "D", 5, "A")); // 5/5, beats a prior lower score
 
-        Map<String, Object> result = quizService.submitQuiz(quizId, userId, req);
+        QuizSubmitResponse result = quizService.submitQuiz(quizId, userId, req);
 
-        assertThat(result).containsEntry("score", 5);
-        assertThat(result).containsEntry("bestScore", 5);
-        assertThat(result).containsEntry("improved", true);
+        assertThat(result.score()).isEqualTo(5);
+        assertThat(result.bestScore()).isEqualTo(5);
+        assertThat(result.improved()).isTrue();
+    }
+
+    // --- getHistory ---
+
+    @Test
+    void getHistory_reportsTheStoredQuestionCount_andFallsBackToFive() {
+        Quiz twoQuestionQuiz = Quiz.builder().id(quizId).digest(digest).questions(storedQuiz()).build();
+        Quiz emptyQuiz = Quiz.builder().id(UUID.randomUUID()).digest(digest).questions(Map.of()).build();
+        LocalDateTime completedAt = LocalDateTime.of(2026, 7, 3, 9, 30);
+        QuizAttempt first = QuizAttempt.builder().id(UUID.randomUUID()).quiz(twoQuestionQuiz).user(user)
+                .score(2).completedAt(completedAt).build();
+        QuizAttempt second = QuizAttempt.builder().id(UUID.randomUUID()).quiz(emptyQuiz).user(user)
+                .score(4).completedAt(completedAt).build();
+        when(quizAttemptPort.findByUserIdWithQuiz(eq(userId), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(first, second), PageRequest.of(0, 10), 2));
+
+        Page<QuizHistoryEntry> history = quizService.getHistory(userId, 0);
+
+        assertThat(history.getContent()).hasSize(2);
+        QuizHistoryEntry entry = history.getContent().get(0);
+        assertThat(entry.id()).isEqualTo(first.getId());
+        assertThat(entry.quizId()).isEqualTo(quizId);
+        assertThat(entry.score()).isEqualTo(2);
+        assertThat(entry.totalQuestions()).isEqualTo(2);
+        assertThat(entry.completedAt()).isEqualTo(completedAt);
+        assertThat(history.getContent().get(1).totalQuestions()).isEqualTo(5);
+    }
+
+    /**
+     * A quiz exactly as {@code generateQuizForDigest} persists it: the AI result
+     * converted to its map form, answer key included.
+     */
+    private Map<String, Object> storedQuiz() {
+        QuizGenerationResult generated = new QuizGenerationResult(List.of(
+                QuizQuestionItem.builder().id(1).question("Which lab shipped it?")
+                        .options(Map.of("A", "Anthropic", "B", "DeepSeek"))
+                        .correct("A").explanation("Anthropic shipped it.").build(),
+                QuizQuestionItem.builder().id(2).question("Context window?")
+                        .options(Map.of("A", "8k", "C", "1M"))
+                        .correct("C").explanation("One million tokens.").build()));
+        return objectMapper.convertValue(generated, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
     }
 
     private Quiz quizWithFiveQuestions() {

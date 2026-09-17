@@ -1,4 +1,4 @@
-package com.curio.shared.scheduler;
+package com.curio.shared.jobs;
 
 import io.sentry.Sentry;
 import io.sentry.SentryLevel;
@@ -10,8 +10,8 @@ import org.springframework.stereotype.Component;
 /**
  * Surfaces scheduled-job failures to operators via Sentry + structured logs.
  *
- * Jobs should call {@link #recordFailure} from their top-level catch block;
- * partial-failure batches should call {@link #recordPartialFailure} when more
+ * {@code JobRunRecorder} calls {@link #recordFailure} when a batch run dies and
+ * {@link #recordPartialFailure} after every run; the latter only fires when more
  * than {@code partialFailureThreshold} items fail within a single run.
  */
 @Component

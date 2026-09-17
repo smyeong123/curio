@@ -1,12 +1,11 @@
 <template>
   <div class="mx-auto max-w-[1100px] px-5 py-10 sm:px-8 lg:px-12">
-    <header class="mb-10">
-      <p class="kicker kicker-signal mb-3">{{ t('admin.users.kicker') }}</p>
-      <i18n-t scope="global" keypath="admin.users.headline" tag="h1" class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
-        <template #readers><em class="italic-display">{{ t('admin.users.readers') }}</em></template>
-      </i18n-t>
-      <div class="rule-double w-full"></div>
-    </header>
+    <PageMasthead
+      :kicker="t('admin.users.kicker')"
+      keypath="admin.users.headline"
+      emphasis="readers"
+      :emphasis-text="t('admin.users.readers')"
+    />
 
     <!-- Search -->
     <div class="mb-8 flex items-end gap-3 border-t border-b border-[color:var(--rule)] py-4">
@@ -28,10 +27,11 @@
     </div>
 
     <!-- Error / loading / empty / table -->
-    <section v-if="errorOccurred" class="border border-[color:var(--rule)] bg-paper-deep p-12 text-center">
-      <p class="kicker kicker-signal mb-3">{{ t('admin.common.loadFailed') }}</p>
-      <button class="btn-editorial-ghost" @click="load(page)">{{ t('admin.common.retry') }}</button>
-    </section>
+    <ErrorState
+      v-if="errorOccurred"
+      :kicker="t('admin.common.loadFailed')"
+      @retry="load(page)"
+    />
 
     <section v-else-if="loading" class="border-t-2 border-[color:var(--rule)] pt-12 text-center">
       <p class="kicker">{{ t('admin.users.loading') }}</p>
@@ -59,11 +59,11 @@
             <td class="py-3 font-body-curio text-[14px] text-[color:var(--ink-soft)]">{{ user.fullName || '—' }}</td>
             <td class="py-3 text-right num-tab text-[14px]">{{ user.topicsCount }}</td>
             <td class="py-3 text-right">
-              <span :class="user.deliveryEnabled ? 'kicker' : 'kicker'" :style="user.deliveryEnabled ? 'color: var(--leaf)' : 'color: var(--mute)'">
+              <span class="kicker" :style="user.deliveryEnabled ? 'color: var(--leaf)' : 'color: var(--mute)'">
                 {{ user.deliveryEnabled ? '● ' + t('admin.common.on') : '○ ' + t('admin.common.off') }}
               </span>
             </td>
-            <td class="py-3 text-right font-mono-curio text-[12px] text-[color:var(--mute)]">{{ formatDate(user.createdAt) }}</td>
+            <td class="py-3 text-right font-mono-curio text-[12px] text-[color:var(--mute)]">{{ formatDate(user.createdAt, 'short') }}</td>
             <td class="py-3 text-right">
               <router-link
                 :to="{ name: 'admin-user-detail', params: { id: user.id } }"
@@ -79,20 +79,15 @@
         </tbody>
       </table>
 
-      <nav v-if="totalPages > 1" class="flex items-center justify-between border-t-2 border-[color:var(--rule)] pt-6 mt-2">
-        <button class="btn-editorial-ghost" :disabled="page === 0" @click="load(page - 1)">
-          <span aria-hidden="true">←</span>
-          {{ t('admin.common.pagination.earlier') }}
-        </button>
-        <i18n-t scope="global" keypath="admin.common.pagination.pageOf" tag="span" class="kicker">
-          <template #page><span class="num-tab text-[color:var(--ink)]">{{ page + 1 }}</span></template>
-          <template #total><span class="num-tab text-[color:var(--ink)]">{{ totalPages }}</span></template>
-        </i18n-t>
-        <button class="btn-editorial-ghost" :disabled="page >= totalPages - 1" @click="load(page + 1)">
-          {{ t('admin.common.pagination.older') }}
-          <span aria-hidden="true">→</span>
-        </button>
-      </nav>
+      <PagerNav
+        v-if="totalPages > 1"
+        class="border-t-2 border-[color:var(--rule)] pt-6 mt-2"
+        :page="page"
+        :total-pages="totalPages"
+        :newer-label="t('admin.common.pagination.earlier')"
+        :older-label="t('admin.common.pagination.older')"
+        @change="load"
+      />
     </section>
   </div>
 </template>
@@ -102,52 +97,29 @@ import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/services/api'
 import { useToast } from '@/composables/useToast'
-import { useLocale } from '@/composables/useLocale'
+import { useFormat } from '@/composables/useFormat'
+import { usePagedAdminList } from '@/composables/usePagedAdminList'
+import type { AdminUser } from '@/types/admin'
+import ErrorState from '@/components/ui/ErrorState.vue'
+import PageMasthead from '@/components/ui/PageMasthead.vue'
+import PagerNav from '@/components/ui/PagerNav.vue'
 
 const { t } = useI18n()
-const { intlLocale } = useLocale()
+const { formatDate } = useFormat()
 const { error } = useToast()
 
-interface AdminUser {
-  id: string
-  email: string
-  fullName: string | null
-  topicsCount: number
-  deliveryEnabled: boolean
-  createdAt: string
-}
-
-const users = ref<AdminUser[]>([])
-const loading = ref(false)
-const errorOccurred = ref(false)
-const page = ref(0)
-const totalPages = ref(0)
 const search = ref('')
 const searchInput = ref('')
 
-const load = async (nextPage = 0) => {
-  loading.value = true
-  errorOccurred.value = false
-  try {
-    const response = await api.admin.getUsers(nextPage, search.value)
-    users.value = response.data.content
-    page.value = response.data.number
-    totalPages.value = response.data.totalPages
-  } catch {
-    errorOccurred.value = true
-    error(t('admin.users.toast.loadFailed'))
-  } finally {
-    loading.value = false
-  }
-}
+const { items: users, page, totalPages, loading, errorOccurred, load } = usePagedAdminList<AdminUser>(
+  (nextPage) => api.admin.getUsers(nextPage, search.value),
+  () => error(t('admin.users.toast.loadFailed'))
+)
 
 const applySearch = () => {
   search.value = searchInput.value.trim()
   load(0)
 }
-
-const formatDate = (value: string) =>
-  new Date(value).toLocaleDateString(intlLocale.value, { year: 'numeric', month: 'short', day: 'numeric' })
 
 onMounted(() => load(0))
 </script>

@@ -7,7 +7,7 @@ import com.curio.quiz.port.out.QuizAttemptPort;
 import com.curio.shared.scheduler.CleanupJob;
 import com.curio.shared.scheduler.DigestGenerationJob;
 import com.curio.shared.scheduler.EmailSendJob;
-import com.curio.shared.scheduler.JobStatusRegistry;
+import com.curio.shared.jobs.JobStatusRegistry;
 import com.curio.user.port.out.UserPort;
 import com.curio.user.port.out.UserPreferencesPort;
 import org.junit.jupiter.api.Test;

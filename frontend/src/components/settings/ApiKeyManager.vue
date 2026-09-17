@@ -150,35 +150,23 @@
 /**
  * Self-contained Bring-Your-Own-Key manager: lists the user's saved provider
  * keys and handles the add/validate/delete flow (password re-auth required).
- * Used in both Settings and the Digest Studio. Emits `change` with the current
- * key list whenever it loads or is mutated, so a host page can react (e.g. to
- * show whether a validated key is on file).
+ * Used in both Settings and the Digest Studio.
  */
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
 import { api } from '@/services/api'
+import type { ApiKeySummary } from '@/types/user'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import { getApiErrorMessage, getApiErrorStatus } from '@/utils/apiError'
 
-type Provider = 'CLAUDE' | 'GEMINI' | 'OPENAI'
-
-interface ApiKeyRow {
-  provider: Provider
-  keyPreview: string
-  validated: boolean
-  validatedAt: string | null
-  lastUsedAt: string | null
-  updatedAt: string
-}
-
-const emit = defineEmits<{ (e: 'change', keys: ApiKeyRow[]): void }>()
+type Provider = ApiKeySummary['provider']
 
 const { t } = useI18n()
 const { success, info } = useToast()
 
-const apiKeys = ref<ApiKeyRow[]>([])
+const apiKeys = ref<ApiKeySummary[]>([])
 const apiKeysLoading = ref(true)
 
 const showAddModal = ref(false)
@@ -227,7 +215,6 @@ const loadApiKeys = async () => {
   try {
     const res = await api.apiKeys.list()
     apiKeys.value = res.data
-    emit('change', apiKeys.value)
   } catch {
     // Silent — list is optional and 401s redirect via interceptor.
   } finally {
@@ -253,10 +240,10 @@ const submitAddKey = async () => {
   }
   addSaving.value = true
   try {
-    // The backend always validates now (no opt-out), so a resolved save means
-    // the key was accepted. Still guard the response in case validation was
-    // skipped server-side (e.g. validator unavailable) — an unvalidated key is
-    // never used, so surface that instead of a misleading success.
+    // A resolved save means the provider accepted the key. Still guard the
+    // response in case validation was skipped server-side (e.g. validator
+    // unavailable) — an unvalidated key is never used, so surface that instead
+    // of a misleading success.
     const res = await api.apiKeys.save(
       addForm.value.provider,
       addForm.value.apiKey,
@@ -301,6 +288,4 @@ const submitDelete = async () => {
 }
 
 onMounted(loadApiKeys)
-
-defineExpose({ reload: loadApiKeys })
 </script>

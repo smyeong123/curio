@@ -1,49 +1,18 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
-import type { AuthResponse, LoginResponse, VerifyCodeResponse, ResendCodeResponse, RegisterRequest, UpdateProfileRequest, PreferencesResponse, DeliverySettings } from '@/types/user'
-import type { Digest, DigestPage } from '@/types/news'
-import type { Quiz, QuizSubmitResponse, QuizHistoryPage } from '@/types/quiz'
-
-// ── Digest Studio types ────────────────────────────────────────────
-export type StudioTaskState = 'IDLE' | 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'SKIPPED' | 'FAILED'
-
-export interface StudioTask {
-  type: 'digest' | 'email'
-  state: StudioTaskState
-  phase?: string | null
-  current?: number
-  total?: number
-  message?: string
-  startedAt?: string
-  finishedAt?: string
-  updatedAt?: string
-  digestId?: string
-}
-
-export interface StudioOverview {
-  email: string
-  topics: string[]
-  topicCount: number
-  latestDigest: { id: string; generatedAt: string | null; emailSentAt: string | null } | null
-  hasUnsentDigest: boolean
-}
-
-export interface StudioStatus {
-  digest: StudioTask
-  email: StudioTask
-  overview: StudioOverview
-}
-
-// ── BYOK API-key summary (server shape returned by list/save) ───────
-export interface ApiKeySummary {
-  provider: 'CLAUDE' | 'GEMINI' | 'OPENAI'
-  keyPreview: string
-  validated: boolean
-  validatedAt: string | null
-  lastUsedAt: string | null
-  updatedAt: string
-}
+import type {
+  User, AuthResponse, LoginResponse, VerifyCodeResponse, ResendCodeResponse, RegisterRequest,
+  UpdateProfileRequest, PreferencesResponse, DeliverySettings, ApiKeySummary
+} from '@/types/user'
+import type { Digest } from '@/types/news'
+import type { Quiz, QuizSubmitResponse, QuizAttempt } from '@/types/quiz'
+import type { StudioStatus, StudioTask } from '@/types/studio'
+import type { SpringPage } from '@/types/page'
+import type {
+  AdminStats, AdminUser, AdminUserDetail, AdminDigest, TopicStatus, AuditLogEntry,
+  JobStatusEntry, JobTriggerResponse, CleanupResult
+} from '@/types/admin'
 
 const apiClient = axios.create({
   baseURL: '/api/v1',
@@ -171,9 +140,9 @@ export const api = {
       apiClient.post('/auth/logout', {}),
   },
   user: {
-    getProfile: () => apiClient.get<import('@/types/user').User>('/user/me'),
+    getProfile: () => apiClient.get<User>('/user/me'),
     updateProfile: (data: UpdateProfileRequest) =>
-      apiClient.put<import('@/types/user').User>('/user/me', data),
+      apiClient.put<User>('/user/me', data),
     getPreferences: () => apiClient.get<PreferencesResponse>('/user/preferences'),
     updatePreferences: (topics: string[], delivery?: DeliverySettings) =>
       apiClient.put<PreferencesResponse>('/user/preferences', { topics, ...(delivery ?? {}) }),
@@ -185,23 +154,18 @@ export const api = {
     list: () => apiClient.get<ApiKeySummary[]>('/user/api-keys'),
     save: (provider: 'CLAUDE' | 'GEMINI' | 'OPENAI', apiKey: string, currentPassword: string) =>
       // Validation hits the LLM provider — give it room. Keys are always
-      // validated server-side (the old opt-out flag was removed).
+      // validated server-side.
       apiClient.post<ApiKeySummary>('/user/api-keys', { provider, apiKey, currentPassword },
         { timeout: 30_000 }),
     delete: (provider: 'CLAUDE' | 'GEMINI' | 'OPENAI', currentPassword: string) =>
       apiClient.delete(`/user/api-keys/${provider}`, { data: { currentPassword } }),
-    validate: (provider: 'CLAUDE' | 'GEMINI' | 'OPENAI', apiKey: string) =>
-      apiClient.post<{ valid: boolean }>('/user/api-keys/validate',
-        { provider, apiKey }, { timeout: 30_000 }),
   },
   news: {
     getDigests: (page = 0, size = 10) =>
-      apiClient.get<DigestPage>(`/news/digests?page=${page}&size=${size}`),
-    getDigest: (id: string) =>
-      apiClient.get<Digest>(`/news/digests/${id}`),
+      apiClient.get<SpringPage<Digest>>(`/news/digests?page=${page}&size=${size}`),
     // Full-text search over the user's whole retained archive (server-side FTS).
     search: (q: string, page = 0, size = 50) =>
-      apiClient.get<DigestPage>('/news/search', { params: { q, page, size } }),
+      apiClient.get<SpringPage<Digest>>('/news/search', { params: { q, page, size } }),
   },
   quiz: {
     // Quiz generation can take ~15s on cold cache (Claude latency).
@@ -210,7 +174,7 @@ export const api = {
     submitQuiz: (quizId: string, answers: Record<number, string>) =>
       apiClient.post<QuizSubmitResponse>(`/quiz/${quizId}/submit`, { answers }),
     getHistory: (page = 0) =>
-      apiClient.get<QuizHistoryPage>(`/quiz/history?page=${page}`),
+      apiClient.get<SpringPage<QuizAttempt>>(`/quiz/history?page=${page}`),
   },
   studio: {
     // Self-serve digest console for the current user. generate/sendEmail kick
@@ -225,29 +189,29 @@ export const api = {
   },
   admin: {
     getUsers: (page = 0, search = '') =>
-      apiClient.get('/admin/users', { params: { page, search } }),
+      apiClient.get<SpringPage<AdminUser>>('/admin/users', { params: { page, search } }),
     getUser: (id: string) =>
-      apiClient.get(`/admin/users/${id}`),
+      apiClient.get<AdminUserDetail>(`/admin/users/${id}`),
     getStats: () =>
-      apiClient.get('/admin/stats'),
+      apiClient.get<AdminStats>('/admin/stats'),
     getTopicDistribution: () =>
-      apiClient.get('/admin/stats/topics'),
+      apiClient.get<Record<string, number>>('/admin/stats/topics'),
     getTopicsStatus: () =>
-      apiClient.get('/admin/topics/status'),
+      apiClient.get<TopicStatus[]>('/admin/topics/status'),
     getDigests: (params: { page?: number; size?: number; topic?: string; userEmail?: string } = {}) =>
-      apiClient.get('/admin/digests', { params }),
+      apiClient.get<SpringPage<AdminDigest>>('/admin/digests', { params }),
     // Admin batches iterate over all subscribers and serially hit the AI
     // provider / email vendor; expect minutes, not seconds.
     generateDigests: (topics?: string[]) =>
-      apiClient.post('/admin/generate-digests', topics ? { topics } : {}, { timeout: 600_000 }),
+      apiClient.post<JobTriggerResponse>('/admin/generate-digests', topics ? { topics } : {}, { timeout: 600_000 }),
     sendEmails: () =>
-      apiClient.post('/admin/send-emails', undefined, { timeout: 600_000 }),
+      apiClient.post<JobTriggerResponse>('/admin/send-emails', undefined, { timeout: 600_000 }),
     runCleanup: () =>
-      apiClient.post('/admin/cleanup', undefined, { timeout: 60_000 }),
+      apiClient.post<CleanupResult>('/admin/cleanup', undefined, { timeout: 60_000 }),
     getJobsStatus: () =>
-      apiClient.get('/admin/jobs/status'),
+      apiClient.get<JobStatusEntry[]>('/admin/jobs/status'),
     getAuditLog: (page = 0, size = 20) =>
-      apiClient.get('/admin/audit-log', { params: { page, size } }),
+      apiClient.get<SpringPage<AuditLogEntry>>('/admin/audit-log', { params: { page, size } }),
   },
 }
 

@@ -2,6 +2,7 @@ package com.curio.user.controller;
 
 import com.curio.user.dto.ChangePasswordRequest;
 import com.curio.user.dto.PreferencesRequest;
+import com.curio.user.dto.PreferencesResponse;
 import com.curio.user.dto.UpdateProfileRequest;
 import com.curio.user.dto.UserResponse;
 import com.curio.user.entity.User;
@@ -12,11 +13,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
 @RestController
 @RequestMapping("/api/v1/user")
@@ -25,6 +27,8 @@ import java.util.Map;
 public class UserController {
 
     private final UserUseCase userService;
+    /** Renders the server-side unsubscribe pages (templates/unsubscribe-*.html). */
+    private final TemplateEngine templateEngine;
 
     @GetMapping("/me")
     @Operation(summary = "Get current user profile")
@@ -43,13 +47,13 @@ public class UserController {
 
     @GetMapping("/preferences")
     @Operation(summary = "Get user topic preferences + delivery time")
-    public ResponseEntity<Map<String, Object>> getPreferences(@AuthenticationPrincipal User user) {
+    public ResponseEntity<PreferencesResponse> getPreferences(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(userService.getPreferencesDetail(user.getId()));
     }
 
     @PutMapping("/preferences")
     @Operation(summary = "Update user topic preferences (and optional timezone/deliveryHour)")
-    public ResponseEntity<Map<String, Object>> updatePreferences(
+    public ResponseEntity<PreferencesResponse> updatePreferences(
             @AuthenticationPrincipal User user,
             @Valid @RequestBody PreferencesRequest request) {
         userService.updatePreferences(user.getId(), request);
@@ -75,25 +79,17 @@ public class UserController {
     // Unsubscribe is deliberately two-step: the GET only renders a confirmation
     // form and the mutation happens on POST. Corporate mail gateways (Safe Links,
     // Proofpoint, …) prefetch every link in an email — a mutating GET would let
-    // that scan silently unsubscribe the reader. Tokens that pass validation are
-    // base64url + '.' only, so embedding one in the form is HTML-safe.
+    // that scan silently unsubscribe the reader. The token travels in a hidden
+    // input; Thymeleaf's th:value escapes it, so the page is safe whatever the
+    // query string carried.
     @GetMapping("/unsubscribe")
     @Operation(summary = "Render the unsubscribe confirmation page (no state change)")
     public ResponseEntity<String> unsubscribeConfirmPage(@RequestParam String token) {
         try {
             userService.validateUnsubscribeToken(token);
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_TYPE, "text/html; charset=UTF-8")
-                    .body("""
-                            <html><body style="font-family:Arial,sans-serif;padding:24px;">
-                            <h2>Unsubscribe from Curio?</h2>
-                            <p>You will no longer receive daily Curio digest emails.</p>
-                            <form method="POST" action="/api/v1/user/unsubscribe">
-                            <input type="hidden" name="token" value="%s">
-                            <button type="submit" style="padding:10px 18px;font-size:15px;cursor:pointer;">Yes, unsubscribe me</button>
-                            </form>
-                            </body></html>
-                            """.formatted(token));
+            Context context = new Context();
+            context.setVariable("token", token);
+            return htmlPage(HttpStatus.OK, "unsubscribe-confirm", context);
         } catch (IllegalArgumentException ex) {
             return invalidUnsubscribeLink();
         }
@@ -104,27 +100,19 @@ public class UserController {
     public ResponseEntity<String> unsubscribe(@RequestParam String token) {
         try {
             userService.unsubscribeByToken(token);
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_TYPE, "text/html; charset=UTF-8")
-                    .body("""
-                            <html><body style="font-family:Arial,sans-serif;padding:24px;">
-                            <h2>You are unsubscribed.</h2>
-                            <p>You will no longer receive daily Curio digest emails.</p>
-                            </body></html>
-                            """);
+            return htmlPage(HttpStatus.OK, "unsubscribe-done", new Context());
         } catch (IllegalArgumentException | ResourceNotFoundException ex) {
             return invalidUnsubscribeLink();
         }
     }
 
     private ResponseEntity<String> invalidUnsubscribeLink() {
-        return ResponseEntity.badRequest()
+        return htmlPage(HttpStatus.BAD_REQUEST, "unsubscribe-invalid", new Context());
+    }
+
+    private ResponseEntity<String> htmlPage(HttpStatus status, String template, Context context) {
+        return ResponseEntity.status(status)
                 .header(HttpHeaders.CONTENT_TYPE, "text/html; charset=UTF-8")
-                .body("""
-                        <html><body style="font-family:Arial,sans-serif;padding:24px;">
-                        <h2>Invalid unsubscribe link.</h2>
-                        <p>Please try again from a newer email.</p>
-                        </body></html>
-                        """);
+                .body(templateEngine.process(template, context));
     }
 }

@@ -4,8 +4,6 @@ import com.curio.auth.dto.AuthResponse;
 import com.curio.auth.dto.LoginRequest;
 import com.curio.auth.dto.LoginResponse;
 import com.curio.auth.dto.RegisterRequest;
-import com.curio.auth.dto.ResendCodeRequest;
-import com.curio.auth.dto.ResendCodeResponse;
 import com.curio.auth.dto.VerifyCodeRequest;
 import com.curio.auth.dto.VerifyCodeResponse;
 import com.curio.auth.entity.EmailVerificationCode;
@@ -25,18 +23,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.client.RestTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -45,6 +39,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+/**
+ * Account/session policy tests. Google token validation is mocked out via
+ * {@link GoogleIdTokenVerifier} (see GoogleIdTokenVerifierTest); the email
+ * second factor runs for real against the mocked port so the login/verify
+ * contract the frontend reads is asserted end to end.
+ */
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
@@ -56,24 +56,26 @@ class AuthServiceTest {
     @Mock private JwtTokenProvider jwtTokenProvider;
     @Mock private AuthenticationManager authenticationManager;
     @Mock private EmailService emailService;
-    @Mock private RestTemplateBuilder restTemplateBuilder;
-    @Mock private RestTemplate restTemplate;
+    @Mock private GoogleIdTokenVerifier googleIdTokenVerifier;
 
+    private EmailVerificationChallengeService challengeService;
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userPort, refreshTokenPort, passwordResetTokenPort,
-                emailVerificationCodePort, passwordEncoder, jwtTokenProvider, authenticationManager,
-                emailService, restTemplateBuilder);
+        challengeService = new EmailVerificationChallengeService(emailVerificationCodePort, emailService);
         // @Value fields aren't injected in a plain Mockito unit test — set them by hand.
-        ReflectionTestUtils.setField(authService, "emailVerificationEnabled", true);
-        ReflectionTestUtils.setField(authService, "maxVerificationAttempts", 5);
-        ReflectionTestUtils.setField(authService, "verificationCodeLength", 6);
-        ReflectionTestUtils.setField(authService, "codeTtlMinutes", 10L);
+        ReflectionTestUtils.setField(challengeService, "enabled", true);
+        ReflectionTestUtils.setField(challengeService, "maxAttempts", 5);
+        ReflectionTestUtils.setField(challengeService, "codeLength", 6);
+        ReflectionTestUtils.setField(challengeService, "codeTtlMinutes", 10L);
+
+        authService = new AuthService(userPort, refreshTokenPort, passwordResetTokenPort,
+                passwordEncoder, jwtTokenProvider, authenticationManager, emailService,
+                challengeService, googleIdTokenVerifier);
     }
 
-    /** Mirrors AuthService.hashToken so tests can stage a known code hash. */
+    /** Mirrors TokenHasher so tests can stage a known code hash independently of it. */
     private static String sha(String raw) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -84,21 +86,8 @@ class AuthServiceTest {
         }
     }
 
-    /** Wires the mock RestTemplate (normally built in @PostConstruct) and a configured client id. */
-    private void configureGoogle(String clientId) {
-        ReflectionTestUtils.setField(authService, "restTemplate", restTemplate);
-        ReflectionTestUtils.setField(authService, "googleClientId", clientId);
-    }
-
-    private Map<String, Object> googleTokenInfo(String aud, String iss) {
-        Map<String, Object> info = new HashMap<>();
-        info.put("sub", "google-sub-123");
-        info.put("email", "g@example.com");
-        info.put("name", "Google User");
-        info.put("email_verified", "true");
-        info.put("aud", aud);
-        info.put("iss", iss);
-        return info;
+    private static GoogleIdentity googleIdentity(String email) {
+        return new GoogleIdentity("google-sub-123", email, "Google User", true);
     }
 
     // --- register ---
@@ -169,14 +158,13 @@ class AuthServiceTest {
         assertThat(captor.getValue().getEmail()).isEqualTo("victim@gmail.com");
     }
 
+    // --- google login: account policy for a verified identity ---
+
     @Test
     void googleLogin_mergeMatchesPasswordAccount_registeredInDifferentCase() {
         // The core exploit: a squatter's mixed-case password row must be found by
         // the (now normalized) merge lookup so the neutralize-password defense fires.
-        configureGoogle("my-client-id.apps.googleusercontent.com");
-        Map<String, Object> info = googleTokenInfo("my-client-id.apps.googleusercontent.com", "https://accounts.google.com");
-        info.put("email", "Victim@Gmail.com");
-        when(restTemplate.getForObject(anyString(), eq(Map.class))).thenReturn(info);
+        when(googleIdTokenVerifier.verify("id-token")).thenReturn(googleIdentity("Victim@Gmail.com"));
         User squatted = User.builder().id(UUID.randomUUID()).email("victim@gmail.com")
                 .passwordHash("SQUATTER").isAdmin(false).build();
         when(userPort.findByGoogleId("google-sub-123")).thenReturn(Optional.empty());
@@ -193,13 +181,9 @@ class AuthServiceTest {
         verify(refreshTokenPort).deleteByUserId(squatted.getId());
     }
 
-    // --- google login: audience / issuer validation ---
-
     @Test
-    void googleLogin_succeeds_whenAudienceAndIssuerMatch() {
-        configureGoogle("my-client-id.apps.googleusercontent.com");
-        when(restTemplate.getForObject(anyString(), eq(Map.class)))
-                .thenReturn(googleTokenInfo("my-client-id.apps.googleusercontent.com", "https://accounts.google.com"));
+    void googleLogin_createsAccount_forUnknownVerifiedIdentity() {
+        when(googleIdTokenVerifier.verify("id-token")).thenReturn(googleIdentity("g@example.com"));
         when(userPort.findByGoogleId("google-sub-123")).thenReturn(Optional.empty());
         when(userPort.findByEmail("g@example.com")).thenReturn(Optional.empty());
         when(userPort.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -209,7 +193,12 @@ class AuthServiceTest {
         AuthResponse response = authService.googleLogin("id-token");
 
         assertThat(response.getAccessToken()).isEqualTo("a");
-        verify(userPort).save(any(User.class));
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userPort).save(captor.capture());
+        assertThat(captor.getValue().getGoogleId()).isEqualTo("google-sub-123");
+        assertThat(captor.getValue().getEmail()).isEqualTo("g@example.com");
+        assertThat(captor.getValue().getFullName()).isEqualTo("Google User");
+        assertThat(captor.getValue().getEmailVerified()).isTrue();
     }
 
     @Test
@@ -218,9 +207,7 @@ class AuthServiceTest {
         // with a password (register auto-verifies). When the real owner signs in
         // with Google, the merge must neutralize the unproven password and revoke
         // all sessions so the squatter keeps no backdoor.
-        configureGoogle("my-client-id.apps.googleusercontent.com");
-        when(restTemplate.getForObject(anyString(), eq(Map.class)))
-                .thenReturn(googleTokenInfo("my-client-id.apps.googleusercontent.com", "https://accounts.google.com"));
+        when(googleIdTokenVerifier.verify("id-token")).thenReturn(googleIdentity("g@example.com"));
         User squatted = User.builder().id(UUID.randomUUID()).email("g@example.com")
                 .passwordHash("SQUATTER-HASH").isAdmin(false).build();
         when(userPort.findByGoogleId("google-sub-123")).thenReturn(Optional.empty());
@@ -242,9 +229,7 @@ class AuthServiceTest {
     void googleLogin_relink_doesNotTouchPassword_whenAlreadyLinked() {
         // An account already bound to this googleId is a normal repeat login —
         // no merge is happening, so nothing about the password may change.
-        configureGoogle("my-client-id.apps.googleusercontent.com");
-        when(restTemplate.getForObject(anyString(), eq(Map.class)))
-                .thenReturn(googleTokenInfo("my-client-id.apps.googleusercontent.com", "https://accounts.google.com"));
+        when(googleIdTokenVerifier.verify("id-token")).thenReturn(googleIdentity("g@example.com"));
         User linked = User.builder().id(UUID.randomUUID()).email("g@example.com")
                 .googleId("google-sub-123").passwordHash("THEIR-OWN-HASH").isAdmin(false).build();
         when(userPort.findByGoogleId("google-sub-123")).thenReturn(Optional.of(linked));
@@ -261,36 +246,28 @@ class AuthServiceTest {
     }
 
     @Test
-    void googleLogin_rejects_whenAudienceMismatch() {
-        configureGoogle("my-client-id.apps.googleusercontent.com");
-        when(restTemplate.getForObject(anyString(), eq(Map.class)))
-                .thenReturn(googleTokenInfo("attacker-client-id", "https://accounts.google.com"));
+    void googleLogin_rejects_whenGoogleHasNotVerifiedTheEmail() {
+        // An unverified Google email must never create or merge an account — that
+        // would let anyone claim an address they don't own.
+        when(googleIdTokenVerifier.verify("id-token"))
+                .thenReturn(new GoogleIdentity("google-sub-123", "g@example.com", "Google User", false));
 
         assertThatThrownBy(() -> authService.googleLogin("id-token"))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(UnauthorizedException.class)
+                .hasMessage("Google account email is not verified");
         verify(userPort, never()).save(any());
+        verify(refreshTokenPort, never()).save(any());
     }
 
     @Test
-    void googleLogin_rejects_whenIssuerInvalid() {
-        configureGoogle("my-client-id.apps.googleusercontent.com");
-        when(restTemplate.getForObject(anyString(), eq(Map.class)))
-                .thenReturn(googleTokenInfo("my-client-id.apps.googleusercontent.com", "https://evil.example.com"));
+    void googleLogin_rejects_whenTokenVerificationFails() {
+        when(googleIdTokenVerifier.verify("id-token"))
+                .thenThrow(new UnauthorizedException("Invalid Google token"));
 
         assertThatThrownBy(() -> authService.googleLogin("id-token"))
                 .isInstanceOf(UnauthorizedException.class);
-        verify(userPort, never()).save(any());
-    }
-
-    @Test
-    void googleLogin_rejects_whenClientIdNotConfigured() {
-        configureGoogle("not-configured");
-        when(restTemplate.getForObject(anyString(), eq(Map.class)))
-                .thenReturn(googleTokenInfo("anything", "https://accounts.google.com"));
-
-        assertThatThrownBy(() -> authService.googleLogin("id-token"))
-                .isInstanceOf(UnauthorizedException.class);
-        verify(userPort, never()).save(any());
+        verifyNoInteractions(userPort);
+        verify(refreshTokenPort, never()).save(any());
     }
 
     // --- login ---
@@ -321,7 +298,7 @@ class AuthServiceTest {
 
     @Test
     void login_returnsTokensImmediately_whenVerificationDisabled() {
-        ReflectionTestUtils.setField(authService, "emailVerificationEnabled", false);
+        ReflectionTestUtils.setField(challengeService, "enabled", false);
         LoginRequest req = new LoginRequest();
         req.setEmail("user@example.com");
         req.setPassword("Pa$$word123");
@@ -340,7 +317,21 @@ class AuthServiceTest {
         verify(emailVerificationCodePort, never()).save(any());
     }
 
-    // --- verifyCode ---
+    @Test
+    void login_propagates_authenticationFailure() {
+        LoginRequest req = new LoginRequest();
+        req.setEmail("user@example.com");
+        req.setPassword("wrong");
+        doThrow(new org.springframework.security.authentication.BadCredentialsException("nope"))
+                .when(authenticationManager).authenticate(any());
+
+        assertThatThrownBy(() -> authService.login(req))
+                .isInstanceOf(org.springframework.security.authentication.BadCredentialsException.class);
+
+        verify(refreshTokenPort, never()).save(any());
+    }
+
+    // --- verifyCode: challenge outcome → response contract + session issuance ---
 
     @Test
     void verifyCode_issuesTokens_whenCodeMatches() {
@@ -362,6 +353,9 @@ class AuthServiceTest {
         VerifyCodeResponse response = authService.verifyCode(req);
 
         assertThat(response.getStatus()).isEqualTo("VERIFIED");
+        assertThat(response.getMessage()).isEqualTo("Verified.");
+        assertThat(response.getAttemptsRemaining()).isEqualTo(5);
+        assertThat(response.isResetAvailable()).isFalse();
         assertThat(response.getAuth().getAccessToken()).isEqualTo("a");
         verify(emailVerificationCodePort).deleteByUserId(user.getId());
         verify(refreshTokenPort).save(any(RefreshToken.class));
@@ -388,6 +382,8 @@ class AuthServiceTest {
         assertThat(response.getStatus()).isEqualTo("INVALID_CODE");
         assertThat(response.getAttemptsRemaining()).isEqualTo(4);
         assertThat(response.isResetAvailable()).isFalse();
+        assertThat(response.getMessage()).isEqualTo("That code isn't right. 4 attempts left.");
+        assertThat(response.getAuth()).isNull();
         verify(emailVerificationCodePort).decrementAttempts(vc.getId());
         verify(emailVerificationCodePort, never()).markConsumed(any());
         verify(refreshTokenPort, never()).save(any());
@@ -414,6 +410,8 @@ class AuthServiceTest {
         assertThat(response.getStatus()).isEqualTo("LOCKED");
         assertThat(response.getAttemptsRemaining()).isEqualTo(0);
         assertThat(response.isResetAvailable()).isTrue();
+        assertThat(response.getMessage())
+                .isEqualTo("Too many incorrect codes. For your security, reset your password to sign in.");
         verify(emailVerificationCodePort).markConsumed(vc.getId());
         verify(refreshTokenPort, never()).save(any());
     }
@@ -429,57 +427,10 @@ class AuthServiceTest {
         VerifyCodeResponse response = authService.verifyCode(req);
 
         assertThat(response.getStatus()).isEqualTo("EXPIRED");
-        verify(refreshTokenPort, never()).save(any());
-    }
-
-    // --- resendCode ---
-
-    @Test
-    void resendCode_emailsFreshCode_andKeepsAttempts() {
-        User user = User.builder().id(UUID.randomUUID()).email("u@e.com").build();
-        EmailVerificationCode vc = EmailVerificationCode.builder()
-                .id(UUID.randomUUID()).user(user)
-                .challengeHash("ch").codeHash(sha("111111"))
-                .attemptsRemaining(3)
-                .expiresAt(LocalDateTime.now().plusMinutes(2))
-                .build();
-        when(emailVerificationCodePort.findByChallengeHash(anyString())).thenReturn(Optional.of(vc));
-
-        ResendCodeRequest req = new ResendCodeRequest();
-        req.setChallengeId("raw-challenge");
-
-        ResendCodeResponse response = authService.resendCode(req);
-
-        assertThat(response.getStatus()).isEqualTo("SENT");
-        assertThat(response.getAttemptsRemaining()).isEqualTo(3);
-        verify(emailVerificationCodePort).save(vc);
-        verify(emailService).sendLoginVerificationEmail(eq(user), anyString(), eq(10L));
-    }
-
-    @Test
-    void resendCode_returnsExpired_forUnknownChallenge() {
-        when(emailVerificationCodePort.findByChallengeHash(anyString())).thenReturn(Optional.empty());
-
-        ResendCodeRequest req = new ResendCodeRequest();
-        req.setChallengeId("gone");
-
-        ResendCodeResponse response = authService.resendCode(req);
-
-        assertThat(response.getStatus()).isEqualTo("EXPIRED");
-        verify(emailService, never()).sendLoginVerificationEmail(any(), anyString(), anyLong());
-    }
-
-    @Test
-    void login_propagates_authenticationFailure() {
-        LoginRequest req = new LoginRequest();
-        req.setEmail("user@example.com");
-        req.setPassword("wrong");
-        doThrow(new org.springframework.security.authentication.BadCredentialsException("nope"))
-                .when(authenticationManager).authenticate(any());
-
-        assertThatThrownBy(() -> authService.login(req))
-                .isInstanceOf(org.springframework.security.authentication.BadCredentialsException.class);
-
+        assertThat(response.getAttemptsRemaining()).isEqualTo(0);
+        assertThat(response.isResetAvailable()).isFalse();
+        assertThat(response.getMessage())
+                .isEqualTo("This verification code has expired. Please sign in again.");
         verify(refreshTokenPort, never()).save(any());
     }
 

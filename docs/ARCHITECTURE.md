@@ -16,10 +16,10 @@ flowchart TB
         subgraph Backend["curio-backend · Spring Boot 3.5 / Java 21"]
             Sec["Security: JWT 15m access / 3h sliding refresh · Google OAuth2<br/>per-IP rate-limit · ADMIN gate · HMAC webhook"]
             Ctrl["Controllers: Auth · User · News · Quiz<br/>Admin · Studio · UserApiKey(BYOK) · Webhook"]
-            Svc["Services: Auth · User · News · Quiz<br/>Admin{Digest,Operations,Stats,User}<br/>Email · UserApiKey · AuditLog · UnsubscribeToken"]
-            AI["AiService (interface)<br/>Claude | Gemini | OpenAI"]
+            Svc["Services: Auth · User · News · Quiz<br/>Admin{Digest,Operations,Stats,User}<br/>Email(+Transport) · UserApiKey · AuditLog<br/>shared/digest: DigestPipeline · DigestBatch · DigestEmailBatch"]
+            AI["AiService (port/out)<br/>Claude | Gemini | OpenAI via AbstractAiProvider"]
             Fetch["NewsApiClient · LabBlogFetcher · LlmKeyValidator"]
-            Jobs["Schedulers (ShedLock)<br/>DigestGen 06:00 · EmailSend hourly(gated) · Cleanup 00:00<br/>ExpiredAuthRowReaper · JobStatusRegistry · JobFailureNotifier"]
+            Jobs["Schedulers (ShedLock)<br/>DigestGen 06:00 · EmailSend hourly(gated) · Cleanup 00:00<br/>ExpiredAuthRowReaper · shared/jobs: JobRunRecorder · JobStatusRegistry · JobFailureNotifier"]
             Ctrl --> Svc --> AI
             Svc --> Fetch
         end
@@ -55,15 +55,18 @@ flowchart TB
 ### 1. Daily digest pipeline (scheduled)
 
 ```
-DigestGenerationJob @06:00 UTC
-  -> per delivery-enabled user: NewsService.generateDigestForUser
-       -> NewsApiClient / LabBlogFetcher fetch articles
-       -> AiService (Claude) summarize          [Redis cache 12h]
-       -> QuizService.generateQuizForDigest     (5 questions)
-       -> persist Digest + Quiz (Postgres)
-EmailSendJob @hourly :00 UTC
-  -> per-user gate: now(user.tz).hour == deliveryHour (default 08:00 UTC)
-       -> EmailService.sendDigestEmail -> Resend -> mark email_sent_at
+DigestGenerationJob @06:00 UTC  ->  DigestBatch.runForAll()
+  -> SubscriberBatch: delivery-enabled users in chunks of 500, ≤ pool+2 in flight, per-user timeout
+       -> DigestPipeline.generateWithQuiz(user)
+            -> NewsService.generate: NewsApiClient / LabBlogFetcher fetch articles
+                 -> AiService summarize in the account's edition   [Redis cache 12h, per lang]
+                 -> persist Digest (content.language stamped)
+            -> QuizService.generateQuizForDigest (5 questions, same edition)
+EmailSendJob @hourly :00 UTC   ->  DigestEmailBatch.sendDue()
+  -> per-user gate: now(user.tz).hour >= deliveryHour (default 08:00 local), today's digest only
+       -> missing? DigestPipeline just-in-time
+       -> EmailService.sendDigestEmail: claim -> render -> EmailTransport (Resend) -> record id
+(admin "generate digests" / "send emails" and Studio call the same DigestBatch / DigestEmailBatch / DigestPipeline)
 ```
 
 ### 2. Request path (user)
@@ -99,7 +102,7 @@ Each feature package (`auth`, `user`, `news`, `quiz`, `admin`, `studio`, `shared
 - `adapter/persistence/` — JPA adapters implementing outbound ports
 - `entity/`, `dto/`, `repository/`
 
-AI is provider-agnostic: `AiService` interface with `ClaudeService` (default), `GeminiService`, `OpenAiService`, selected by the `AI_PROVIDER` env var.
+AI is provider-agnostic: the `AiService` outbound port (`news/port/out`) with `ClaudeService` (default), `GeminiService`, `OpenAiService`, selected by the `AI_PROVIDER` env var. All three extend `AbstractAiProvider`, which owns caching, single-flight, retry, the circuit breaker/bulkhead and the shared prompts; a provider contributes only its wire format (and, for Claude, `supportsWebSearch()`).
 
 The self-serve **Studio** (`studio/` package) lets a signed-in user manually trigger their own digest generation and email send on demand — `POST /api/v1/studio/generate`, `POST /api/v1/studio/send-email`, `GET /api/v1/studio/status` — independent of the scheduled jobs. `StudioTaskStatusService` tracks the async task state so the UI can poll progress.
 

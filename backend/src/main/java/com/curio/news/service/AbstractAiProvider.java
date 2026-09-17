@@ -1,5 +1,6 @@
 package com.curio.news.service;
 
+import com.curio.news.port.out.AiService;
 import com.curio.news.dto.NewsSummary;
 import com.curio.news.dto.QuizGenerationResult;
 import com.curio.shared.concurrent.SingleFlight;
@@ -27,17 +28,16 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * Shared orchestration for the HTTP-based {@link AiService} providers (Claude, Gemini, OpenAI).
- * Holds the pieces that were byte-identical across all three implementations — the injected
- * collaborators, cache read/write, the retry/backoff loop, the circuit-breaker/bulkhead wrapper,
- * and the markdown-fence + JSON extraction tail — plus the summary/quiz orchestration that Gemini
- * and OpenAI share verbatim (Claude overrides the summaries with its web-search variant; the
- * difficulty-aware, edition-aware quiz prompt is shared by all three).
+ * Shared orchestration for the HTTP-based {@link AiService} providers (Claude, Gemini, OpenAI):
+ * the injected collaborators, cache read/write + single-flight, the retry/backoff loop, the
+ * circuit-breaker/bulkhead wrapper and the markdown-fence + JSON extraction tail. The prompts
+ * themselves live in {@link AiPrompts}.
  *
  * <p>Provider-specific wire format lives in the subclass hooks: {@link #providerName()},
- * {@link #callApiRaw(String, String)} (auth headers + request body + the network call) and
- * {@link #extractResponseText(JsonNode)} (response-shape navigation). The read timeout is
- * overridable via {@link #readTimeout()} (Claude uses a longer one for web search).
+ * {@link #callApiRaw(String, String, boolean)} (auth headers + request body + the network call,
+ * with the provider's web-search tool when asked and {@link #supportsWebSearch()}) and
+ * {@link #extractResponseText(String)} (response-shape navigation). The read timeout is
+ * overridable via {@link #readTimeout()}.
  */
 @Slf4j
 public abstract class AbstractAiProvider implements AiService {
@@ -95,8 +95,15 @@ public abstract class AbstractAiProvider implements AiService {
      * Builds the provider's auth headers + request body for {@code prompt} and performs the
      * network call (through {@link #executeWithRetry(String, HttpEntity)}). When
      * {@code overrideApiKey} is non-blank it is used in place of the platform key (BYOK).
+     * {@code webSearch} asks for the provider's web-search tool; it is only ever true when
+     * {@link #supportsWebSearch()} is, so providers without one simply ignore it.
      */
-    protected abstract String callApiRaw(String prompt, String overrideApiKey);
+    protected abstract String callApiRaw(String prompt, String overrideApiKey, boolean webSearch);
+
+    /** Whether the provider can search the web when NewsAPI has no articles for a topic. */
+    protected boolean supportsWebSearch() {
+        return false;
+    }
 
     /**
      * Parses the provider's response body and navigates to the model's raw (stripped) text output.
@@ -105,22 +112,7 @@ public abstract class AbstractAiProvider implements AiService {
      */
     protected abstract String extractResponseText(String responseBody) throws Exception;
 
-    // --- shared summary orchestration (Gemini/OpenAI; Claude overrides the edition-aware entry point) ---
-
-    @Override
-    public List<NewsSummary> generateNewsSummaries(String topic) {
-        return generateNewsSummaries(topic, Language.EN, null);
-    }
-
-    /**
-     * BYOK overload: bill the call to the user's key. Bypasses the shared Redis
-     * cache (a user's key must not populate or read platform-cached content) and
-     * the circuit breaker, mirroring ClaudeService's BYOK path.
-     */
-    @Override
-    public List<NewsSummary> generateNewsSummaries(String topic, String overrideApiKey) {
-        return generateNewsSummaries(topic, Language.EN, overrideApiKey);
-    }
+    // --- summaries ---
 
     /**
      * The single entry point every summary path funnels through. Platform-key calls
@@ -174,33 +166,6 @@ public abstract class AbstractAiProvider implements AiService {
         return null;
     }
 
-    /**
-     * Language block appended to every summary prompt. English is spelled out too, so
-     * a source article in another language never flips the output language.
-     */
-    protected static String summaryLanguageInstruction(Language language) {
-        return switch (Language.orDefault(language)) {
-            case EN -> "Language: write the headline, summary and why_it_matters in English, even when a source article is in another language.";
-            case KO -> """
-                Language: write the headline, summary and why_it_matters in Korean (한국어), even though the sources are in English.
-                - Register: friendly, plain 해요체 (e.g. "출시했어요", "쓸 수 있어요"), the way a Korean newsletter editor writes for a general reader
-                - Keep company, product and model names in their original form (Anthropic, Claude, GPT-5, Gemini, Hugging Face); explain a technical term in plain Korean the first time it appears
-                - Length: the word limits above become 120-220 Korean characters per summary (never exceed 260), in short sentences
-                - JSON keys, source_url, source_name and topic stay exactly as specified below""";
-        };
-    }
-
-    /** Language block appended to every quiz prompt. */
-    protected static String quizLanguageInstruction(Language language) {
-        return switch (Language.orDefault(language)) {
-            case EN -> "Language: write every question, all four options and each explanation in English.";
-            case KO -> """
-                Language: write every question, all four options and each explanation in Korean (한국어), in friendly 해요체.
-                - Keep company, product and model names in their original form; the option letters A-D and all JSON keys stay exactly as specified
-                - The digest itself is in Korean — quiz the reader on what it says, using the same terms it uses""";
-        };
-    }
-
     protected List<NewsSummary> generateNewsSummariesInternal(String topic, Language language, String overrideApiKey) {
         boolean useCache = (overrideApiKey == null || overrideApiKey.isBlank());
         String cacheKey = summariesCacheKey(topic, language);
@@ -214,62 +179,27 @@ public abstract class AbstractAiProvider implements AiService {
 
         List<Map<String, String>> sourceArticles = newsApiClient.fetchNewsArticles(topic);
         boolean hasSourceArticles = !sourceArticles.isEmpty();
+        // No fetched articles: a provider with web search goes looking; the others are
+        // told to report only verifiable sources (or nothing) rather than invent "news"
+        // with fabricated URLs from training data.
+        boolean webSearch = !hasSourceArticles && supportsWebSearch();
+        String sourceInstruction;
+        if (hasSourceArticles) {
+            sourceInstruction = "Use the source articles below as your primary evidence. Prefer first-party announcements (lab blogs) over commentary.";
+        } else if (webSearch) {
+            sourceInstruction = "Search the web for the latest news on this topic. Use the search results to write summaries with real source URLs.";
+        } else {
+            sourceInstruction = "Only produce summaries you can attribute to a real, verifiable source with a valid source_url. If you cannot verify any current story for this topic, return an empty JSON array [].";
+        }
         String sourceContext = newsApiClient.buildSourceContext(sourceArticles);
-
-        String topicInstruction = "New & Emerging Models".equals(topic)
-                ? "Scan for brand-new frontier or agentic model launches in the last 7 days. Prioritize models from labs outside the big five (Anthropic, OpenAI, DeepMind, xAI, Meta) and any new agentic systems. Avoid repeating widely-covered models."
-                : "Focus on the most recent news, features, and releases for this topic. Prefer changes that happened in the last 14 days.";
-
-        // With no fetched articles, never invent stories: instruct the model to only
-        // report verifiable sources (or return []), rather than hallucinating "news"
-        // with fabricated source URLs from its training data.
-        String sourceInstruction = hasSourceArticles
-                ? "Use the source articles below as your primary evidence. Prefer first-party announcements (lab blogs) over commentary."
-                : "Only produce summaries you can attribute to a real, verifiable source with a valid source_url. If you cannot verify any current story for this topic, return an empty JSON array [].";
         String sourceContextBlock = hasSourceArticles ? "Source articles:\n" + sourceContext : "";
 
-        String prompt = String.format("""
-            You are Curio, a curator of AI *model* news. Your readers track new
-            features, model releases, pricing changes, and brand-new agentic systems.
-            Generate 2-3 plain-language TL;DR summaries for the topic: %s.
-
-            %s
-
-            %s
-
-            %s
-
-            Requirements for each summary:
-            - Write for a curious NON-EXPERT who has no technical background
-            - summary: a 50-75 word TL;DR — NEVER exceed 80 words — in short, everyday sentences (under 20 words each)
-            - Lead with what actually happened and why an ordinary person would care
-            - Explain or avoid jargon — if a technical term is unavoidable (e.g. "subagent",
-              "API", "context window"), define it in plain words in the same sentence
-            - Skip inside-baseball: no SDK/package renames, version-number minutiae, or billing
-              mechanics unless it directly changes what everyday users can do
-            - Merge near-duplicate stories into a single summary; never cover the same announcement twice
-            - headline: plain and specific, no hype or clickbait
-            - "why_it_matters": one concrete, plain-language sentence about the real-world impact
-
-            %s
-
-            Output format (JSON array):
-            [
-              {
-                "headline": "...",
-                "summary": "...",
-                "why_it_matters": "...",
-                "source_url": "https://example.com",
-                "source_name": "Source Name",
-                "topic": "%s"
-              }
-            ]
-
-            Return ONLY the JSON array, no additional text.
-            """, topic, topicInstruction, sourceInstruction, sourceContextBlock, summaryLanguageInstruction(language), topic);
+        String prompt = AiPrompts.summaryPrompt(topic, language, sourceInstruction, sourceContextBlock);
+        log.info("Generating {} summaries for topic '{}' ({})", language.code(), topic,
+                hasSourceArticles ? sourceArticles.size() + " source articles" : webSearch ? "web search" : "no sources");
 
         try {
-            String response = callApi(prompt, overrideApiKey);
+            String response = callApi(prompt, overrideApiKey, webSearch);
             List<NewsSummary> summaries = objectMapper.readValue(response, new TypeReference<List<NewsSummary>>() {});
             if (useCache && summaries != null && !summaries.isEmpty()) {
                 try {
@@ -289,27 +219,7 @@ public abstract class AbstractAiProvider implements AiService {
         }
     }
 
-    // --- shared quiz orchestration (all providers; the difficulty mix comes from the hint) ---
-
-    @Override
-    public QuizGenerationResult generateQuizQuestions(String digestContent) {
-        return generateQuizQuestions(digestContent, Language.EN, DifficultyHint.NORMAL, null);
-    }
-
-    @Override
-    public QuizGenerationResult generateQuizQuestions(String digestContent, String overrideApiKey) {
-        return generateQuizQuestions(digestContent, Language.EN, DifficultyHint.NORMAL, overrideApiKey);
-    }
-
-    @Override
-    public QuizGenerationResult generateQuizQuestions(String digestContent, DifficultyHint hint) {
-        return generateQuizQuestions(digestContent, Language.EN, hint, null);
-    }
-
-    @Override
-    public QuizGenerationResult generateQuizQuestions(String digestContent, DifficultyHint hint, String overrideApiKey) {
-        return generateQuizQuestions(digestContent, Language.EN, hint, overrideApiKey);
-    }
+    // --- quiz ---
 
     /**
      * The single entry point every quiz path funnels through. A null BYOK key routes to
@@ -322,55 +232,11 @@ public abstract class AbstractAiProvider implements AiService {
                 hint == null ? DifficultyHint.NORMAL : hint, overrideApiKey);
     }
 
-    /** Difficulty mix line for the quiz prompt, from the user's recent-score hint. */
-    protected static String difficultyMix(DifficultyHint hint) {
-        return switch (hint == null ? DifficultyHint.NORMAL : hint) {
-            case EASIER -> "3 easy, 2 medium, 0 challenging";
-            case HARDER -> "0 easy, 2 medium, 3 challenging";
-            case NORMAL -> "2 easy, 2 medium, 1 challenging";
-        };
-    }
-
     protected QuizGenerationResult generateQuizQuestionsInternal(String digestContent, Language language,
                                                                  DifficultyHint hint, String overrideApiKey) {
-        String prompt = String.format("""
-            You are Curio's quiz generator. Based on this news digest, generate 5 multiple-choice questions to test reader comprehension.
-
-            Digest content:
-            %s
-
-            Requirements:
-            - Test factual recall and comprehension
-            - 4 options per question (A, B, C, D)
-            - Exactly one correct answer per question
-            - Mix difficulty: %s
-            - Questions should be clear and unambiguous
-
-            %s
-
-            Output format (JSON):
-            {
-              "questions": [
-                {
-                  "id": 1,
-                  "question": "...",
-                  "options": {
-                    "A": "...",
-                    "B": "...",
-                    "C": "...",
-                    "D": "..."
-                  },
-                  "correct": "A",
-                  "explanation": "..."
-                }
-              ]
-            }
-
-            Return ONLY the JSON object, no additional text.
-            """, digestContent, difficultyMix(hint), quizLanguageInstruction(language));
-
+        String prompt = AiPrompts.quizPrompt(digestContent, language, hint);
         try {
-            String response = callApi(prompt, overrideApiKey);
+            String response = callApi(prompt, overrideApiKey, false);
             return objectMapper.readValue(response, QuizGenerationResult.class);
         } catch (CallNotPermittedException | BulkheadFullException e) {
             log.warn("{} call rejected by circuit breaker/bulkhead for quiz generation: {}", providerName(), e.toString());
@@ -387,15 +253,15 @@ public abstract class AbstractAiProvider implements AiService {
      * Routes platform-key calls (null/blank override) through the shared aiProvider
      * circuit breaker and bulkhead; BYOK calls go straight to the raw call so a flaky
      * user key can't trip the shared breaker. Programmatic rather than annotation-based:
-     * the resilience4j annotations are proxy-based and were silently skipped on the
-     * self-invoked overload chains, and annotating the outer summary method made waiters
-     * hold a bulkhead permit for the whole SingleFlight lock wait.
+     * resilience4j's annotations are proxy-based, so they do not apply on self-invoked
+     * call chains like this one, and annotating the outer summary method would make
+     * waiters hold a bulkhead permit for the whole SingleFlight lock wait.
      */
-    protected String callApi(String prompt, String overrideApiKey) {
+    protected String callApi(String prompt, String overrideApiKey, boolean webSearch) {
         if (overrideApiKey != null && !overrideApiKey.isBlank()) {
-            return callApiRaw(prompt, overrideApiKey);
+            return callApiRaw(prompt, overrideApiKey, webSearch);
         }
-        return runProtected(() -> callApiRaw(prompt, null));
+        return runProtected(() -> callApiRaw(prompt, null, webSearch));
     }
 
     /** Runs a platform-key supplier under the shared aiProvider circuit breaker + bulkhead. */
@@ -501,7 +367,7 @@ public abstract class AbstractAiProvider implements AiService {
 
     /**
      * Strips markdown code fences and any leading prose so what remains starts at the JSON.
-     * Expects an already-stripped model text (as returned by {@link #extractResponseText(JsonNode)}).
+     * Expects an already-stripped model text (as returned by {@link #extractResponseText(String)}).
      */
     protected String stripToJson(String text) {
         if (text.startsWith("```json")) {

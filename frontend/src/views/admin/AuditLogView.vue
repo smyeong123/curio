@@ -1,20 +1,21 @@
 <template>
   <div class="mx-auto max-w-[1100px] px-5 py-10 sm:px-8 lg:px-12">
-    <header class="mb-10">
-      <p class="kicker kicker-signal mb-3">{{ t('admin.audit.kicker') }}</p>
-      <i18n-t scope="global" keypath="admin.audit.headline" tag="h1" class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
-        <template #trail><em class="italic-display">{{ t('admin.audit.trail') }}</em></template>
-      </i18n-t>
-      <div class="rule-double w-full"></div>
+    <PageMasthead
+      :kicker="t('admin.audit.kicker')"
+      keypath="admin.audit.headline"
+      emphasis="trail"
+      :emphasis-text="t('admin.audit.trail')"
+    >
       <p class="font-body-curio text-[15px] text-[color:var(--ink-soft)] mt-4 leading-relaxed max-w-[64ch]">
         {{ t('admin.audit.intro') }}
       </p>
-    </header>
+    </PageMasthead>
 
-    <section v-if="errorOccurred" class="border border-[color:var(--rule)] bg-paper-deep p-12 text-center">
-      <p class="kicker kicker-signal mb-3">{{ t('admin.common.loadFailed') }}</p>
-      <button class="btn-editorial-ghost" @click="load(page)">{{ t('admin.common.retry') }}</button>
-    </section>
+    <ErrorState
+      v-if="errorOccurred"
+      :kicker="t('admin.common.loadFailed')"
+      @retry="load(page)"
+    />
 
     <section v-else-if="loading" class="border-t-2 border-[color:var(--rule)] pt-12 text-center">
       <p class="kicker">{{ t('admin.audit.loading') }}</p>
@@ -41,7 +42,7 @@
         <tbody class="divide-y divide-[color:var(--rule)]">
           <tr v-for="entry in entries" :key="entry.id" class="align-top">
             <td class="py-3 pr-4 num-tab text-[12px] whitespace-nowrap text-[color:var(--ink-soft)]">
-              {{ formatWhen(entry.createdAt) }}
+              {{ formatDateTime(entry.createdAt, 'short') }}
             </td>
             <td class="py-3 pr-4 font-body-curio text-[13px] max-w-[220px] truncate" :title="entry.actorEmail">
               {{ entry.actorEmail }}
@@ -65,61 +66,38 @@
         </tbody>
       </table>
 
-      <nav v-if="totalPages > 1" class="flex items-center justify-between">
-        <button class="btn-editorial-ghost" :disabled="page === 0" @click="load(page - 1)">
-          <span aria-hidden="true">←</span>
-          {{ t('admin.common.pagination.newer') }}
-        </button>
-        <i18n-t scope="global" keypath="admin.common.pagination.pageOf" tag="span" class="kicker">
-          <template #page><span class="num-tab text-[color:var(--ink)]">{{ page + 1 }}</span></template>
-          <template #total><span class="num-tab text-[color:var(--ink)]">{{ totalPages }}</span></template>
-        </i18n-t>
-        <button class="btn-editorial-ghost" :disabled="page >= totalPages - 1" @click="load(page + 1)">
-          {{ t('admin.common.pagination.older') }}
-          <span aria-hidden="true">→</span>
-        </button>
-      </nav>
+      <PagerNav
+        v-if="totalPages > 1"
+        :page="page"
+        :total-pages="totalPages"
+        :newer-label="t('admin.common.pagination.newer')"
+        :older-label="t('admin.common.pagination.older')"
+        @change="load"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/services/api'
 import { useToast } from '@/composables/useToast'
-import { useLocale } from '@/composables/useLocale'
-
-interface AuditLogEntry {
-  id: number
-  actorId: string | null
-  actorEmail: string
-  action: string
-  targetType: string | null
-  targetId: string | null
-  requestId: string | null
-  metadata: Record<string, unknown> | null
-  createdAt: string
-}
+import { useFormat } from '@/composables/useFormat'
+import { usePagedAdminList } from '@/composables/usePagedAdminList'
+import type { AuditLogEntry } from '@/types/admin'
+import ErrorState from '@/components/ui/ErrorState.vue'
+import PageMasthead from '@/components/ui/PageMasthead.vue'
+import PagerNav from '@/components/ui/PagerNav.vue'
 
 const { t } = useI18n()
-const { intlLocale } = useLocale()
+const { formatDateTime } = useFormat()
 const { error: showError } = useToast()
 
-const loading = ref(true)
-const errorOccurred = ref(false)
-const entries = ref<AuditLogEntry[]>([])
-const page = ref(0)
-const totalPages = ref(0)
-
-const formatWhen = (dateStr: string) =>
-  new Date(dateStr).toLocaleString(intlLocale.value, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+const { items: entries, page, totalPages, loading, errorOccurred, load } = usePagedAdminList<AuditLogEntry>(
+  (nextPage) => api.admin.getAuditLog(nextPage),
+  () => showError(t('admin.audit.toast.loadFailed'))
+)
 
 const shortId = (id: string) => (id.length > 12 ? `${id.slice(0, 8)}…` : id)
 
@@ -128,22 +106,6 @@ const formatMetadata = (metadata: Record<string, unknown> | null) => {
   return Object.entries(metadata)
     .map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
     .join(' · ')
-}
-
-const load = async (target = 0) => {
-  loading.value = true
-  errorOccurred.value = false
-  try {
-    const response = await api.admin.getAuditLog(target)
-    entries.value = response.data.content
-    totalPages.value = response.data.totalPages
-    page.value = target
-  } catch {
-    errorOccurred.value = true
-    showError(t('admin.audit.toast.loadFailed'))
-  } finally {
-    loading.value = false
-  }
 }
 
 onMounted(() => load())

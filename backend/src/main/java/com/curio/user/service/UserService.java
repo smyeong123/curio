@@ -1,10 +1,11 @@
 package com.curio.user.service;
 
 import com.curio.auth.port.out.RefreshTokenPort;
-import com.curio.auth.service.UnsubscribeTokenService;
+import com.curio.shared.security.UnsubscribeTokenService;
 import com.curio.shared.config.TopicConstants;
 import com.curio.shared.i18n.Language;
 import com.curio.user.dto.PreferencesRequest;
+import com.curio.user.dto.PreferencesResponse;
 import com.curio.user.dto.UserResponse;
 import com.curio.user.entity.User;
 import com.curio.user.entity.UserPreferences;
@@ -36,7 +37,7 @@ public class UserService implements UserUseCase {
         User user = userPort.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        return toUserResponse(user);
+        return UserResponse.from(user);
     }
 
     @Transactional
@@ -52,34 +53,15 @@ public class UserService implements UserUseCase {
         }
 
         user = userPort.save(user);
-        return toUserResponse(user);
-    }
-
-    @Transactional(readOnly = true)
-    public String[] getPreferences(UUID userId) {
-        return userPreferencesPort.findByUserId(userId)
-                .map(UserPreferences::getTopics)
-                .orElse(new String[0]);
+        return UserResponse.from(user);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public java.util.Map<String, Object> getPreferencesDetail(UUID userId) {
-        java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
-        userPreferencesPort.findByUserId(userId).ifPresentOrElse(p -> {
-            result.put("topics", p.getTopics());
-            result.put("timezone", p.getTimezone());
-            result.put("deliveryHour", p.getDeliveryHour());
-            result.put("timezoneAuto", p.isTimezoneAuto());
-            result.put("language", Language.fromCode(p.getLanguage()).code());
-        }, () -> {
-            result.put("topics", new String[0]);
-            result.put("timezone", null);
-            result.put("deliveryHour", null);
-            result.put("timezoneAuto", true);
-            result.put("language", Language.DEFAULT.code());
-        });
-        return result;
+    public PreferencesResponse getPreferencesDetail(UUID userId) {
+        return userPreferencesPort.findByUserId(userId)
+                .map(PreferencesResponse::from)
+                .orElseGet(PreferencesResponse::defaults);
     }
 
     @Transactional
@@ -177,18 +159,5 @@ public class UserService implements UserUseCase {
 
     public void validateUnsubscribeToken(String token) {
         unsubscribeTokenService.validateAndExtractUserId(token);
-    }
-
-    private UserResponse toUserResponse(User user) {
-        return UserResponse.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .fullName(user.getFullName())
-                .isAdmin(user.getIsAdmin())
-                .deliveryEnabled(user.getDeliveryEnabled())
-                .emailVerified(user.getEmailVerified())
-                .createdAt(user.getCreatedAt())
-                .hasPassword(user.getPasswordHash() != null)
-                .build();
     }
 }

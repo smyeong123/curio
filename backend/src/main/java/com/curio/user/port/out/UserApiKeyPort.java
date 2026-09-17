@@ -24,6 +24,4 @@ public interface UserApiKeyPort {
 
     void deleteByUserIdAndProvider(UUID userId, UserApiKey.Provider provider);
 
-    /** True if the user has at least one validated BYOK key. */
-    boolean existsValidatedForUser(UUID userId);
-}
+    /** True if the user has at least one validated BYOK key. */}

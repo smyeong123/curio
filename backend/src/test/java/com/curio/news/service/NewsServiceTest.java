@@ -1,8 +1,11 @@
 package com.curio.news.service;
 
+import com.curio.news.port.out.AiService;
 import com.curio.news.dto.DigestResponse;
 import com.curio.news.dto.NewsSummary;
 import com.curio.news.entity.Digest;
+import com.curio.news.port.in.DigestGeneration;
+import com.curio.news.port.in.DigestProgressListener;
 import com.curio.news.port.out.DigestPort;
 import com.curio.shared.exception.ResourceNotFoundException;
 import com.curio.shared.i18n.Language;
@@ -75,7 +78,6 @@ class NewsServiceTest {
 
         assertThat(result).hasSize(1);
         verify(digestPort).findByUserIdOrderByGeneratedAtDesc(eq(userId), any(PageRequest.class));
-        verify(digestPort, never()).findByUserIdAndGeneratedAtAfterOrderByGeneratedAtDesc(any(), any(), any());
     }
 
     // --- getDigest ---
@@ -120,43 +122,43 @@ class NewsServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
-    // --- generateDigestForUser ---
+    // --- generate: the digest, or null when nothing was written ---
 
     @Test
-    void generateDigestForUser_skips_whenDigestAlreadyExistsToday() {
+    void generate_skips_whenDigestAlreadyExistsToday() {
         when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(true);
 
-        Digest result = newsService.generateDigestForUser(testUser);
+        Digest result = newsService.generate(testUser, DigestProgressListener.NOOP).digest();
 
         assertThat(result).isNull();
         verifyNoInteractions(aiService);
     }
 
     @Test
-    void generateDigestForUser_skips_whenNoPreferences() {
+    void generate_skips_whenNoPreferences() {
         when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
         when(userPreferencesPort.findByUserId(userId)).thenReturn(Optional.empty());
 
-        Digest result = newsService.generateDigestForUser(testUser);
+        Digest result = newsService.generate(testUser, DigestProgressListener.NOOP).digest();
 
         assertThat(result).isNull();
         verifyNoInteractions(aiService);
     }
 
     @Test
-    void generateDigestForUser_skips_whenTopicsEmpty() {
+    void generate_skips_whenTopicsEmpty() {
         when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
         UserPreferences prefs = UserPreferences.builder().topics(new String[0]).build();
         when(userPreferencesPort.findByUserId(userId)).thenReturn(Optional.of(prefs));
 
-        Digest result = newsService.generateDigestForUser(testUser);
+        Digest result = newsService.generate(testUser, DigestProgressListener.NOOP).digest();
 
         assertThat(result).isNull();
         verifyNoInteractions(aiService);
     }
 
     @Test
-    void generateDigestForUser_generatesAndSavesDigest() {
+    void generate_generatesAndSavesDigest() {
         when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
         UserPreferences prefs = UserPreferences.builder()
                 .topics(new String[]{"Reasoning & Context", "Multimodal (Vision, Audio, Video)"})
@@ -171,7 +173,7 @@ class NewsServiceTest {
         Digest savedDigest = Digest.builder().id(UUID.randomUUID()).user(testUser).content(Map.of()).build();
         when(digestPort.save(any())).thenReturn(savedDigest);
 
-        Digest result = newsService.generateDigestForUser(testUser);
+        Digest result = newsService.generate(testUser, DigestProgressListener.NOOP).digest();
 
         assertThat(result).isNotNull();
 
@@ -190,7 +192,7 @@ class NewsServiceTest {
     }
 
     @Test
-    void generateDigestForUser_continuesOnPartialTopicFailure() {
+    void generate_continuesOnPartialTopicFailure() {
         when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
         UserPreferences prefs = UserPreferences.builder()
                 .topics(new String[]{"topic1", "topic2"})
@@ -203,14 +205,14 @@ class NewsServiceTest {
         Digest savedDigest = Digest.builder().id(UUID.randomUUID()).user(testUser).content(Map.of()).build();
         when(digestPort.save(any())).thenReturn(savedDigest);
 
-        Digest result = newsService.generateDigestForUser(testUser);
+        Digest result = newsService.generate(testUser, DigestProgressListener.NOOP).digest();
 
         assertThat(result).isNotNull();
         verify(digestPort).save(any());
     }
 
     @Test
-    void generateDigestForUser_returnsNull_whenAllTopicsFail() {
+    void generate_returnsNull_whenAllTopicsFail() {
         when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
         UserPreferences prefs = UserPreferences.builder()
                 .topics(new String[]{"topic1"})
@@ -218,14 +220,14 @@ class NewsServiceTest {
         when(userPreferencesPort.findByUserId(userId)).thenReturn(Optional.of(prefs));
         when(aiService.generateNewsSummaries(eq("topic1"), eq(Language.EN), isNull())).thenThrow(new RuntimeException("fail"));
 
-        Digest result = newsService.generateDigestForUser(testUser);
+        Digest result = newsService.generate(testUser, DigestProgressListener.NOOP).digest();
 
         assertThat(result).isNull();
         verify(digestPort, never()).save(any());
     }
 
     @Test
-    void generateDigestForUser_writesInTheReadersEdition_andStampsItOnTheDigest() {
+    void generate_writesInTheReadersEdition_andStampsItOnTheDigest() {
         when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
         UserPreferences prefs = UserPreferences.builder()
                 .topics(new String[]{"topic1"})
@@ -236,7 +238,7 @@ class NewsServiceTest {
                 .thenReturn(List.of(NewsSummary.builder().headline("한국어 헤드라인").build()));
         when(digestPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        Digest result = newsService.generateDigestForUser(testUser);
+        Digest result = newsService.generate(testUser, DigestProgressListener.NOOP).digest();
 
         assertThat(result).isNotNull();
         assertThat(result.getContent().get("language")).isEqualTo("ko");
@@ -244,7 +246,7 @@ class NewsServiceTest {
     }
 
     @Test
-    void generateDigestForUser_threadsTheByokKeyWithTheEdition() {
+    void generate_threadsTheByokKeyWithTheEdition() {
         when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
         when(userPreferencesPort.findByUserId(userId))
                 .thenReturn(Optional.of(UserPreferences.builder().topics(new String[]{"topic1"}).build()));
@@ -253,11 +255,41 @@ class NewsServiceTest {
                 .thenReturn(List.of(NewsSummary.builder().headline("News").build()));
         when(digestPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        Digest result = newsService.generateDigestForUser(testUser);
+        Digest result = newsService.generate(testUser, DigestProgressListener.NOOP).digest();
 
         assertThat(result.getContent().get("language")).isEqualTo("en");
     }
 
-    // The old generateDigestsForAllUsers bulk method was dead code (the real
-    // scheduled path is DigestGenerationJob's chunked run) and has been removed.
+    // --- generate: the typed outcome the digest pipeline reads ---
+
+    @Test
+    void generate_reportsWhyNothingWasWritten() {
+        when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(true);
+        assertThat(newsService.generate(testUser, null).status()).isEqualTo(DigestGeneration.Status.ALREADY_EXISTS);
+
+        when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
+        when(userPreferencesPort.findByUserId(userId)).thenReturn(Optional.empty());
+        assertThat(newsService.generate(testUser, null).status()).isEqualTo(DigestGeneration.Status.NO_TOPICS);
+
+        when(userPreferencesPort.findByUserId(userId))
+                .thenReturn(Optional.of(UserPreferences.builder().topics(new String[]{"topic1"}).build()));
+        when(aiService.generateNewsSummaries(eq("topic1"), eq(Language.EN), isNull())).thenReturn(List.of());
+        assertThat(newsService.generate(testUser, null).status()).isEqualTo(DigestGeneration.Status.NOTHING_GENERATED);
+        verify(digestPort, never()).save(any());
+    }
+
+    @Test
+    void generate_treatsALostUniqueIndexRace_asAlreadyExists() {
+        when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
+        when(userPreferencesPort.findByUserId(userId))
+                .thenReturn(Optional.of(UserPreferences.builder().topics(new String[]{"topic1"}).build()));
+        when(aiService.generateNewsSummaries(eq("topic1"), eq(Language.EN), isNull()))
+                .thenReturn(List.of(NewsSummary.builder().headline("News").build()));
+        when(digestPort.save(any())).thenThrow(new org.springframework.dao.DataIntegrityViolationException("uq"));
+
+        DigestGeneration outcome = newsService.generate(testUser, null);
+
+        assertThat(outcome.status()).isEqualTo(DigestGeneration.Status.ALREADY_EXISTS);
+        assertThat(outcome.digest()).isNull();
+    }
 }

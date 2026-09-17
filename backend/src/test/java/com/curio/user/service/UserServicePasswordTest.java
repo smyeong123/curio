@@ -1,7 +1,7 @@
 package com.curio.user.service;
 
 import com.curio.auth.port.out.RefreshTokenPort;
-import com.curio.auth.service.UnsubscribeTokenService;
+import com.curio.shared.security.UnsubscribeTokenService;
 import com.curio.shared.exception.ResourceNotFoundException;
 import com.curio.shared.exception.UnauthorizedException;
 import com.curio.user.entity.User;

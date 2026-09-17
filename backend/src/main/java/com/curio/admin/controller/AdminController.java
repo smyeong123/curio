@@ -1,9 +1,12 @@
 package com.curio.admin.controller;
 
 import com.curio.admin.dto.AdminDigestResponse;
+import com.curio.admin.dto.AdminUserDetail;
+import com.curio.admin.dto.AdminUserSummary;
 import com.curio.admin.dto.AuditLogResponse;
 import com.curio.admin.dto.GenerateDigestsRequest;
 import com.curio.admin.dto.JobStatusResponse;
+import com.curio.admin.dto.JobTriggerResponse;
 import com.curio.admin.dto.StatsResponse;
 import com.curio.admin.dto.TopicStatusResponse;
 import com.curio.admin.port.in.AdminDigestUseCase;
@@ -51,7 +54,7 @@ public class AdminController {
     @GetMapping("/users")
     @PreAuthorize(READ)
     @Operation(summary = "List users with optional email search")
-    public ResponseEntity<Page<Map<String, Object>>> getUsers(
+    public ResponseEntity<Page<AdminUserSummary>> getUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "") String search) {
@@ -62,7 +65,7 @@ public class AdminController {
     @GetMapping("/users/{id}")
     @PreAuthorize(READ)
     @Operation(summary = "Get a user detail payload")
-    public ResponseEntity<Map<String, Object>> getUserDetail(@PathVariable String id) {
+    public ResponseEntity<AdminUserDetail> getUserDetail(@PathVariable String id) {
         return ResponseEntity.ok(adminUserService.getUserDetail(UUID.fromString(id)));
     }
 
@@ -76,17 +79,17 @@ public class AdminController {
     @PostMapping("/generate-digests")
     @PreAuthorize(WRITE)
     @Operation(summary = "Start digest generation in the background (optionally filtered by topics); poll /admin/jobs/status for results")
-    public ResponseEntity<Map<String, Object>> triggerDigestGeneration(
+    public ResponseEntity<JobTriggerResponse> triggerDigestGeneration(
             @RequestBody(required = false) GenerateDigestsRequest request) {
         List<String> topics = (request != null) ? request.getTopics() : null;
         // Dispatch to a background executor and return promptly — the run can take
         // minutes and would otherwise trip the reverse-proxy gateway timeout.
-        Map<String, Object> outcome = adminManualJobService.startDigestGeneration(topics);
+        JobTriggerResponse outcome = adminManualJobService.startDigestGeneration(topics);
         // Audit AFTER the start attempt so a no-op ("already_running") is recorded
         // as such rather than looking like a second real run.
         auditLogService.record("admin.generate_digests", "job", "digest-generation",
                 Map.of("topicsFilter", topics == null ? List.of() : topics,
-                        "status", outcome.getOrDefault("status", "unknown")));
+                        "status", outcome.status()));
         return ResponseEntity.accepted().body(outcome);
     }
 
@@ -100,12 +103,12 @@ public class AdminController {
     @PostMapping("/send-emails")
     @PreAuthorize(WRITE)
     @Operation(summary = "Start email send batch in the background; poll /admin/jobs/status for results")
-    public ResponseEntity<Map<String, Object>> triggerEmailSend() {
+    public ResponseEntity<JobTriggerResponse> triggerEmailSend() {
         // Dispatch to a background executor and return promptly — the batch can take
         // minutes and would otherwise trip the reverse-proxy gateway timeout.
-        Map<String, Object> outcome = adminManualJobService.startEmailSend();
+        JobTriggerResponse outcome = adminManualJobService.startEmailSend();
         auditLogService.record("admin.send_emails", "job", "email-send",
-                Map.of("status", outcome.getOrDefault("status", "unknown")));
+                Map.of("status", outcome.status()));
         return ResponseEntity.accepted().body(outcome);
     }
 

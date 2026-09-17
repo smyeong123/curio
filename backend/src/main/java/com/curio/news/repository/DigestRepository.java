@@ -23,17 +23,15 @@ public interface DigestRepository extends JpaRepository<Digest, UUID> {
     Optional<Digest> findByEmailProviderId(String emailProviderId);
     long countByUserId(UUID userId);
     long countByEmailSentAtAfter(LocalDateTime date);
-    long countByGeneratedAtAfter(LocalDateTime date);
-
     /** Ids of digests past the retention cutoff, bounded by the Pageable — used for batched cleanup deletes. */
     @Query("SELECT d.id FROM Digest d WHERE d.generatedAt < :cutoff")
     List<UUID> findIdsByGeneratedAtBefore(@Param("cutoff") LocalDateTime cutoff, Pageable pageable);
     Page<Digest> findAllByOrderByGeneratedAtDesc(Pageable pageable);
     boolean existsByUserIdAndGeneratedAtBetween(UUID userId, LocalDateTime start, LocalDateTime end);
 
-    Page<Digest> findByUserIdAndGeneratedAtAfterOrderByGeneratedAtDesc(UUID userId, LocalDateTime after, Pageable pageable);
-
     Optional<Digest> findFirstByUserIdAndEmailSentAtIsNullOrderByGeneratedAtDesc(UUID userId);
+
+    Optional<Digest> findFirstByUserIdOrderByGeneratedAtDesc(UUID userId);
 
     // Atomic claim of the right to email a digest. Competing send paths (hourly
     // EmailSendJob, admin batch, Studio) all race through here; the conditional

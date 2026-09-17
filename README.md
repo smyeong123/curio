@@ -239,17 +239,17 @@ Prod additionally needs self-generated secrets (`JWT_SECRET`, `JWT_REFRESH_SECRE
 ```
 
 - **Auth** — JWT access (15 min) + SHA-256-hashed refresh cookie (3-hour sliding idle timeout, single-use rotation), plus Google OAuth2 and the emailed-code login step.
-- **Content pipeline** — `DigestGenerationJob` (06:00 UTC), hourly `EmailSendJob` (per-user delivery hour, catch-up gate, claim-before-send), `CleanupJob` (00:00 UTC), and `ExpiredAuthRowReaper` — all ShedLock-coordinated.
-- **Reliability** — Resilience4j circuit breaker + bulkhead + 90 s time limiter + retry around AI calls; summaries cached in Redis (12 h TTL, keyed by `news:summaries:{topic}:{date}`).
+- **Content pipeline** — one `DigestPipeline` (digest + quiz per user) behind `DigestBatch` / `DigestEmailBatch`, driven by `DigestGenerationJob` (06:00 UTC), hourly `EmailSendJob` (per-user delivery hour, catch-up gate, claim-before-send), the admin triggers and Studio; `CleanupJob` (00:00 UTC) and `ExpiredAuthRowReaper` — all ShedLock-coordinated.
+- **Reliability** — Resilience4j circuit breaker + bulkhead and in-process retry with backoff around AI calls; summaries cached in Redis (12 h TTL, keyed by `news:summaries:{topic}:{date}:{lang}`).
 - **Security** — token hashing, HMAC webhook + unsubscribe signatures, CSP/HSTS, session revocation on password change.
-- **Hexagonal backend** — every feature package is ports + adapters (controller → `port/in`, service → `port/out`, adapter wraps Spring Data), enforced by four ArchUnit rules.
+- **Hexagonal backend** — every feature package is ports + adapters (controller → `port/in`, service → `port/out`, adapter wraps Spring Data), enforced by five ArchUnit rules (including no cycles among the `shared.*` packages).
 
 Full rationale in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) and [`docs/architecture/ADR-001-hexagonal-architecture.md`](./docs/architecture/).
 
 ## Testing
 
-- **Backend — 28 test classes** (as of 2026-09-16): JUnit 5 + Mockito units, `@SpringBootTest` + H2 integration (controllers, security filters, webhook signatures), and ArchUnit architecture rules.
-- **Frontend — 22 Vitest files + 10 Cypress E2E specs** (as of 2026-09-16): components/stores/composables/views (both editions) via `@vue/test-utils`; Cypress covers auth, onboarding, archive, settings, quiz, admin, reset-password, not-found, i18n (edition switch + persistence), ui-screenshots.
+- **Backend — 39 test classes (274 tests)** (as of 2026-09-17): JUnit 5 + Mockito units, `@SpringBootTest` + H2 integration (controllers, security filters, webhook signatures), and ArchUnit architecture rules.
+- **Frontend — 42 Vitest files (214 tests) + 10 Cypress E2E specs (67 tests)** (as of 2026-09-17): components/stores/composables/views (both editions) via `@vue/test-utils`; Cypress covers auth, onboarding, archive, settings, quiz, admin, reset-password, not-found, i18n (edition switch + persistence), ui-screenshots.
 
 ```bash
 cd backend && mvn test

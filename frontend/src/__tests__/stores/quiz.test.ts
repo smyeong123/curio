@@ -32,83 +32,98 @@ const mockSubmitResponse = {
   ]
 }
 
+const attempt = (id: string) => ({ id, quizId: 'q-1', score: 4, totalQuestions: 5, completedAt: '2026-03-15' })
+
+const pageOf = (content: unknown[], number: number, totalPages: number) => ({
+  data: { content, totalPages, totalElements: content.length * totalPages, number }
+})
+
 describe('quiz store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
   })
 
-  it('starts with null state', () => {
+  it('starts with an empty history', () => {
     const store = useQuizStore()
-    expect(store.currentQuiz).toBeNull()
     expect(store.quizHistory).toEqual([])
-    expect(store.currentScore).toBeNull()
   })
 
-  it('fetchQuiz sets quiz and resets score', async () => {
+  it('fetchQuiz returns the quiz for a digest', async () => {
     vi.mocked(api.quiz.getQuiz).mockResolvedValue({ data: mockQuiz } as any)
     const store = useQuizStore()
-    store.currentScore = 3
 
-    await store.fetchQuiz('digest-1')
+    const quiz = await store.fetchQuiz('digest-1')
 
-    expect(store.currentQuiz).toEqual(mockQuiz)
-    expect(store.currentScore).toBeNull()
+    expect(quiz).toEqual(mockQuiz)
     expect(api.quiz.getQuiz).toHaveBeenCalledWith('digest-1')
   })
 
-  it('submitQuiz sets score', async () => {
+  it('submitQuiz returns the graded result', async () => {
     vi.mocked(api.quiz.submitQuiz).mockResolvedValue({ data: mockSubmitResponse } as any)
     const store = useQuizStore()
 
     const result = await store.submitQuiz('quiz-1', { 1: 'A', 2: 'B' })
 
-    expect(store.currentScore).toBe(4)
     expect(result.score).toBe(4)
     expect(api.quiz.submitQuiz).toHaveBeenCalledWith('quiz-1', { 1: 'A', 2: 'B' })
   })
 
-  it('fetchHistory sets history', async () => {
-    const history = [{ id: 'a-1', quizId: 'q-1', score: 4, totalQuestions: 5, completedAt: '2026-03-15' }]
-    vi.mocked(api.quiz.getHistory).mockResolvedValue({
-      data: { content: history, totalPages: 1, totalElements: 1, number: 0 }
-    } as any)
+  it('fetchHistory sets history from a single page', async () => {
+    const history = [attempt('a-1')]
+    vi.mocked(api.quiz.getHistory).mockResolvedValue(pageOf(history, 0, 1) as any)
     const store = useQuizStore()
 
     await store.fetchHistory()
 
     expect(store.quizHistory).toEqual(history)
+    expect(api.quiz.getHistory).toHaveBeenCalledTimes(1)
+    expect(api.quiz.getHistory).toHaveBeenCalledWith(0)
+  })
+
+  it('fetchHistory requests the remaining pages together and keeps them in order', async () => {
+    let releasePage1!: () => void
+    vi.mocked(api.quiz.getHistory).mockImplementation(((page: number) => {
+      if (page === 0) return Promise.resolve(pageOf([attempt('a-p0')], 0, 3))
+      if (page === 1) return new Promise((resolve) => { releasePage1 = () => resolve(pageOf([attempt('a-p1')], 1, 3)) })
+      return Promise.resolve(pageOf([attempt('a-p2')], 2, 3))
+    }) as any)
+    const store = useQuizStore()
+
+    const pending = store.fetchHistory()
+    await vi.waitFor(() => expect(api.quiz.getHistory).toHaveBeenCalledTimes(3))
+    expect(api.quiz.getHistory).toHaveBeenNthCalledWith(2, 1)
+    expect(api.quiz.getHistory).toHaveBeenNthCalledWith(3, 2)
+
+    releasePage1()
+    await pending
+
+    expect(store.quizHistory.map((a) => a.id)).toEqual(['a-p0', 'a-p1', 'a-p2'])
   })
 
   it('reset wipes quiz state (logout must not leak across accounts)', async () => {
-    vi.mocked(api.quiz.getQuiz).mockResolvedValue({ data: mockQuiz } as any)
+    vi.mocked(api.quiz.getHistory).mockResolvedValue(pageOf([attempt('a-1')], 0, 1) as any)
     const store = useQuizStore()
-    await store.fetchQuiz('digest-1')
-    store.currentScore = 4
-    store.quizHistory = [{ id: 'a-1', quizId: 'q-1', score: 4, totalQuestions: 5, completedAt: '2026-03-15' } as any]
+    await store.fetchHistory()
 
     store.reset()
 
-    expect(store.currentQuiz).toBeNull()
     expect(store.quizHistory).toEqual([])
-    expect(store.currentScore).toBeNull()
   })
 
-  it('a stale fetchQuiz response does not clobber a newer one', async () => {
-    const staleQuiz = { ...mockQuiz, id: 'quiz-stale' }
-    const freshQuiz = { ...mockQuiz, id: 'quiz-fresh' }
+  it('a stale fetchHistory response does not clobber a newer one', async () => {
     let resolveStale: (v: unknown) => void
     const stalePromise = new Promise((resolve) => { resolveStale = resolve })
-    vi.mocked(api.quiz.getQuiz)
+    vi.mocked(api.quiz.getHistory)
       .mockReturnValueOnce(stalePromise as any)
-      .mockResolvedValueOnce({ data: freshQuiz } as any)
+      .mockResolvedValueOnce(pageOf([attempt('a-fresh')], 0, 1) as any)
     const store = useQuizStore()
 
-    const first = store.fetchQuiz('digest-stale')
-    await store.fetchQuiz('digest-fresh')
-    resolveStale!({ data: staleQuiz })
+    const first = store.fetchHistory()
+    await store.fetchHistory()
+    resolveStale!(pageOf([attempt('a-stale')], 0, 1))
     await first
 
-    expect(store.currentQuiz?.id).toBe('quiz-fresh')
+    expect(store.quizHistory.map((a) => a.id)).toEqual(['a-fresh'])
   })
 })

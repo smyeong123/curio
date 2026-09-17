@@ -1,16 +1,15 @@
 <template>
   <div class="mx-auto max-w-[920px] px-5 py-10 sm:px-8 lg:px-12">
-    <!-- ── Header ─────────────────────────────────────── -->
-    <header class="mb-10">
-      <p class="kicker kicker-signal mb-3">{{ t('studio.header.kicker') }}</p>
-      <i18n-t scope="global" keypath="studio.header.headline" tag="h1" class="display-headline text-[clamp(48px,7vw,96px)] leading-[0.95] mb-6">
-        <template #edition><em class="italic-display">{{ t('studio.header.edition') }}</em></template>
-      </i18n-t>
-      <div class="rule-double w-full"></div>
+    <PageMasthead
+      :kicker="t('studio.header.kicker')"
+      keypath="studio.header.headline"
+      emphasis="edition"
+      :emphasis-text="t('studio.header.edition')"
+    >
       <p class="font-body-curio text-[15px] text-[color:var(--ink-soft)] leading-relaxed mt-6 max-w-[68ch]">
         {{ t('studio.header.lede') }}
       </p>
-    </header>
+    </PageMasthead>
 
     <div class="space-y-14">
       <!-- ── § I — Your key ─────────────────────────── -->
@@ -51,7 +50,6 @@
           >{{ topicLabel(topic) }}</span>
         </div>
 
-        <!-- Progress -->
         <TaskProgress :task="digestTask" />
 
         <button
@@ -59,7 +57,7 @@
           :disabled="generateDisabled"
           @click="generate"
         >
-          <span v-if="isActive(digestTask)">{{ t('studio.generate.working') }}</span>
+          <span v-if="isTaskActive(digestTask)">{{ t('studio.generate.working') }}</span>
           <span v-else>{{ t('studio.generate.button') }}</span>
           <span aria-hidden="true">→</span>
         </button>
@@ -83,15 +81,14 @@
           {{ overview.hasUnsentDigest ? t('studio.send.ready') : t('studio.send.none') }}
         </p>
 
-        <!-- Progress -->
         <TaskProgress :task="emailTask" />
 
         <button
           class="btn-editorial mt-6"
-          :disabled="isActive(emailTask)"
+          :disabled="isTaskActive(emailTask)"
           @click="sendEmail"
         >
-          <span v-if="isActive(emailTask)">{{ t('studio.send.sending') }}</span>
+          <span v-if="isTaskActive(emailTask)">{{ t('studio.send.sending') }}</span>
           <span v-else>{{ t('studio.send.button', { target: overview?.email || t('studio.send.myInbox') }) }}</span>
           <span aria-hidden="true">→</span>
         </button>
@@ -105,11 +102,11 @@
         <div class="flex items-baseline justify-between gap-4 flex-wrap">
           <div>
             <p class="font-display text-[16px] mb-1">
-              {{ t('studio.latest.generated', { time: formatDateTime(overview.latestDigest.generatedAt) }) }}
+              {{ t('studio.latest.generated', { time: stamp(overview.latestDigest.generatedAt) }) }}
             </p>
             <p class="kicker">
               {{ overview.latestDigest.emailSentAt
-                ? t('studio.latest.emailed', { time: formatDateTime(overview.latestDigest.emailSentAt) })
+                ? t('studio.latest.emailed', { time: stamp(overview.latestDigest.emailSentAt) })
                 : t('studio.latest.notEmailed') }}
             </p>
           </div>
@@ -124,17 +121,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, h, type PropType } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ApiKeyManager from '@/components/settings/ApiKeyManager.vue'
+import PageMasthead from '@/components/ui/PageMasthead.vue'
+import TaskProgress from '@/components/studio/TaskProgress.vue'
 import { useToast } from '@/composables/useToast'
-import { useLocale } from '@/composables/useLocale'
+import { useFormat } from '@/composables/useFormat'
+import { usePoller } from '@/composables/usePoller'
 import { useTopicLabels } from '@/composables/useTopicLabels'
-import { api, type StudioStatus, type StudioTask, type StudioTaskState } from '@/services/api'
+import { api } from '@/services/api'
+import { isTaskActive, type StudioStatus, type StudioTask } from '@/types/studio'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()
-const { intlLocale } = useLocale()
+const { formatDateTime } = useFormat()
 const { topicLabel } = useTopicLabels()
 const { error } = useToast()
 
@@ -143,85 +144,53 @@ const digestTask = computed<StudioTask | undefined>(() => status.value?.digest)
 const emailTask = computed<StudioTask | undefined>(() => status.value?.email)
 const overview = computed(() => status.value?.overview)
 
-const isActive = (task?: StudioTask) =>
-  task?.state === 'QUEUED' || task?.state === 'RUNNING'
+const anyActive = (s: StudioStatus) => isTaskActive(s.digest) || isTaskActive(s.email)
 
 // Disabled only while a run is active or we KNOW the user has zero topics.
 // `overview` being null means the status call hasn't succeeded yet — that must
 // not disable the button (the backend skips gracefully if topics are missing).
 const generateDisabled = computed(() =>
-  isActive(digestTask.value) || overview.value?.topicCount === 0
+  isTaskActive(digestTask.value) || overview.value?.topicCount === 0
 )
 
-// Polling is a self-scheduling setTimeout loop, NOT setInterval: the next poll
-// is only armed after the previous response lands, so requests never overlap.
-// fetchSeq additionally drops out-of-order responses (a stale "still RUNNING"
-// arriving after a newer "finished" would otherwise freeze the progress bar).
-let pollTimer: ReturnType<typeof setTimeout> | null = null
-let polling = false
-let fetchSeq = 0
-// A single failed poll (backend restart, mobile network blip, a token-refresh
-// race) must not permanently freeze the UI — count consecutive failures and
-// only give up after a bound so a transient blip self-heals.
-let consecutiveFailures = 0
-const MAX_POLL_FAILURES = 5
-
-const stopPolling = () => {
-  polling = false
-  if (pollTimer) { clearTimeout(pollTimer); pollTimer = null }
-}
-
-const fetchStatus = async () => {
-  const seq = ++fetchSeq
-  try {
-    const res = await api.studio.getStatus()
-    if (seq !== fetchSeq) return // a newer request has since started — drop this stale response
-    status.value = res.data
-    consecutiveFailures = 0
-    // Stop polling once neither task is in flight.
-    if (!isActive(res.data.digest) && !isActive(res.data.email)) {
-      stopPolling()
+// Live progress while a task is in flight. A single failed poll (backend
+// restart, mobile network blip, a token-refresh race) must not freeze the UI,
+// so the loop only gives up after a run of consecutive failures.
+const poller = usePoller({
+  intervalMs: 1500,
+  maxConsecutiveFailures: 5,
+  tick: async (isCurrent) => {
+    const { data } = await api.studio.getStatus()
+    if (!isCurrent()) return 'continue'
+    status.value = data
+    return anyActive(data) ? 'continue' : 'done'
+  },
+  onFailed: () => {
+    error(t('studio.errors.lostConnection'))
+    // Release the stuck in-flight tasks so isTaskActive() clears and the
+    // buttons re-enable for a manual retry.
+    if (!status.value) return
+    const message = t('studio.errors.lostConnectionShort')
+    if (isTaskActive(status.value.digest)) {
+      status.value.digest = { ...status.value.digest, state: 'FAILED', message }
     }
-  } catch (e) {
-    if (seq !== fetchSeq) return
-    consecutiveFailures += 1
-    if (consecutiveFailures >= MAX_POLL_FAILURES) {
-      stopPolling()
-      error(t('studio.errors.lostConnection'))
-      // Release the stuck in-flight tasks so isActive() clears and the
-      // buttons re-enable for a manual retry.
-      if (status.value) {
-        const message = t('studio.errors.lostConnectionShort')
-        if (isActive(status.value.digest)) {
-          status.value.digest = { ...status.value.digest, state: 'FAILED', message }
-        }
-        if (isActive(status.value.email)) {
-          status.value.email = { ...status.value.email, state: 'FAILED', message }
-        }
-      }
+    if (isTaskActive(status.value.email)) {
+      status.value.email = { ...status.value.email, state: 'FAILED', message }
     }
-    // Below the threshold, the loop stays alive so the next tick retries.
-    throw e
-  }
-}
+  },
+})
 
-const scheduleNextPoll = () => {
-  if (!polling) return
-  pollTimer = setTimeout(async () => {
-    try {
-      await fetchStatus()
-    } catch {
-      /* failure already counted in fetchStatus */
-    }
-    scheduleNextPoll()
-  }, 1500)
-}
-
+// Idempotent: restarting a live poll would reset its failure budget and
+// orphan the tick in flight.
 const startPolling = () => {
-  if (polling) return
-  polling = true
-  consecutiveFailures = 0
-  scheduleNextPoll()
+  if (!poller.active.value) poller.start()
+}
+
+// One-off status load; resolves to whether a task is still in flight.
+const fetchStatus = async () => {
+  const { data } = await api.studio.getStatus()
+  status.value = data
+  return anyActive(data)
 }
 
 const generate = async () => {
@@ -244,102 +213,16 @@ const sendEmail = async () => {
   }
 }
 
-const formatDateTime = (iso: string | null) => {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return d.toLocaleString(intlLocale.value, {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
-}
-
-// Bare task states (shown only when the backend sends no message) render
-// through the catalog so the Korean edition doesn't leak "SUCCESS"/"FAILED".
-const stateLabel = (state: StudioTaskState): string => {
-  switch (state) {
-    case 'QUEUED': return t('studio.progress.state.queued')
-    case 'RUNNING': return t('studio.progress.state.running')
-    case 'SUCCESS': return t('studio.progress.state.success')
-    case 'FAILED': return t('studio.progress.state.failed')
-    case 'SKIPPED': return t('studio.progress.state.skipped')
-    default: return state
-  }
-}
+const stamp = (iso: string | null) => (iso ? formatDateTime(iso, 'compact') : '—')
 
 onMounted(async () => {
   try {
-    await fetchStatus()
-    if (isActive(digestTask.value) || isActive(emailTask.value)) startPolling()
+    if (await fetchStatus()) startPolling()
   } catch {
     // Don't give up after one failed load (commonly a token-refresh race right
     // after login): let the bounded poll loop retry. It stops itself either on
-    // the first successful idle status or after MAX_POLL_FAILURES.
+    // the first successful idle status or once the failure budget is spent.
     startPolling()
   }
 })
-
-onBeforeUnmount(stopPolling)
-
-// ── Inline progress sub-component ───────────────────────────────────
-// Renders a task's live state: a status line + a determinate/indeterminate bar.
-// Reads the parent's `t` (same global i18n scope) so the label re-renders on
-// an edition switch.
-const TaskProgress = {
-  props: { task: { type: Object as PropType<StudioTask | undefined>, default: undefined } },
-  setup(props: { task?: StudioTask }) {
-    const current = () => props.task
-    const running = () => current()?.state === 'QUEUED' || current()?.state === 'RUNNING'
-    const stateColor = () => {
-      switch (current()?.state) {
-        case 'SUCCESS': return 'var(--leaf)'
-        case 'FAILED': return 'var(--signal-deep)'
-        case 'SKIPPED': return 'var(--mute)'
-        case 'RUNNING':
-        case 'QUEUED': return 'var(--signal-deep)'
-        default: return 'var(--mute)'
-      }
-    }
-    const pct = () => {
-      const task = current()
-      if (!task) return 0
-      if (task.total && task.total > 0 && typeof task.current === 'number') {
-        return Math.max(6, Math.round((task.current / task.total) * 100))
-      }
-      return 0
-    }
-    const label = (): string => {
-      const task = current()
-      if (!task || task.state === 'IDLE') return ''
-      if (running()) {
-        const sub = task.total && task.total > 0 ? ` (${task.current}/${task.total})` : ''
-        return (task.phase || t('studio.progress.working')) + sub
-      }
-      return task.message || stateLabel(task.state)
-    }
-    return () => {
-      const task = current()
-      if (!task || task.state === 'IDLE') return null
-      const showBar = running()
-      const determinate = (task.total ?? 0) > 0
-      return h('div', { class: 'border-t border-b border-[color:var(--rule)] py-4' }, [
-        h('p', {
-          class: 'font-mono-curio text-[12px] uppercase tracking-[0.12em] mb-3',
-          style: { color: stateColor() },
-        }, label()),
-        showBar
-          ? h('div', { class: 'h-1.5 w-full bg-paper-deep overflow-hidden' }, [
-              determinate
-                ? h('div', {
-                    class: 'h-full transition-all duration-500',
-                    style: { width: pct() + '%', backgroundColor: 'var(--signal)' },
-                  })
-                : h('div', {
-                    class: 'h-full w-1/3 animate-pulse',
-                    style: { backgroundColor: 'var(--signal)' },
-                  }),
-            ])
-          : null,
-      ])
-    }
-  },
-}
 </script>
