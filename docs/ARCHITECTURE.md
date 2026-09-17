@@ -6,90 +6,35 @@ _AI-powered personalized news service: daily digests tailored to user interests,
 
 ## Diagram
 
-```mermaid
-flowchart TB
-    Browser["Browser<br/>Vue 3 SPA · TypeScript · Pinia"]
+![Curio system architecture: browser, EC2 services, backend components, databases, and external APIs](diagrams/system-architecture.png)
 
-    subgraph EC2["Single EC2 box (docker-compose)"]
-        Nginx["nginx<br/>serves SPA · proxies /api → :8080"]
-
-        subgraph Backend["curio-backend · Spring Boot 3.5 / Java 21"]
-            Sec["Security: JWT 15m access / 3h sliding refresh · Google OAuth2<br/>per-IP rate-limit · ADMIN gate · HMAC webhook"]
-            Ctrl["Controllers: Auth · User · News · Quiz<br/>Admin · Studio · UserApiKey(BYOK) · Webhook"]
-            Svc["Services: Auth · User · News · Quiz<br/>Admin{Digest,Operations,Stats,User}<br/>Email(+Transport) · UserApiKey · AuditLog<br/>shared/digest: DigestPipeline · DigestBatch · DigestEmailBatch"]
-            AI["AiService (port/out)<br/>Claude | Gemini | OpenAI via AbstractAiProvider"]
-            Fetch["NewsApiClient · LabBlogFetcher · LlmKeyValidator"]
-            Jobs["Schedulers (ShedLock)<br/>DigestGen 06:00 · EmailSend hourly(gated) · Cleanup 00:00<br/>ExpiredAuthRowReaper · shared/jobs: JobRunRecorder · JobStatusRegistry · JobFailureNotifier"]
-            Ctrl --> Svc --> AI
-            Svc --> Fetch
-        end
-
-        PG[("PostgreSQL · curio-postgres<br/>Flyway V1–V28<br/>users, prefs, digests(JSONB),<br/>quizzes, quiz_attempts,<br/>refresh/reset tokens,<br/>user_api_keys, audit_log, email_verification_codes")]
-        Redis[("Redis · curio-redis<br/>AI cache 12h · ShedLock locks")]
-    end
-
-    subgraph Ext["External APIs"]
-        Claude["Claude API"]
-        Gemini["Gemini / OpenAI"]
-        NewsAPI["News API + Lab blog RSS"]
-        Resend["Resend (email + webhook)"]
-        Google["Google OAuth2"]
-        Sentry["Sentry"]
-    end
-
-    Browser -->|HTTPS /api/v1| Nginx --> Sec --> Ctrl
-    Svc -->|JPA/Hibernate| PG
-    Svc -->|Spring Data Redis| Redis
-    Jobs --> Svc
-    AI --> Claude
-    AI --> Gemini
-    Fetch --> NewsAPI
-    Svc --> Resend
-    Sec --> Google
-    Jobs --> Sentry
-    Resend -.webhook.-> Ctrl
-```
+[Edit in Excalidraw](diagrams/system-architecture.excalidraw)
 
 ## Core data flows
 
 ### 1. Daily digest pipeline (scheduled)
 
-```
-DigestGenerationJob @06:00 UTC  ->  DigestBatch.runForAll()
-  -> SubscriberBatch: delivery-enabled users in chunks of 500, ≤ pool+2 in flight, per-user timeout
-       -> DigestPipeline.generateWithQuiz(user)
-            -> NewsService.generate: NewsApiClient / LabBlogFetcher fetch articles
-                 -> AiService summarize in the account's edition   [Redis cache 12h, per lang]
-                 -> persist Digest (content.language stamped)
-            -> QuizService.generateQuizForDigest (5 questions, same edition)
-EmailSendJob @hourly :00 UTC   ->  DigestEmailBatch.sendDue()
-  -> per-user gate: now(user.tz).hour >= deliveryHour (default 08:00 local), today's digest only
-       -> missing? DigestPipeline just-in-time
-       -> EmailService.sendDigestEmail: claim -> render -> EmailTransport (Resend) -> record id
-(admin "generate digests" / "send emails" and Studio call the same DigestBatch / DigestEmailBatch / DigestPipeline)
-```
+![Daily digest pipeline: scheduled generation at 06:00 UTC and hourly delivery with per-user gates](diagrams/daily-digest-pipeline.png)
+
+[Edit in Excalidraw](diagrams/daily-digest-pipeline.excalidraw)
 
 ### 2. Request path (user)
 
-```
-Browser -> nginx -> Spring Security (JWT) -> Controller
-        -> Service (port/in) -> JPA adapter (port/out) -> Postgres | Redis
-```
+![User request path from browser through nginx, JWT security, controller, service, and persistence](diagrams/user-request-path.png)
+
+[Edit in Excalidraw](diagrams/user-request-path.excalidraw)
 
 ### 3. BYOK (bring-your-own-key)
 
-```
-UserApiKeyController -> UserApiKeyService -> LlmKeyValidator (live ping) -> user_api_keys
-NewsService resolves the per-user key at digest time for the platform's configured
-  provider (Claude | Gemini | OpenAI); falls back to the platform key if the user has none.
-  No per-user provider switching — the active provider is fixed by AI_PROVIDER.
-```
+![BYOK key validation and provider-specific resolution with platform-key fallback](diagrams/byok-flow.png)
+
+[Edit in Excalidraw](diagrams/byok-flow.excalidraw)
 
 ### 4. Inbound webhooks
 
-```
-Resend (open/click/delivery) -> WebhookController -> HMAC-SHA256 verify -> update digest tracking
-```
+![Resend events pass through the webhook controller and HMAC-SHA256 verification before updating digest tracking](diagrams/inbound-webhooks.png)
+
+[Edit in Excalidraw](diagrams/inbound-webhooks.excalidraw)
 
 ## Backend structure (hexagonal)
 
