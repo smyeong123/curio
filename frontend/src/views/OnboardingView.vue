@@ -5,7 +5,7 @@
       <div class="mx-auto flex w-full max-w-[1100px] items-center justify-between px-6 text-[11px] uppercase tracking-[0.18em] font-mono-curio">
         <span>{{ t('onboarding.strip.title') }}</span>
         <div class="flex items-center gap-4">
-          <LanguageToggle />
+          <LanguageSelect />
           <button class="opacity-80 hover:opacity-100" @click="handleLogout">{{ t('onboarding.strip.logOut') }}</button>
         </div>
       </div>
@@ -220,7 +220,7 @@ import { TOPIC_HIERARCHY } from '@/data/topics'
 import type { TopicIcon } from '@/data/topics'
 import { detectBrowserTimezone } from '@/utils/timezone'
 import AppIcon from '@/components/ui/AppIcon.vue'
-import LanguageToggle from '@/components/ui/LanguageToggle.vue'
+import LanguageSelect from '@/components/ui/LanguageSelect.vue'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()

@@ -1,13 +1,13 @@
 {
   "strip": {
-    "title": "Curio · 새 구독자 설정",
+    "title": "Curio · 시작하기",
     "logOut": "로그아웃 ↗"
   },
   "header": {
-    "kicker": "섹션 I — 토픽 고르기",
-    "headline": "오늘 아침, {beat}은 무엇인가요?",
-    "beat": "당신의 토픽",
-    "lede": "Curio는 독자마다 다른 신문을 써요. 토픽을 세 개 이상 고르면 내일 아침 08:00에 첫 호를 보내 드려요. 언제든 바꿀 수 있어요."
+    "kicker": "섹션 I — 관심 주제 고르기",
+    "headline": "어떤 {beat}이 궁금하세요?",
+    "beat": "소식",
+    "lede": "Curio는 독자마다 다른 신문을 만들어요. 주제를 3개 이상 고르면 내일 아침 08:00에 첫 호를 보내 드려요. 주제는 언제든 바꿀 수 있어요."
   },
   "counter": {
     "selected": "선택됨",
@@ -16,28 +16,28 @@
     "allSet": "준비 완료"
   },
   "presets": {
-    "kicker": "— 또는 묶음으로 담기 —",
-    "frontierWatcher": "프런티어 워처",
+    "kicker": "— 또는 추천 묶음으로 한 번에 —",
+    "frontierWatcher": "프런티어 모델 추적",
     "openSource": "오픈 소스",
-    "agentBuilder": "에이전트 빌더",
-    "capabilityTracker": "역량 트래커"
+    "agentBuilder": "에이전트 개발",
+    "capabilityTracker": "모델 성능 추적"
   },
   "hierarchy": {
-    "chapter": "장",
+    "chapter": "분야",
     "onTheBeat": "{count}개 선택"
   },
   "summary": {
-    "kicker": "내 토픽",
-    "remove": "{topic} 토픽 빼기"
+    "kicker": "내 관심 주제",
+    "remove": "{topic} 빼기"
   },
   "cta": {
-    "filing": "발행 중…",
+    "filing": "저장하는 중…",
     "start": "읽기 시작",
-    "moreToPublish": "발행까지 토픽 {count}개 더",
+    "moreToPublish": "주제를 {count}개 더 고르면 시작할 수 있어요",
     "skip": "지금은 건너뛰기 —"
   },
   "toasts": {
-    "saved": "토픽을 저장했어요! 첫 호가 곧 도착해요.",
+    "saved": "관심 주제를 저장했어요! 곧 첫 호가 도착해요.",
     "saveFailed": "설정을 저장하지 못했어요. 다시 시도해 주세요."
   }
 }

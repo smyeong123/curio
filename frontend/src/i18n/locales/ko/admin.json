@@ -2,7 +2,7 @@
   "common": {
     "loadFailed": "— 불러오지 못했어요 —",
     "search": "검색",
-    "allBeats": "전체 토픽",
+    "allBeats": "전체 주제",
     "on": "켜짐",
     "off": "꺼짐",
     "yes": "예",
@@ -16,12 +16,12 @@
     "columns": {
       "email": "이메일",
       "name": "이름",
-      "beats": "토픽",
+      "beats": "주제",
       "delivery": "발송",
       "joined": "가입일"
     },
     "kpi": {
-      "emailsToday": "오늘 발송된 에디션",
+      "emailsToday": "오늘 발송한 다이제스트",
       "quizzesToday": "오늘 제출된 퀴즈"
     }
   },
@@ -35,7 +35,7 @@
       "totalUsers": "전체 구독자"
     },
     "jobs": {
-      "kicker": "— 인쇄 작업 —",
+      "kicker": "— 예약 작업 —",
       "running": "실행 중…",
       "failed": "실패",
       "runNow": "지금 실행",
@@ -45,21 +45,21 @@
         "title": "다이제스트 생성",
         "cron": "Cron · 06:00 UTC",
         "done": "생성 완료",
-        "body": "활성 구독자 전원의 AI 뉴스 다이제스트를 생성해요. 토픽 하나만 골라 시험 인쇄해 볼 수도 있어요."
+        "body": "활성 구독자 전원의 AI 뉴스 다이제스트를 생성해요. 주제 하나만 골라 테스트로 생성해 볼 수도 있어요."
       },
       "send": {
-        "title": "조간 발송",
+        "title": "아침 이메일 발송",
         "cron": "Cron · 매시간 (사용자별 시간대)",
         "done": "발송 완료",
         "body": "발송이 켜진 구독자에게 다이제스트 이메일을 일괄 발송해요.",
         "sending": "발송 중…"
       },
       "cleanup": {
-        "title": "지난 호 재활용",
+        "title": "지난 호 정리",
         "cron": "Cron · 00:00 UTC",
-        "done": "재활용 완료",
+        "done": "정리 완료",
         "body": "30일이 지난 다이제스트와 퀴즈를 영구 삭제해요.",
-        "recycling": "재활용 중…"
+        "recycling": "정리하는 중…"
       }
     },
     "result": {
@@ -67,32 +67,32 @@
       "digests": "{success} / {total}명 · 실패 {fail}건",
       "digestsSkipped": "{success} / {total}명 · 실패 {fail}건 · 건너뜀 {skipped}건",
       "emails": "발송 {sent}건, 실패 {fail}건 (사용자 {total}명)",
-      "cleanup": "다이제스트 {count}건 재활용 (기준일: {cutoff})",
+      "cleanup": "다이제스트 {count}건 정리 (기준일: {cutoff})",
       "quizzes": "퀴즈 · 생성 {success}건 · 실패 {fail}건",
-      "beats": "비트 · {beats}",
+      "beats": "주제 · {beats}",
       "due": "이번 시간 발송 대상 {due}명",
       "took": "소요 {duration}"
     },
     "beats": {
-      "kicker": "— 토픽 현황 —",
-      "count": "토픽 {count}개",
+      "kicker": "— 주제별 현황 —",
+      "count": "주제 {count}개",
       "columns": {
-        "beat": "토픽",
+        "beat": "주제",
         "subscribers": "구독자",
         "filedToday": "오늘 생성",
         "lastFiled": "마지막 생성"
       },
-      "empty": "등록된 토픽이 없어요"
+      "empty": "등록된 주제가 없어요"
     },
     "cleanupModal": {
-      "title": "재활용 확인",
+      "title": "정리 확인",
       "body": "30일이 지난 다이제스트와 퀴즈를 영구 삭제해요. 되돌릴 수 없어요.",
-      "confirm": "재활용 실행"
+      "confirm": "정리 실행"
     },
     "toast": {
-      "cleanupDone": "재활용 완료: 다이제스트 {count}건을 삭제했어요",
-      "cleanupFailed": "재활용을 실행하지 못했어요",
-      "jobSlow": "작업이 평소보다 오래 걸리고 있어요 — 아직 실행 중일 수 있어요. 나중에 새로 고침해서 최종 결과를 확인해 주세요.",
+      "cleanupDone": "정리 완료: 다이제스트 {count}건을 삭제했어요",
+      "cleanupFailed": "정리 작업을 실행하지 못했어요",
+      "jobSlow": "작업이 평소보다 오래 걸리고 있어요 — 아직 실행 중일 수 있어요. 나중에 새로고침해서 최종 결과를 확인해 주세요.",
       "generateRunning": "다이제스트 생성이 이미 실행 중이에요",
       "generateStarted": "다이제스트 생성을 시작했어요 — 아래 수치가 곧 갱신돼요",
       "generateFailed": "다이제스트 생성을 시작하지 못했어요",
@@ -103,16 +103,16 @@
     }
   },
   "digests": {
-    "kicker": "뉴스룸 — 발행된 에디션",
+    "kicker": "뉴스룸 — 발행된 다이제스트",
     "headline": "전체 {editions}.",
-    "editions": "에디션",
+    "editions": "다이제스트",
     "filters": {
-      "topic": "토픽으로 필터",
+      "topic": "주제로 필터",
       "user": "독자 검색",
       "userPlaceholder": "이메일"
     },
-    "loading": "에디션 불러오는 중…",
-    "count": "보관된 에디션 {count}개",
+    "loading": "다이제스트 불러오는 중…",
+    "count": "보관된 다이제스트 {count}개",
     "perPage": "페이지당",
     "columns": {
       "reader": "독자",
@@ -129,7 +129,7 @@
       "userId": "사용자 ID",
       "stories": "스토리"
     },
-    "empty": "보관된 에디션이 없어요",
+    "empty": "보관된 다이제스트가 없어요",
     "toast": {
       "loadFailed": "다이제스트를 불러오지 못했어요"
     }
@@ -156,7 +156,7 @@
     "notFound": "독자를 찾을 수 없어요.",
     "sections": {
       "profile": "§ I — 프로필",
-      "beats": "§ II — 토픽",
+      "beats": "§ II — 관심 주제",
       "metrics": "§ III — 지표",
       "recentDigests": "§ IV — 최근 다이제스트",
       "recentQuizzes": "§ V — 최근 퀴즈 시도"
@@ -165,7 +165,7 @@
       "admin": "관리자",
       "verified": "인증됨"
     },
-    "noBeats": "선택한 토픽이 없어요.",
+    "noBeats": "선택한 주제가 없어요.",
     "metrics": {
       "digests": "생성된 다이제스트",
       "quizAttempts": "퀴즈 시도",
@@ -187,8 +187,8 @@
       "totalUsers": "전체 독자"
     },
     "distribution": {
-      "kicker": "— 토픽 분포 —",
-      "empty": "아직 토픽 데이터가 없어요.",
+      "kicker": "— 주제별 분포 —",
+      "empty": "아직 주제 데이터가 없어요.",
       "subscribers": "구독자 {count}명"
     },
     "toast": {
@@ -197,8 +197,8 @@
   },
   "audit": {
     "kicker": "뉴스룸 — 감사 로그",
-    "headline": "기록의 {trail}.",
-    "trail": "흔적",
+    "headline": "관리자 {trail}.",
+    "trail": "작업 기록",
     "intro": "모든 관리자 작업을 최신순으로 — 누가, 어떤 기록에, 무엇을, 언제 했는지.",
     "loading": "감사 로그 불러오는 중…",
     "empty": {

@@ -85,7 +85,7 @@ src/
 - `layout/`: `DashboardLayout.vue`, `LegalLayout.vue`
 - `quiz/`: `QuizQuestion.vue`, `QuizResults.vue`
 - `settings/`: `ApiKeyManager.vue` (BYOK key management)
-- `ui/`: `AppIcon.vue`, `BaseButton.vue`, `BaseInput.vue`, `BaseModal.vue`, `BaseSpinner.vue`, `ToastContainer.vue`, `LanguageToggle.vue` (English / 한국어 edition switch)
+- `ui/`: `AppIcon.vue`, `BaseButton.vue`, `BaseInput.vue`, `BaseModal.vue`, `BaseSpinner.vue`, `ToastContainer.vue`, `LanguageSelect.vue` (English / 한국어 edition dropdown)
 
 ## State Management (Pinia)
 

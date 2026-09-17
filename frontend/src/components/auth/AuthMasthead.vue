@@ -8,17 +8,17 @@
       <span class="display-headline text-[28px] leading-none">Curio</span>
       <span class="kicker">{{ t('layout.masthead.vol') }}</span>
     </router-link>
-    <LanguageToggle class="text-[12px]" />
+    <LanguageSelect class="text-[12px]" />
   </div>
 </template>
 
 <script setup lang="ts">
 // Brand + volume line at the top of the auth pages. On the ink aside the brand
-// stands alone (the edition toggle sits in that aside's colophon row); on paper
-// it shares a row with the toggle.
+// stands alone (the language menu sits in that aside's colophon row); on paper
+// it shares a row with the menu.
 
 import { useI18n } from 'vue-i18n'
-import LanguageToggle from '@/components/ui/LanguageToggle.vue'
+import LanguageSelect from '@/components/ui/LanguageSelect.vue'
 
 withDefaults(defineProps<{ onInk?: boolean }>(), { onInk: false })
 

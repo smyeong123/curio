@@ -79,7 +79,7 @@ describe('DashboardMenuFoot', () => {
     await signOut.trigger('click')
     expect(w.emitted('sign-out')).toHaveLength(1)
 
-    // The edition switch is the shared LanguageToggle in its sidebar shape.
-    expect(w.get('button[aria-label="Switch to 한국어"]').text()).toContain('Edition')
+    // The edition dropdown is the shared LanguageSelect in its sidebar row shape.
+    expect(w.get('select[aria-label="Language"]').element.parentElement!.textContent).toContain('Edition')
   })
 })

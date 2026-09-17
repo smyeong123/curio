@@ -112,12 +112,17 @@
         <div class="flex items-baseline justify-between mb-5 border-b border-[color:var(--rule)] pb-2">
           <p class="kicker">{{ t('settings.edition.kicker') }}</p>
         </div>
-        <SegmentedControl
-          :options="localeOptions"
-          :model-value="edition"
-          :label="t('common.language.label')"
-          @update:model-value="chooseEdition"
-        />
+        <label for="settings-edition" class="sr-only">{{ t('common.language.label') }}</label>
+        <select
+          id="settings-edition"
+          :value="edition"
+          class="w-full sm:w-1/2 bg-paper border border-[color:var(--rule)] px-3 py-2.5 font-body-curio text-[14px] text-[color:var(--ink)] focus:outline-none focus:ring-2 focus:ring-[color:var(--signal)]"
+          @change="onEditionChange"
+        >
+          <option v-for="option in localeOptions" :key="option.value" :value="option.value" :lang="option.lang">
+            {{ option.label }}
+          </option>
+        </select>
         <p class="kicker mt-3">{{ t('settings.edition.hint') }}</p>
       </section>
 
@@ -288,7 +293,7 @@ import { useLocale } from '@/composables/useLocale'
 import { useTopicLabels } from '@/composables/useTopicLabels'
 import { useTopicSelection } from '@/composables/useTopicSelection'
 import { api } from '@/services/api'
-import type { Locale } from '@/i18n'
+import { isLocale, type Locale } from '@/i18n'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import PageMasthead from '@/components/ui/PageMasthead.vue'
@@ -316,8 +321,8 @@ const themeOptions = computed<Array<{ value: ThemePreference; label: string }>>(
 
 // Edition (English / Korean) for the ACCOUNT. Picking one flips the UI locale at
 // once (useLocale) AND saves the digest/quiz/email language to /user/preferences.
-// The masthead and sidebar toggles change only what is on screen, so the active
-// radio reflects the SAVED account edition, falling back to the UI locale until
+// The masthead and sidebar menus change only what is on screen, so the selected
+// option reflects the SAVED account edition, falling back to the UI locale until
 // preferences have loaded.
 const { locale, setLocale } = useLocale()
 const localeOptions = computed<Array<{ value: Locale; label: string; lang: Locale }>>(() => [
@@ -339,6 +344,12 @@ const chooseEdition = async (value: Locale) => {
     userStore.language = previous
     error(getApiErrorMessage(err, t('settings.edition.saveFailed')))
   }
+}
+const onEditionChange = async (event: Event) => {
+  const select = event.target as HTMLSelectElement
+  if (isLocale(select.value)) await chooseEdition(select.value)
+  // A failed save rolls `edition` back; re-sync the DOM, which already moved.
+  select.value = edition.value
 }
 
 const fullName = ref('')

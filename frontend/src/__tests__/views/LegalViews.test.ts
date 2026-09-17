@@ -55,12 +55,12 @@ describe('Legal views editions', () => {
     expect(w.text()).toContain('© 2026 Curio')
   })
 
-  it('Privacy re-renders in Korean when the masthead toggle is clicked', async () => {
+  it('Privacy re-renders in Korean when picked from the masthead dropdown', async () => {
     const w = mountView(PrivacyView)
-    const toggle = w.get('header button')
-    expect(toggle.text()).toBe('한국어')
+    const current = () => w.get('header span[lang]').text()
+    expect(current()).toBe('English')
 
-    await toggle.trigger('click')
+    await w.get('header select').setValue('ko')
     expect(i18n.global.locale.value).toBe('ko')
     expect(w.get('h1').text()).toBe('개인정보 처리방침')
     expect(w.text()).toContain('— AI 모델 뉴스 일간지')
@@ -73,7 +73,7 @@ describe('Legal views editions', () => {
     expect(w.get('.legal-body a[href="/contact"]').text()).toBe('문의하기')
     expect(w.text()).toContain(NOTICE)
     expect(w.findAll('footer a').map((a) => a.text())).toEqual(['개인정보 처리방침', '이용약관', '문의', EMAIL])
-    expect(toggle.text()).toBe('English')
+    expect(current()).toBe('한국어')
   })
 
   it('Terms renders both editions with the same section structure', async () => {
@@ -133,7 +133,7 @@ describe('Legal views editions', () => {
       'Want to stop emails? Use the unsubscribe link at the bottom of any digest, or turn delivery off in your settings — no need to email us.'
     )
 
-    await w.get('header button').trigger('click')
+    await w.get('header select').setValue('ko')
     expect(w.get('h1').text()).toBe('연락하기')
     expect(w.text()).not.toContain('최종 수정')
     expect(w.get('.legal-body p strong').text()).toBe('이상명(Sangmyeong Lee)')

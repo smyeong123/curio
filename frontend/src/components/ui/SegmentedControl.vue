@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts" generic="T extends string">
-// A one-of-N choice rendered as a row of equal cells (Lights, Edition). Exposed
+// A one-of-N choice rendered as a row of equal cells (Settings → Lights). Exposed
 // to assistive tech as a radiogroup named by the screen-reader-only legend;
 // the visible section heading sits outside.
 

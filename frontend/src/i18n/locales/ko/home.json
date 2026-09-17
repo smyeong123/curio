@@ -7,12 +7,12 @@
   "ticker": {
     "breaking": "속보",
     "lines": [
-      "Anthropic, 확장 추론 출시 · Claude의 도구 사용 세션이 더 길어졌어요",
-      "OpenAI, GPT 가격 조정 · Realtime API 지연 시간 하한 인하",
+      "Anthropic, 확장 추론 출시 · Claude 도구 사용 세션 더 길어져",
+      "OpenAI, GPT 가격 조정 · Realtime API 최소 지연 시간 단축",
       "Mistral, 24B 오픈 모델 공개 — 초기 벤치마크 정리",
-      "DeepSeek-V4, Hugging Face 등장 — 먼저 해볼 다섯 가지",
+      "DeepSeek-V4, Hugging Face 공개 — 먼저 써 볼 다섯 가지",
       "브라우저 에이전트, WebArena 80% 돌파 — 새 평가 결과",
-      "Gemini 멀티모달: 비디오 토큰 단가, 하룻밤 새 절반으로"
+      "Gemini 멀티모달, 비디오 토큰 단가 하룻밤 새 절반으로"
     ]
   },
   "masthead": {
@@ -25,81 +25,81 @@
     "headline": "{coffee}보다 먼저, {curated} AI 소식.",
     "curated": "골라 담은",
     "coffee": "커피",
-    "lede": "매일 아침 08:00, Curio가 연구소 블로그와 가격 페이지, 릴리스 노트와 벤치마크 차트를 읽고 정말 중요한 AI 모델 소식만 5분짜리 브리핑으로 정리해 드려요. 그리고 퀴즈로 되짚어요. 저희도 읽은 걸 다 기억한다고는 못 하니까요.",
-    "cta": "내일 자 에디션 읽기",
+    "lede": "매일 아침 08:00, Curio가 AI 연구소 블로그와 가격 페이지, 릴리스 노트, 벤치마크 차트를 대신 읽고 꼭 알아야 할 AI 모델 소식만 5분 분량으로 정리해 드려요. 다 읽고 나면 퀴즈로 한 번 더 짚어 드려요. 읽은 걸 전부 기억하기는 저희도 어렵거든요.",
+    "cta": "내일 아침부터 받아보기",
     "signIn": "로그인",
     "fineprint": "무료 · 하루 5분 · 언제든 구독 해지",
     "stats": {
-      "topics": "토픽, 모델 단위로",
-      "minutes": "에디토리얼 브리핑, 매일",
+      "topics": "모델별 관심 주제",
+      "minutes": "매일 아침 브리핑",
       "min": "분",
-      "quiz": "퀴즈, 기억에 남도록"
+      "quiz": "기억에 남는 퀴즈"
     }
   },
   "sample": {
     "stamp": "내일 · 08:00",
-    "kicker": "샘플 에디션 · Vol. {vol}",
-    "headline": "당신이 {asleep} 사이에 나온 것들.",
+    "kicker": "미리 보기 · Vol. {vol}",
+    "headline": "{asleep} 사이에 나온 소식.",
     "asleep": "잠든",
-    "then": "그다음: 다섯 문제",
+    "then": "이어서 퀴즈 5문제",
     "quizLink": "/quiz →",
     "stories": [
       {
         "topic": "Claude (Anthropic)",
-        "title": "Anthropic, 장기 도구 사용을 기본값으로 전환",
-        "dek": "API에서 무엇이 바뀌었는지 — 그리고 대부분의 팀이 켜고 싶어 할 설정 하나."
+        "title": "Anthropic, 장시간 도구 사용 기본 활성화",
+        "dek": "API에서 달라진 점과, 대부분의 팀이 켜 두면 좋을 설정 하나."
       },
       {
         "topic": "신규 & 신흥 모델",
-        "title": "새 오픈 MoE 모델, 초기 수치부터 강세",
-        "dek": "누가 냈고, 얼마나 크고, 기존 강자들과 견줘 어디쯤인지."
+        "title": "새 오픈 MoE 모델, 초기 벤치마크서 강세",
+        "dek": "누가 공개했는지, 규모는 어떤지, 기존 강자들과 비교하면 어느 수준인지."
       },
       {
-        "topic": "가격 & 제공 현황",
-        "title": "또 한 번의 API 가격 인하로 비용표가 재편됐어요",
-        "dek": "새 백만 토큰당 단가를 지난달과 나란히 놓고 봤어요."
+        "topic": "가격 & 출시 현황",
+        "title": "API 가격 또 인하, 비용 구도 재편",
+        "dek": "100만 토큰당 새 단가를 지난달과 나란히 비교했어요."
       }
     ]
   },
   "method": {
-    "kicker": "섹션 II — 제작 방식",
+    "kicker": "섹션 II — 만드는 방식",
     "headline": "뉴스룸처럼 만들고, {tail}",
-    "tail": "뉴스레터처럼 배달해요.",
-    "body": "모아 붙이지 않아요. Anthropic, OpenAI, DeepMind, Meta AI, Mistral, Hugging Face의 1차 발표를 직접 요약해, 당신이 고른 토픽에 맞춘 한 편의 에디션으로 엮어요. 매일 아침 세 단계, 원하는 만큼 오래.",
-    "chapter": "장",
+    "tail": "뉴스레터처럼 전해요.",
+    "body": "기사를 긁어모으기만 하지 않아요. Anthropic, OpenAI, DeepMind, Meta AI, Mistral, Hugging Face가 직접 발표한 내용을 요약해, 내가 고른 주제에 맞춘 한 편의 다이제스트로 엮어요. 매일 아침, 세 단계로요.",
+    "chapter": "단계",
     "steps": [
       {
-        "title": "토픽을 고르세요",
-        "body": "Claude, GPT, Gemini, Llama, 에이전트 프레임워크, 벤치마크 등 모델 단위 토픽 18개 중에서 고르세요. 최소 세 개. 언제든 바꿀 수 있어요."
+        "title": "관심 주제 고르기",
+        "body": "Claude, GPT, Gemini, Llama, 에이전트 프레임워크, 벤치마크 등 모델별 주제 18개 중 3개 이상 골라요. 주제는 언제든 바꿀 수 있어요."
       },
       {
-        "title": "06:00까지 편집해요",
-        "body": "Curio가 1차 피드와 연구소 블로그를 훑고, Claude Sonnet에게 수석 편집자처럼 요약을 맡긴 뒤, 당신의 토픽에 맞춘 한 호를 마감해요."
+        "title": "06:00까지 편집",
+        "body": "Curio가 공식 발표와 연구소 블로그를 훑고, Claude Sonnet이 베테랑 편집자처럼 요약해 내 주제에 맞춘 한 호를 완성해요."
       },
       {
-        "title": "08:00에 읽으세요",
-        "body": "받은편지함으로 5분 브리핑. 웹에서 다섯 문제 퀴즈. 무엇을 기억하고 무엇을 다시 봐야 하는지 추적해요."
+        "title": "08:00에 받아 읽기",
+        "body": "받은편지함에서 5분짜리 브리핑을 읽고, 웹에서 5문제 퀴즈를 풀어요. 기억한 내용과 다시 볼 내용은 Curio가 기록해 둬요."
       }
     ]
   },
   "beat": {
-    "kicker": "섹션 III — 취재 대상",
-    "headline": "우리가 {cover} 연구소들.",
-    "cover": "다루는",
-    "body": "Anthropic, OpenAI, DeepMind, xAI, Meta AI, DeepSeek, Alibaba, Mistral — 그리고 에이전트 진영(Cursor, Devin, Claude Code, browser-use)까지. 원하는 토픽만 고르고 나머지는 버리세요.",
-    "pickYours": "토픽 고르기 →"
+    "kicker": "섹션 III — 취재 범위",
+    "headline": "매일 {cover} AI 연구소.",
+    "cover": "살피는",
+    "body": "Anthropic, OpenAI, DeepMind, xAI, Meta AI, DeepSeek, Alibaba, Mistral은 물론, Cursor, Devin, Claude Code, browser-use 같은 에이전트 도구까지 다뤄요. 필요한 주제만 골라 받아보세요.",
+    "pickYours": "주제 고르기 →"
   },
   "quote": {
     "kicker": "우리의 약속",
-    "text": "“어제 AI에서 중요했던 모든 것을 — {br} 탭 쉰 개가 아니라 {minutes}에.”",
+    "text": "“어제 AI 업계에서 중요했던 소식을 전부, {br} 탭 50개 대신 {minutes} 만에.”",
     "minutes": "5분",
     "attribution": "— Curio 편집부"
   },
   "subscribe": {
     "kicker": "구독",
-    "headline": "내일 자 {edition}을 읽으세요.",
-    "edition": "에디션",
-    "body": "테스트 기간 동안 무료예요 — 전체 아카이브, 모든 토픽, 2026년 7월까지 매일 에디션, 카드 등록 없이. 추가 기능이 담긴 유료 플랜은 8–9월에 찾아와요.",
+    "headline": "내일 아침, {edition}을 받아보세요.",
+    "edition": "첫 브리핑",
+    "body": "테스트 기간인 2026년 7월까지는 무료예요. 카드 등록 없이 전체 아카이브와 모든 주제, 매일 오는 다이제스트를 이용할 수 있어요. 추가 기능이 담긴 유료 플랜은 8–9월에 선보일 예정이에요.",
     "startFree": "무료로 시작하기",
     "signIn": "로그인"
   },

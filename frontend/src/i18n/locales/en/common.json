@@ -7,9 +7,9 @@
   },
   "language": {
     "label": "Edition",
+    "select": "Language",
     "en": "English",
-    "ko": "한국어",
-    "switchTo": "Switch to {language}"
+    "ko": "한국어"
   },
   "actions": {
     "back": "Go back",

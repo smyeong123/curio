@@ -499,9 +499,37 @@
   word-break: keep-all;
   overflow-wrap: break-word;
 }
+/* Hangul fills the em box — a Noto Serif KR syllable stands ~0.97em tall where
+   Fraunces lowercase sits at ~0.44em — so at the same px size the Korean
+   edition reads a size or two larger. font-size-adjust scales every face by
+   (value ÷ that face's own x-height ratio) and works on the computed size, so
+   each clamp()/px size utility follows without per-view overrides:
+     body      0.5       → Inter Tight ×0.92, Noto Sans KR ×0.92
+     headline  0.4       → Fraunces ×0.92, Noto Serif KR ×0.78
+     serif     from-font → Fraunces ×1, Noto Serif KR ×0.85 (titles, inputs at body size)
+     mono      none      → labels are already small; only their tracking changes.
+   The value inherits, so every font-family class states its own. */
+/* Every serif input sets its placeholder in the body face (placeholder:font-body-curio). */
+:root:lang(ko),
+:root:lang(ko) :is(.font-body, .font-body-curio),
+:root:lang(ko) ::placeholder {
+  font-size-adjust: 0.5;
+}
+:root:lang(ko) .font-display {
+  font-size-adjust: from-font;
+}
+:root:lang(ko) .display-headline,
+:root:lang(ko) .dropcap::first-letter {
+  font-size-adjust: 0.4;
+}
+:root:lang(ko) :is(.font-mono, .font-mono-curio, .kicker, .num-tab, .btn-editorial, .btn-editorial-ghost, .deco-num) {
+  font-size-adjust: none;
+}
+/* line-height resolves against the unadjusted size, so 1.02 already gives the
+   shrunken syllables ~1.3× leading. */
 :root:lang(ko) .display-headline {
   letter-spacing: -0.01em;
-  line-height: 1.08;
+  line-height: 1.02;
 }
 :root:lang(ko) .display-headline em,
 :root:lang(ko) .display-headline .italic-display,
@@ -509,6 +537,7 @@
   font-style: normal;
   font-weight: 600;
 }
-:root:lang(ko) .kicker {
-  letter-spacing: 0.08em;
+/* Wide Latin small-caps tracking pulls Hangul syllables apart ("로 그 인"). */
+:root:lang(ko) :is(.font-mono, .font-mono-curio, .kicker, .btn-editorial, .btn-editorial-ghost):not(.num-tab) {
+  letter-spacing: 0.04em;
 }

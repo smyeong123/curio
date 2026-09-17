@@ -3,13 +3,13 @@
     "title": "Curio — AI 모델 뉴스 일간지",
     "tagline": "— AI 모델 뉴스 일간지",
     "loading": "Curio 불러오는 중",
-    "opening": "오늘의 에디션을 펼치는 중…"
+    "opening": "오늘 자 신문을 펼치는 중…"
   },
   "language": {
     "label": "언어",
+    "select": "언어 선택",
     "en": "English",
-    "ko": "한국어",
-    "switchTo": "{language}로 전환"
+    "ko": "한국어"
   },
   "actions": {
     "back": "뒤로 가기",
@@ -29,9 +29,9 @@
     "details": "오류 상세"
   },
   "notFound": {
-    "kicker": "— 인쇄되지 않은 면 —",
-    "headline": "그 {page}는 찾을 수 없어요.",
+    "kicker": "— 지면에 없는 기사 —",
+    "headline": "{page}를 찾을 수 없어요.",
     "page": "페이지",
-    "body": "찾으시는 기사는 인쇄되지 않았거나 이미 재활용됐어요. 1면으로 돌아가 보세요."
+    "body": "찾으시는 기사는 지면에 실리지 않았거나 이미 내려갔어요. 1면으로 돌아가 보세요."
   }
 }

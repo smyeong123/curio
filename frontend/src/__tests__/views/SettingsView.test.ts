@@ -33,20 +33,15 @@ const mountSettings = () =>
     }
   })
 
-// A SegmentedControl is named by its screen-reader legend (aria-labelledby).
-const radioGroup = (wrapper: ReturnType<typeof mountSettings>, label: string) => {
-  const legend = wrapper.findAll('legend').find((l) => l.text() === label)!
-  return wrapper.findAll('[role="radiogroup"]').find((g) => g.attributes('aria-labelledby') === legend.attributes('id'))!
-}
-const editionRadios = (wrapper: ReturnType<typeof mountSettings>, label: string) =>
-  radioGroup(wrapper, label).findAll('[role="radio"]')
+// The Edition dropdown, named by its screen-reader-only <label>.
+const editionSelect = (wrapper: ReturnType<typeof mountSettings>) => wrapper.get('select#settings-edition')
 
 describe('SettingsView editions', () => {
   beforeEach(() => {
     i18n.global.locale.value = 'en'
   })
 
-  it('renders the English edition with numbered sections and the Edition selector', async () => {
+  it('renders the English edition with numbered sections and the Edition dropdown', async () => {
     const w = mountSettings()
     await flushPromises()
 
@@ -64,37 +59,39 @@ describe('SettingsView editions', () => {
     expect(text).toContain('Frontier Labs')
     expect(text).toContain('Update preferences')
 
-    const radios = editionRadios(w, 'Edition')
-    expect(radios.map((r) => r.attributes('lang'))).toEqual(['en', 'ko'])
-    expect(radios.map((r) => r.attributes('aria-checked'))).toEqual(['true', 'false'])
-    expect(radios[0]!.text()).toBe('English')
-    expect(radios[1]!.text()).toBe('한국어')
+    expect(w.get('label[for="settings-edition"]').text()).toBe('Edition')
+    const select = editionSelect(w)
+    expect((select.element as HTMLSelectElement).value).toBe('en')
+    expect(select.findAll('option').map((o) => [o.attributes('lang'), o.text()])).toEqual([
+      ['en', 'English'],
+      ['ko', '한국어']
+    ])
   })
 
   it('switches to the Korean edition from the Edition section and persists the choice', async () => {
     const w = mountSettings()
     await flushPromises()
 
-    await w.get('[role="radio"][lang="ko"]').trigger('click')
+    await editionSelect(w).setValue('ko')
     expect(i18n.global.locale.value).toBe('ko')
     expect(localStorage.setItem).toHaveBeenCalledWith(LOCALE_STORAGE_KEY, 'ko')
 
-    expect(w.get('h1').text()).toBe('나의 설정.')
+    expect(w.get('h1').text()).toBe('내 설정.')
     const text = w.text()
     expect(text).toContain('§ III — 언어')
     expect(text).toContain('§ IV — 비밀번호')
-    expect(text).toContain('내 기기의 시간대를 자동으로 사용')
-    expect(text).toContain('시스템은 기기 설정을 따라요')
+    expect(text).toContain('기기 시간대 자동 적용')
+    expect(text).toContain('시스템을 고르면 기기 설정을 따라가요')
     expect(text).toContain('3개 선택')
-    expect(text).toContain('프런티어 랩')
-    expect(text).toContain('토픽 저장')
+    expect(text).toContain('프런티어 연구소')
+    expect(text).toContain('관심 주제 저장')
     expect(text).not.toContain('Frontier Labs')
 
-    const radios = editionRadios(w, '언어')
-    expect(radios.map((r) => r.attributes('aria-checked'))).toEqual(['false', 'true'])
+    expect(w.get('label[for="settings-edition"]').text()).toBe('언어')
+    expect((editionSelect(w).element as HTMLSelectElement).value).toBe('ko')
 
     // Switching back restores the English copy byte-for-byte.
-    await w.get('[role="radio"][lang="en"]').trigger('click')
+    await editionSelect(w).setValue('en')
     expect(w.get('h1').text()).toBe('Your settings.')
     expect(w.text()).toContain('§ III — Edition')
   })

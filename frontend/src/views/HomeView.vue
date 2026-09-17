@@ -45,10 +45,10 @@
           <span class="kicker hidden sm:inline">{{ t('common.app.tagline') }}</span>
         </router-link>
         <nav class="flex items-center gap-1 sm:gap-2">
-          <LanguageToggle class="px-2 sm:px-3 py-2 text-[13px]" />
+          <LanguageSelect class="px-1 sm:px-3 py-2 text-[13px]" />
           <router-link
             to="/login"
-            class="whitespace-nowrap px-2 sm:px-3 py-2 text-[13px] font-mono-curio uppercase tracking-[0.14em] text-[color:var(--mute)] hover:text-[color:var(--ink)] transition-colors"
+            class="whitespace-nowrap px-1 sm:px-3 py-2 text-[13px] font-mono-curio uppercase tracking-[0.14em] text-[color:var(--mute)] hover:text-[color:var(--ink)] transition-colors"
           >
             {{ t('home.masthead.signIn') }}
           </router-link>
@@ -272,7 +272,7 @@
           <p class="kicker">{{ t('home.footer.tagline', { vol: volumeLabel }) }}</p>
         </div>
         <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px] font-mono-curio uppercase tracking-[0.14em] text-[color:var(--mute)]">
-          <LanguageToggle />
+          <LanguageSelect />
           <router-link to="/login" class="hover:text-[color:var(--ink)]">{{ t('home.footer.signIn') }}</router-link>
           <router-link to="/register" class="hover:text-[color:var(--ink)]">{{ t('home.footer.subscribe') }}</router-link>
           <router-link to="/privacy" class="hover:text-[color:var(--ink)]">{{ t('home.footer.privacy') }}</router-link>
@@ -292,7 +292,7 @@ import { useI18n } from 'vue-i18n'
 import { useFormat } from '@/composables/useFormat'
 import { useTopicLabels } from '@/composables/useTopicLabels'
 import { ALL_TOPICS } from '@/data/topics'
-import LanguageToggle from '@/components/ui/LanguageToggle.vue'
+import LanguageSelect from '@/components/ui/LanguageSelect.vue'
 
 const { t, tm, rt } = useI18n()
 const { formatDate } = useFormat()
