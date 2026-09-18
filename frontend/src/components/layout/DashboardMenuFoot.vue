@@ -1,6 +1,6 @@
 <template>
   <div class="border-t border-[color:var(--rule)] p-4 space-y-2">
-    <LanguageToggle variant="switch" />
+    <LanguageSelect variant="row" />
     <button
       class="w-full flex items-center justify-between px-3 py-2 border border-[color:var(--rule)] hover:bg-paper-deep transition-colors"
       :aria-pressed="isDark"
@@ -28,7 +28,7 @@
 // Edition + theme switches and sign-out, at the foot of both menus.
 
 import { useI18n } from 'vue-i18n'
-import LanguageToggle from '@/components/ui/LanguageToggle.vue'
+import LanguageSelect from '@/components/ui/LanguageSelect.vue'
 
 defineProps<{ isDark: boolean }>()
 const emit = defineEmits<{ 'toggle-theme': []; 'sign-out': [] }>()

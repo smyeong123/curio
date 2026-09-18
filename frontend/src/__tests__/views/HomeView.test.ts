@@ -27,20 +27,20 @@ describe('HomeView editions', () => {
     expect(w.findAll('.ticker-track > span').length).toBe(12)
   })
 
-  it('re-renders in Korean when the masthead toggle is clicked', async () => {
+  it('re-renders in Korean when picked from the masthead dropdown', async () => {
     const w = mountHome()
-    const toggle = w.get('header nav button')
-    expect(toggle.text()).toBe('한국어')
+    const current = () => w.get('header nav span[lang]').text()
+    expect(current()).toBe('English')
 
-    await toggle.trigger('click')
+    await w.get('header nav select').setValue('ko')
     expect(i18n.global.locale.value).toBe('ko')
     expect(w.get('h1').text()).toBe('커피보다 먼저, 골라 담은 AI 소식.')
     expect(w.get('h1 em').text()).toBe('커피')
-    expect(w.text()).toContain('내일 자 에디션 읽기')
+    expect(w.text()).toContain('내일 아침부터 받아보기')
     expect(w.text()).toContain('추론 & 컨텍스트')
     expect(w.text()).toContain('Curio 편집부')
     expect(w.findAll('.ticker-track > span')[0]!.text()).toContain('Anthropic, 확장 추론 출시')
-    expect(w.findAll('ol li h3')[0]!.text()).toBe('토픽을 고르세요')
-    expect(toggle.text()).toBe('English')
+    expect(w.findAll('ol li h3')[0]!.text()).toBe('관심 주제 고르기')
+    expect(current()).toBe('한국어')
   })
 })

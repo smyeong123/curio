@@ -82,7 +82,7 @@ describe('BeatFilter', () => {
   it('renders its chrome in the Korean edition', () => {
     i18n.global.locale.value = 'ko'
     const w = mountFilter()
-    expect(w.get('button[aria-controls="beat-filter-panel"]').text()).toContain('모든 토픽')
-    expect(w.get('p.sr-only').text()).toBe('토픽 필터 없음')
+    expect(w.get('button[aria-controls="beat-filter-panel"]').text()).toContain('전체 주제')
+    expect(w.get('p.sr-only').text()).toBe('주제 필터 없음')
   })
 })

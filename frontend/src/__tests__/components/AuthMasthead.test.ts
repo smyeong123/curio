@@ -15,16 +15,15 @@ describe('AuthMasthead', () => {
     i18n.global.locale.value = 'en'
   })
 
-  it('pairs the brand with the edition toggle on paper', async () => {
+  it('pairs the brand with the language menu on paper', async () => {
     const w = mount(AuthMasthead, { global: { plugins: [router] }, attrs: { class: 'lg:hidden' } })
     expect(w.get('a').attributes('href')).toBe('/')
     expect(w.text()).toContain('Curio')
     expect(w.text()).toContain('Vol. 047')
     expect(w.element.classList.contains('lg:hidden')).toBe(true)
 
-    const toggle = w.get('button[lang="ko"]')
-    expect(toggle.text()).toBe('한국어')
-    await toggle.trigger('click')
+    expect(w.get('span[lang]').text()).toBe('English')
+    await w.get('select').setValue('ko')
     expect(i18n.global.locale.value).toBe('ko')
     expect(w.text()).toContain('Vol. 047')
   })
@@ -32,7 +31,7 @@ describe('AuthMasthead', () => {
   it('renders the brand alone on the ink aside', () => {
     const w = mount(AuthMasthead, { props: { onInk: true }, global: { plugins: [router] } })
     expect(w.element.tagName).toBe('A')
-    expect(w.find('button').exists()).toBe(false)
+    expect(w.find('select').exists()).toBe(false)
     expect(w.text()).toContain('Vol. 047')
     expect(w.get('.kicker').attributes('style')).toContain('var(--paper)')
   })

@@ -68,14 +68,6 @@ describe('useLocale', () => {
     expect(document.title).toBe('Curio — AI 모델 뉴스 일간지')
   })
 
-  it('toggles between the two editions', async () => {
-    const { locale, toggleLocale } = useLocale()
-    toggleLocale()
-    expect(locale.value).toBe('ko')
-    toggleLocale()
-    expect(locale.value).toBe('en')
-  })
-
   it('syncDocumentLocale reflects the current edition', () => {
     syncDocumentLocale()
     expect(document.documentElement.lang).toBe('en')

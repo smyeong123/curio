@@ -28,7 +28,7 @@
   },
   "edition": {
     "kicker": "§ III — Edition",
-    "hint": "Sets the language of your daily digest, quiz and email — and of the app. The switch in the sidebar changes only what you see on screen.",
+    "hint": "Sets the language of your daily digest, quiz and email — and of the app. The language menu in the sidebar changes only what you see on screen.",
     "saved": "Digest language saved",
     "saveFailed": "Could not save the digest language"
   },

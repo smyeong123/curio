@@ -202,7 +202,7 @@ curio/
 │       │   └── useToast.ts
 │       ├── types/                   # user.ts, news.ts, quiz.ts, studio.ts, admin.ts, page.ts (SpringPage<T>), google-identity.d.ts
 │       ├── components/
-│       │   ├── ui/                  # BaseButton, BaseInput, BaseModal, BaseSpinner, ToastContainer, AppIcon, LanguageToggle,
+│       │   ├── ui/                  # BaseButton, BaseInput, BaseModal, BaseSpinner, ToastContainer, AppIcon, LanguageSelect,
 │       │   │                        # PageMasthead, ErrorState, PagerNav, SegmentedControl
 │       │   ├── auth/                # LoginForm, RegisterForm, AuthMasthead, AuthColophon, MailSentPanel
 │       │   ├── layout/              # DashboardLayout, DashboardMenu, DashboardMenuFoot, LegalLayout
@@ -762,7 +762,7 @@ All 37 frontend API calls (across the `auth`, `user`, `apiKeys`, `news`, `quiz`,
 
 ### Components
 
-**UI (11):** `BaseButton`, `BaseInput`, `BaseModal`, `BaseSpinner`, `ToastContainer`, `AppIcon` (inline stroke SVG icons; 8 names, every one rendered somewhere), `LanguageToggle` (edition switch — `link` variant for mastheads/footers, `switch` variant for the sidebar foot), `PageMasthead` (kicker + `<i18n-t>` headline with an emphasised word; `display`/`compact` sizes), `ErrorState` (kicker/headline/body + retry), `PagerNav` (newer/older pager; `counterKeypath` picks the "page X of Y" copy so admin and archive share it), `SegmentedControl` (`defineModel` radiogroup with one `label`, used by the Settings edition/theme pickers and onboarding)
+**UI (11):** `BaseButton`, `BaseInput`, `BaseModal`, `BaseSpinner`, `ToastContainer`, `AppIcon` (inline stroke SVG icons; 8 names, every one rendered somewhere), `LanguageSelect` (edition dropdown — a native `<select>` overlaid invisibly on a styled label; `inline` variant for mastheads/footers, shrinking to the EN / KO code below `sm`, `row` variant for the sidebar foot), `PageMasthead` (kicker + `<i18n-t>` headline with an emphasised word; `display`/`compact` sizes), `ErrorState` (kicker/headline/body + retry), `PagerNav` (newer/older pager; `counterKeypath` picks the "page X of Y" copy so admin and archive share it), `SegmentedControl` (`defineModel` radiogroup with one `label`, used by the Settings theme picker)
 
 **Auth (5):** `LoginForm`, `RegisterForm`, `AuthMasthead` (shared auth-page header with the edition link), `AuthColophon` (the dated ink-aside row under the auth forms), `MailSentPanel` ("check your inbox" state for reset/verify)
 
@@ -789,7 +789,7 @@ All 37 frontend API calls (across the `auth`, `user`, `apiKeys`, `news`, `quiz`,
 | `useToast()` | Active | Module-level singleton. Used throughout views for notifications. |
 | `useEnsureTimezone()` | Active | Captures/re-syncs the device timezone on authenticated app entry (wired in `DashboardLayout`) for timezone auto-follow. |
 | `useTheme()` | Active | Light/dark theme state + toggle. |
-| `useLocale()` | Active | Edition state (`en` \| `ko`): `locale`, `intlLocale` (BCP-47 for Intl), `setLocale`, `toggleLocale`. Persists only on explicit choice; keeps `<html lang>` + `document.title` in sync. |
+| `useLocale()` | Active | Edition state (`en` \| `ko`): `locale`, `intlLocale` (BCP-47 for Intl), `locales`, `setLocale`. Persists only on explicit choice; keeps `<html lang>` + `document.title` in sync. |
 | `useTopicLabels()` | Active | `topicLabel(name)`, `groupName(l1\|l2)`, `groupDescription(l1)` — render-time labels for the canonical topic taxonomy. |
 | `useFocusTrap()` | Active | Traps focus within modals/drawers for keyboard accessibility. |
 | `useFocusOnEnter()` | Active | Moves focus to a target element on mount/enter. |
@@ -801,12 +801,12 @@ All 37 frontend API calls (across the `auth`, `user`, `apiKeys`, `news`, `quiz`,
 
 ### Internationalization (i18n)
 
-The UI ships in two editions, **English (default) and Korean**, via **vue-i18n v11** (composition mode). Digest *content* (headlines, TL;DRs, quiz questions) and the daily email are written by the backend in the **account's edition** (`user_preferences.language`, set at onboarding from the UI locale and in Settings → Edition) — a separate, server-side choice from the device-level UI locale. The Settings selector sets both; the masthead/sidebar toggles change only the UI.
+The UI ships in two editions, **English (default) and Korean**, via **vue-i18n v11** (composition mode). Digest *content* (headlines, TL;DRs, quiz questions) and the daily email are written by the backend in the **account's edition** (`user_preferences.language`, set at onboarding from the UI locale and in Settings → Edition) — a separate, server-side choice from the device-level UI locale. The Settings dropdown sets both; the masthead/sidebar dropdowns change only the UI.
 
 - **Catalogs:** `src/i18n/locales/<en|ko>/<namespace>.json`, auto-discovered by `import.meta.glob` in `src/i18n/index.ts` and exposed as `t('<namespace>.<key>')`. Namespaces map to feature areas (`common`, `home`, `layout`, `topics`, `auth`, `archive`, `quiz`, `settings`, `studio`, `onboarding`, `admin`, `legal`). Both editions must ship the same key tree — `src/__tests__/i18n/useLocale.test.ts` asserts it. `fallbackLocale: 'en'` is a safety net, not a plan.
 - **Detection order:** explicit choice in `localStorage['curio:locale']` → `navigator.languages` (first `en`/`ko` match) → `en`. A browser-detected locale is never written to storage; only `setLocale()` persists.
 - **Document sync:** `useLocale.ts` stamps `<html lang>` and `document.title` at boot (`main.ts` calls `syncDocumentLocale()` before mount, like the stored-theme pre-paint) and on every switch. `:lang(ko)` CSS and the Noto KR font fallbacks key off that attribute.
-- **Switch points:** `LanguageToggle` in the landing masthead + footer, auth-page mastheads, `LegalLayout` header, the dashboard sidebar/drawer foot (next to Lights), and a radiogroup in Settings.
+- **Switch points:** `LanguageSelect` dropdown in the landing masthead + footer, auth-page mastheads, `LegalLayout` header, the onboarding strip, the dashboard sidebar/drawer foot (next to Lights), and a plain `<select>` in Settings → Edition.
 - **Topic taxonomy:** names in `data/topics.ts` are canonical ids (stored in `user_preferences.topics`, carried in digest JSON) — never translated at the data layer. `useTopicLabels()` maps them at render time from `topics.json` (`leaves` keyed by canonical name, `groups` keyed by L1/L2 id).
 - **Locale-sensitive formatting:** views pass `intlLocale` (`en-US` / `ko-KR`) to `toLocale*String` instead of a hard-coded `'en-US'`.
 - **Message-format gotchas:** vue-i18n compiles every string — `{name}` interpolates, `|` splits plural forms, `@` starts a linked message; a literal `@`/`|` must be written `{'@'}` / `{'|'}`. Inline markup inside a sentence goes through `<i18n-t scope="global">` with named slots.
@@ -824,7 +824,7 @@ The design system is an editorial "newsprint" theme, not the old indigo/Manrope 
 
 - **Tailwind CSS v4**, imported via `@import "tailwindcss"` in `src/assets/styles/main.css` (loaded by `main.ts`). Design tokens live in an `@theme inline` block that maps Tailwind color utilities (`bg-paper`, `text-ink`, `text-signal`, …) onto runtime CSS variables, so the palette flips between light and dark by redefining those variables under `:root[data-theme='dark']` / `:root.dark` (kept in sync by `useTheme.ts`).
 - **Palette:** warm paper (`--paper #f3ede1`) / ink (`--ink #14130f`) neutrals with a signal-orange accent (`--signal #ff4a1c`) and a leaf green — no indigo primary. Components use these editorial tokens throughout.
-- **Fonts** load from Google Fonts in `index.html`: **Fraunces** (display, `--font-display`), **Inter Tight** (body, `--font-body`), and **JetBrains Mono** (kickers/metadata, `--font-mono`), each with a **Noto Serif KR / Noto Sans KR** fallback for Hangul (served as unicode-range subsets, so English readers never download them). Unlayered `:root:lang(ko)` rules at the end of `main.css` drop the synthesized italic (Hangul has none — emphasis keeps colour and gains weight) and loosen the Latin-tuned tracking. There is no Manrope.
+- **Fonts** load from Google Fonts in `index.html`: **Fraunces** (display, `--font-display`), **Inter Tight** (body, `--font-body`), and **JetBrains Mono** (kickers/metadata, `--font-mono`), each with a **Noto Serif KR / Noto Sans KR** fallback for Hangul (served as unicode-range subsets, so English readers never download them). Unlayered `:root:lang(ko)` rules at the end of `main.css` drop the synthesized italic (Hangul has none — emphasis keeps colour and gains weight), set mono labels at a tighter 0.04em tracking, and scale Hangul down with `font-size-adjust` (Hangul fills the em box, so at equal px it reads a size or two larger than Latin): `0.5` on body text (×0.92), `0.4` on `.display-headline` (Fraunces ×0.92, Noto Serif KR ×0.78), `from-font` on other `.font-display` text (Noto Serif KR ×0.85), none on mono. Because it scales the computed size, every `clamp()`/px utility follows with no per-view overrides; each font-family class states its own value since it inherits. There is no Manrope.
 - `tailwind.config.js` (v3-style) is still present and in use for `darkMode: 'class'` and the `content` globs; its `primary #6366F1` / `secondary #F59E0B` colors are legacy leftovers that no component references.
 
 ---
@@ -966,7 +966,7 @@ The full variable reference (what each var is, why it's needed, prod-required vs
 ### Frontend Test Inventory
 
 **Unit tests (Vitest): 42 test files / 214 tests** in `src/__tests__/` (as of 2026-09-17)
-- Components: BaseButton, BaseInput, BaseModal, LoginForm, RegisterForm, QuizQuestion, QuizResults, LanguageToggle, PageMasthead, ErrorState, PagerNav, SegmentedControl, AuthMasthead, AuthColophon, DashboardLayout, DashboardMenu, ArchiveSearch, BeatFilter, DigestIssue, TaskProgress, JobCard
+- Components: BaseButton, BaseInput, BaseModal, LoginForm, RegisterForm, QuizQuestion, QuizResults, LanguageSelect, PageMasthead, ErrorState, PagerNav, SegmentedControl, AuthMasthead, AuthColophon, DashboardLayout, DashboardMenu, ArchiveSearch, BeatFilter, DigestIssue, TaskProgress, JobCard
 - Views (both editions — each mounts in English, switches to Korean, asserts translated copy and unchanged English): HomeView, LoginView, ArchiveView, SettingsView, StatsView, LegalViews, StudioView, AdminDashboardView
 - Stores: Pinia store tests (auth, user, news, quiz)
 - Composables / i18n: `useToast`, `useTopicLabels`, `useFormat`, `usePoller`, `usePagedAdminList`, `useTopicSelection`, `useDisclosureSet`, `useLocale` + catalog key-tree parity (every key in `en` exists in `ko` and vice versa)
@@ -984,7 +984,7 @@ The full variable reference (what each var is, why it's needed, prod-required vs
 | `not-found.cy.ts` | 404 catchall route, navigation |
 | `admin.cy.ts` | Admin dashboard, users list, user detail, stats, digest browser, audit log |
 | `reset-password.cy.ts` | Password reset flow |
-| `i18n.cy.ts` | Edition switch from the landing masthead and dashboard sidebar, `<html lang>` + title, persistence across reload and routes |
+| `i18n.cy.ts` | Edition dropdown in the landing masthead and dashboard sidebar, `<html lang>` + title, persistence across reload and routes |
 | `ui-screenshots.cy.ts` | Visual screenshots (7 pages desktop, 3 mobile) -- no assertions, screenshot capture only |
 
 Coverage gaps and test to-dos are tracked in the private working notes (`docs-internal/CODEBASE_NOTES.md`).

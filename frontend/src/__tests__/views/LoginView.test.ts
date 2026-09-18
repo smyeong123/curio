@@ -33,23 +33,22 @@ describe('LoginView editions', () => {
     expect(w.text()).toContain('Vol. 047')
   })
 
-  it('re-renders in Korean when the masthead toggle is clicked', async () => {
+  it('re-renders in Korean when picked from the masthead dropdown', async () => {
     const w = mountLogin()
-    const toggle = w.get('section button[lang="ko"]')
-    expect(toggle.text()).toBe('한국어')
+    expect(w.get('section span[lang]').text()).toBe('English')
 
-    await toggle.trigger('click')
+    await w.get('section select').setValue('ko')
     expect(i18n.global.locale.value).toBe('ko')
     expect(w.get('h1').text()).toBe('다시 만나서 반가워요.')
     expect(w.get('h1 em').text()).toBe('만나서')
-    expect(w.get('h2').text()).toBe('당신을 위해 인쇄기가 돌고 있어요.')
+    expect(w.get('h2').text()).toBe('오늘도 윤전기가 돌아가고 있어요.')
     expect(w.text()).toContain('비밀번호를 잊으셨나요?')
     expect(w.text()).toContain('재설정하기 →')
     expect(w.text()).toContain('Google로 계속하기')
     expect(w.text()).toContain('아직 계정이 없으신가요?')
     expect(w.get('#login-email').attributes('placeholder')).toBe('you@example.com')
     expect(w.text()).toContain('Vol. 047')
-    expect(w.get('section button[lang="en"]').text()).toBe('English')
+    expect(w.get('section span[lang]').text()).toBe('한국어')
 
     // Validation copy follows the edition too.
     await w.get('form').trigger('submit')

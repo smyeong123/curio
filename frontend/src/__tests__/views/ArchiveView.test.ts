@@ -111,7 +111,7 @@ describe('ArchiveView editions', () => {
     const w = await mountArchive()
     const text = w.text()
     expect(w.get('h1').text()).toBe('오늘의 Curio.')
-    expect(text).toContain('나의 에디션')
+    expect(text).toContain('내 다이제스트')
     expect(text).toContain('보관된 호')
     expect(text).toContain('1일 중 1일째')
     expect(text).toContain('최근 7일')
@@ -123,11 +123,11 @@ describe('ArchiveView editions', () => {
     // Topic ids stay canonical in data but render through the edition's labels.
     expect(text).toContain('추론 & 컨텍스트')
     expect(text).not.toContain('Reasoning & Context')
-    expect(text).toContain('프런티어 랩')
-    expect(text).toContain('모든 토픽')
+    expect(text).toContain('프런티어 연구소')
+    expect(text).toContain('전체 주제')
     // Dates go through Intl with the Korean locale.
     expect(text).toMatch(/\d{4}년/)
-    expect(w.get('#archive-search').attributes('placeholder')).toBe('헤드라인과 스토리 검색…')
+    expect(w.get('#archive-search').attributes('placeholder')).toBe('제목이나 본문 검색…')
     // Digest content itself is English data and is left untouched.
     expect(text).toContain('Claude gains longer context windows')
   })

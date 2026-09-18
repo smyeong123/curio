@@ -8,7 +8,7 @@
           <span class="kicker hidden sm:inline">{{ t('common.app.tagline') }}</span>
         </router-link>
         <div class="flex items-center gap-4">
-          <LanguageToggle class="text-[12px]" />
+          <LanguageSelect class="text-[12px]" />
           <router-link
             to="/"
             class="text-[12px] font-mono-curio uppercase tracking-[0.14em] text-[color:var(--mute)] hover:text-[color:var(--ink)] transition-colors"
@@ -62,7 +62,7 @@
 import { computed, h, type FunctionalComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import LanguageToggle from '@/components/ui/LanguageToggle.vue'
+import LanguageSelect from '@/components/ui/LanguageSelect.vue'
 
 /**
  * Chrome + prose renderer for the legal pages. All copy lives in the `legal`

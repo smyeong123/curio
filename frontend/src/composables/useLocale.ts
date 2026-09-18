@@ -31,7 +31,5 @@ export function useLocale() {
     }
   }
 
-  const toggleLocale = () => setLocale(locale.value === 'en' ? 'ko' : 'en')
-
-  return { locale, intlLocale, locales: SUPPORTED_LOCALES, setLocale, toggleLocale }
+  return { locale, intlLocale, locales: SUPPORTED_LOCALES, setLocale }
 }
