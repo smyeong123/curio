@@ -1,0 +1,52 @@
+# TLS termination overlay using Caddy.
+# Usage:
+#   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.tls.yml up -d
+#
+# Caddy will automatically obtain certificates from Let's Encrypt for ${CURIO_DOMAIN}.
+# Requires ports 80 and 443 to be reachable from the public internet.
+# Point the A/AAAA record of your domain at this host first.
+
+services:
+  caddy:
+    image: caddy:2.8.4-alpine
+    container_name: curio-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      CURIO_DOMAIN: ${CURIO_DOMAIN:?set CURIO_DOMAIN (e.g. curio-news.dev) in .env.prod}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL for Let's Encrypt notifications}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+    networks:
+      - curio-network
+    deploy:
+      resources:
+        limits:
+          # Fits the 1 GB box budget (see docker-compose.yml). Caddy is a thin
+          # TLS terminator/reverse proxy; 64M is ample.
+          memory: ${CADDY_MEM_LIMIT:-64M}
+          cpus: "0.5"
+
+  frontend:
+    # Keep frontend reachable only on the internal docker network; remove public port binding.
+    ports: []
+
+  backend:
+    environment:
+      # This overlay inserts Caddy in front of nginx, making the proxy chain
+      # Caddy → nginx → backend = 2 hops. The rate limiter must trust 2 XFF hops
+      # from the right to key on the real client IP; with the base default of 1
+      # it would key on Caddy's (constant) container IP, collapsing every user's
+      # auth requests onto one shared bucket and letting a few requests lock out
+      # login for the whole site.
+      APP_RATE_LIMIT_TRUSTED_PROXY_HOPS: "2"
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -26,8 +26,10 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built assets
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Run as non-root
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
+# Pull Alpine security patches the upstream nginx:alpine tag hasn't picked up
+# yet (CI Trivy gate), then run as non-root
+RUN apk upgrade --no-cache && \
+    chown -R nginx:nginx /usr/share/nginx/html && \
     chown -R nginx:nginx /var/cache/nginx && \
     chown -R nginx:nginx /var/log/nginx && \
     touch /var/run/nginx.pid && \
