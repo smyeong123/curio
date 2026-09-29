@@ -1,0 +1,43 @@
+# Cloudflare-origin TLS overlay (nginx terminates TLS with a Cloudflare Origin Cert).
+#
+# Use this when the site is proxied through Cloudflare and you want the
+# Cloudflare->origin hop encrypted (Cloudflare SSL mode "Full (strict)").
+# It is an alternative to docker-compose.tls.yml (which runs Caddy + Let's
+# Encrypt); pick ONE, not both.
+#
+# Usage:
+#   docker compose --env-file .env.prod \
+#     -f docker-compose.yml -f docker-compose.cf-tls.yml up -d
+#
+# Prerequisites (see docs/DEPLOY.md "Cloudflare origin TLS"):
+#   1. Create a Cloudflare Origin Certificate (dashboard -> SSL/TLS -> Origin
+#      Server -> Create Certificate). Save the cert + key on the host as:
+#         ${TLS_CERT_DIR}/origin.pem   (certificate)
+#         ${TLS_CERT_DIR}/origin.key   (private key, chmod 600)
+#   2. Set Cloudflare SSL/TLS mode to "Full (strict)" and enable "Always Use HTTPS".
+#   3. Restrict the security group so inbound :80 and :443 accept only
+#      Cloudflare IP ranges (https://www.cloudflare.com/ips/).
+#   4. Set TLS_CERT_DIR (host path holding origin.pem/origin.key) in .env.prod.
+
+services:
+  frontend:
+    ports:
+      # Compose CONCATENATES `ports` across files, so the base service's
+      # "${FRONTEND_PORT:-80}:80" is still published — we only ADD 443 here (listing
+      # 80 again would duplicate-bind and fail). 80 is retained solely for the
+      # container healthcheck + Cloudflare-IP-restricted inbound; it must be
+      # firewalled to Cloudflare IP ranges so it's never public plaintext.
+      - "443:443"
+    volumes:
+      # Swap the baked-in non-TLS config for the TLS variant, and mount the
+      # Cloudflare Origin cert/key read-only.
+      - ./frontend/nginx-tls.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${TLS_CERT_DIR:?set TLS_CERT_DIR in .env.prod to the host dir holding origin.pem/origin.key}:/etc/nginx/tls:ro
+
+  backend:
+    environment:
+      # Proxy chain becomes Cloudflare -> nginx -> backend = 2 hops in front of
+      # the app. The rate limiter must trust 2 X-Forwarded-For hops from the
+      # right to key on the real client IP; with the base default of 1 it would
+      # key on Cloudflare's edge IP, collapsing many users onto one bucket.
+      APP_RATE_LIMIT_TRUSTED_PROXY_HOPS: "2"

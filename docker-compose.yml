@@ -1,0 +1,185 @@
+# Production / staging: full containerized stack
+# Usage: docker compose --env-file .env.prod up -d
+#
+# Memory budget — the production box is a single t3.micro (1 GB RAM + 2 GB swap).
+# Container limits are ceilings sized to fit within physical RAM with headroom:
+#   postgres 320M + redis 128M + backend 512M + frontend 64M = 1024M ceiling.
+# (The Caddy TLS overlay adds a 64M cap of its own.) Steady-state working set is
+# well under this; swap absorbs transient spikes. Override any *_MEM_LIMIT on a
+# larger host.
+
+# Cap per-container log size so the json-file driver can't fill the disk on the
+# single small box (verbose digest job + nginx access logs would otherwise grow
+# unbounded and take down the whole stack). 3 × 10MB rolled files per service.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:16.9-alpine
+    container_name: curio-postgres
+    logging: *default-logging
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - curio-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: ${POSTGRES_MEM_LIMIT:-320M}
+          cpus: "1.0"
+
+  redis:
+    image: redis:7.4.2-alpine
+    container_name: curio-redis
+    logging: *default-logging
+    restart: unless-stopped
+    # maxmemory is kept comfortably below the container limit (128M) so Redis has
+    # headroom for its own overhead before the OOM killer would step in.
+    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 96mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - curio-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: ${REDIS_MEM_LIMIT:-128M}
+          cpus: "0.5"
+
+  backend:
+    image: ${BACKEND_IMAGE:-curio-backend:latest}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: curio-backend
+    logging: *default-logging
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      # Session length in ms (sliding idle timeout). Default 3h; override in .env.prod.
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-10800000}
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY}
+      AI_PROVIDER: ${AI_PROVIDER:-claude}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      RESEND_WEBHOOK_SECRET: ${RESEND_WEBHOOK_SECRET}
+      NEWS_API_KEY: ${NEWS_API_KEY}
+      # Optional — empty disables Google login (email/password auth still
+      # works). Only the client id is needed: the backend validates Google ID
+      # tokens via tokeninfo; there is no server-side OAuth flow and no
+      # client secret involved.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      FRONTEND_URL: ${FRONTEND_URL}
+      BACKEND_URL: ${BACKEND_URL}
+      UNSUBSCRIBE_SECRET: ${UNSUBSCRIBE_SECRET}
+      API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY}
+      # Fallback delivery timezone for users with no timezone captured yet (e.g.
+      # registered before timezone capture, or never opened the app). Defaults to
+      # UTC — set APP_DEFAULT_DELIVERY_TIMEZONE=Asia/Seoul in .env.prod to give
+      # unknown-location users a local 08:00. Users with a captured/pinned zone
+      # are unaffected.
+      APP_DEFAULT_DELIVERY_TIMEZONE: ${APP_DEFAULT_DELIVERY_TIMEZONE:-UTC}
+      # Optional backend error tracking (application-prod.yml reads these;
+      # without the pass-through, setting SENTRY_DSN in .env.prod only wired
+      # up the frontend build arg below).
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-prod}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+    networks:
+      - curio-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          # The JVM is launched with -XX:MaxRAMPercentage=75 (in the backend
+          # Dockerfile ENTRYPOINT), so the heap tracks this limit: 512M → ~384M
+          # heap, leaving ~128M for metaspace/threads/code-cache. The percentage
+          # is a hard-coded command-line flag, which wins over JAVA_TOOL_OPTIONS,
+          # so the heap is capped here by lowering the container limit rather than
+          # by a conflicting env var. Bump BACKEND_MEM_LIMIT on a larger host.
+          memory: ${BACKEND_MEM_LIMIT:-512M}
+          cpus: "2.0"
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-curio-frontend:latest}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+        VITE_SENTRY_DSN: ${SENTRY_DSN:-}
+    container_name: curio-frontend
+    logging: *default-logging
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    networks:
+      - curio-network
+    depends_on:
+      # service_started (not service_healthy): nginx serves the SPA and proxies
+      # /api independently, so the site must stay up even when the backend is
+      # briefly unhealthy (restart, slow health blip). A hard health gate here
+      # would take the whole site down on any backend hiccup.
+      backend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: ${FRONTEND_MEM_LIMIT:-64M}
+          cpus: "0.5"
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  curio-network:
+    driver: bridge
