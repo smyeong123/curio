@@ -24,6 +24,8 @@
         <netty.version>4.1.138.Final</netty.version>
         <postgresql.version>42.7.13</postgresql.version>
         <httpcore5.version>5.4.4</httpcore5.version>
+        <tomcat.version>10.1.60</tomcat.version>
+        <jackson-bom.version>2.21.7</jackson-bom.version>
     </properties>
 
     <repositories>
