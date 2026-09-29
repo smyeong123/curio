@@ -1,9 +1,9 @@
 {
   "app": {
-    "title": "Curio — AI 모델 뉴스 일간지",
-    "tagline": "— AI 모델 뉴스 일간지",
-    "loading": "Curio 불러오는 중",
-    "opening": "오늘 자 신문을 펼치는 중…"
+    "title": "Curio — 매일 아침 AI 모델 소식",
+    "tagline": "— 매일 아침 AI 모델 소식",
+    "loading": "Curio를 불러오고 있어요",
+    "opening": "오늘 다이제스트를 준비하고 있어요…"
   },
   "language": {
     "label": "언어",
@@ -12,26 +12,26 @@
     "ko": "한국어"
   },
   "actions": {
-    "back": "뒤로 가기",
+    "back": "뒤로",
     "home": "홈으로",
     "retry": "다시 시도",
     "cancel": "취소"
   },
   "a11y": {
-    "closeDialog": "대화상자 닫기",
+    "closeDialog": "창 닫기",
     "loading": "불러오는 중",
     "dismissNotification": "알림 닫기"
   },
   "errors": {
-    "generic": "문제가 발생했어요. 다시 시도해 주세요.",
-    "boundaryTitle": "문제가 발생했어요",
-    "boundaryBody": "예상치 못한 오류가 발생했어요. 다시 시도하거나 홈으로 돌아가 주세요.",
-    "details": "오류 상세"
+    "generic": "잠시 문제가 생겼어요. 다시 시도해 주세요.",
+    "boundaryTitle": "화면을 불러오지 못했어요",
+    "boundaryBody": "예상하지 못한 문제가 생겼어요. 다시 시도하거나 홈으로 이동해 주세요.",
+    "details": "자세히 보기"
   },
   "notFound": {
-    "kicker": "— 지면에 없는 기사 —",
+    "kicker": "— 404 —",
     "headline": "{page}를 찾을 수 없어요.",
     "page": "페이지",
-    "body": "찾으시는 기사는 지면에 실리지 않았거나 이미 내려갔어요. 1면으로 돌아가 보세요."
+    "body": "주소가 바뀌었거나 없어진 페이지예요. 홈에서 다시 찾아보세요."
   }
 }

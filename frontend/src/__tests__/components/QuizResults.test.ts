@@ -52,10 +52,10 @@ describe('QuizResults', () => {
     i18n.global.locale.value = 'ko'
     const wrapper = mount(QuizResults, { props: { score: 4, total: 5 } })
     expect(wrapper.text()).toContain('— 채점 결과 —')
-    expect(wrapper.text()).toContain('아주 훌륭해요!')
+    expect(wrapper.text()).toContain('정말 잘했어요!')
     expect(wrapper.text()).toContain('정답률 80%')
-    expect(wrapper.text()).toContain('정답 확인하기')
-    expect(wrapper.text()).toContain('오늘의 다이제스트로 →')
+    expect(wrapper.text()).toContain('정답 확인')
+    expect(wrapper.text()).toContain('오늘 다이제스트로 →')
     expect(wrapper.get('[data-tier]').attributes('data-tier')).toBe('excellent')
   })
 })

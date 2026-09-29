@@ -1,29 +1,29 @@
 {
   "masthead": {
     "vol": "Vol. 047",
-    "tagline": "— AI 모델 뉴스 일간지"
+    "tagline": "— 매일 아침 AI 모델 소식"
   },
-  "today": "오늘의 다이제스트",
-  "sections": "섹션",
-  "newsroom": "뉴스룸",
+  "today": "오늘 다이제스트",
+  "sections": "메뉴",
+  "newsroom": "관리자",
   "nav": {
     "today": "오늘",
     "quizHistory": "퀴즈 기록",
-    "studio": "다이제스트 스튜디오",
+    "studio": "스튜디오",
     "settings": "설정"
   },
   "adminNav": {
     "dashboard": "대시보드",
-    "digests": "전체 다이제스트",
-    "users": "사용자",
+    "digests": "다이제스트",
+    "users": "구독자",
     "stats": "통계",
-    "audit": "감사 로그"
+    "audit": "작업 기록"
   },
   "theme": {
-    "label": "테마",
+    "label": "화면",
     "day": "라이트",
     "night": "다크",
-    "toggle": "테마 전환"
+    "toggle": "화면 테마 바꾸기"
   },
   "signOut": "로그아웃",
   "menu": {
@@ -33,8 +33,8 @@
   },
   "notice": {
     "label": "서비스 안내",
-    "lead": "안내 —",
-    "body": "Curio는 테스트 기간인 2026년 7월 말까지 무료예요. 8–9월부터는 결제가 열리고 추가 기능이 담긴 유료 플랜이 나오지만, 무료 다이제스트는 계속 받아볼 수 있어요. 궁금한 점은 {contact}에게 메일로 물어봐 주세요.",
+    "lead": "안내",
+    "body": "Curio는 테스트 기간인 2026년 7월 말까지 무료예요. 8~9월부터 추가 기능을 담은 유료 플랜이 나와도 무료 다이제스트는 계속 받을 수 있어요. 궁금한 점은 {contact}에게 메일로 알려 주세요.",
     "contactName": "이상명",
     "dismiss": "안내 닫기"
   }

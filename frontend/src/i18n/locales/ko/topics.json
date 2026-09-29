@@ -1,27 +1,27 @@
 {
   "groups": {
-    "frontier-labs": { "name": "프런티어 연구소", "description": "주요 AI 연구소의 새 기능과 출시 소식" },
-    "proprietary-frontier": { "name": "폐쇄형 프런티어 모델" },
+    "frontier-labs": { "name": "주요 AI 연구소", "description": "주요 AI 연구소의 새 모델과 기능 소식" },
+    "proprietary-frontier": { "name": "비공개 대형 모델" },
     "open-weight-leaders": { "name": "주요 오픈 웨이트 모델" },
-    "agentic-tools": { "name": "에이전트 & 개발자 도구", "description": "코딩 에이전트, 브라우저 에이전트, 에이전트 프레임워크" },
+    "agentic-tools": { "name": "에이전트·개발 도구", "description": "코딩 에이전트, 브라우저 에이전트, 에이전트 프레임워크" },
     "coding-agents": { "name": "코딩 에이전트" },
     "agent-platforms": { "name": "에이전트 플랫폼" },
-    "capabilities-ecosystem": { "name": "모델 성능 & 생태계", "description": "새 기능 출시, 가격, 시장 전반" },
+    "capabilities-ecosystem": { "name": "모델 성능·생태계", "description": "새 기능, 가격, 시장 흐름" },
     "model-capabilities": { "name": "모델 성능" },
     "market": { "name": "시장" },
-    "emerging": { "name": "신흥 모델", "description": "새로 나온 프런티어·에이전트 모델을 가장 먼저" },
-    "discovery": { "name": "새로 등장" }
+    "emerging": { "name": "새로 나온 모델", "description": "새로 나온 모델과 에이전트를 가장 먼저" },
+    "discovery": { "name": "새 소식" }
   },
   "leaves": {
-    "Claude Code & CLI Agents": "Claude Code & CLI 에이전트",
-    "Cursor, Aider & IDE Agents": "Cursor, Aider & IDE 에이전트",
-    "Devin & Autonomous Coders": "Devin & 자율 코딩 에이전트",
-    "Browser & Computer-Use Agents": "브라우저 & 컴퓨터 조작 에이전트",
-    "Agent Frameworks & SDKs": "에이전트 프레임워크 & SDK",
-    "Reasoning & Context": "추론 & 컨텍스트",
-    "Multimodal (Vision, Audio, Video)": "멀티모달 (비전, 오디오, 비디오)",
-    "Pricing & Availability": "가격 & 출시 현황",
-    "Benchmarks & Evaluations": "벤치마크 & 평가",
-    "New & Emerging Models": "신규 & 신흥 모델"
+    "Claude Code & CLI Agents": "Claude Code·CLI 에이전트",
+    "Cursor, Aider & IDE Agents": "Cursor·Aider·IDE 에이전트",
+    "Devin & Autonomous Coders": "Devin·자율 코딩 에이전트",
+    "Browser & Computer-Use Agents": "브라우저·컴퓨터 조작 에이전트",
+    "Agent Frameworks & SDKs": "에이전트 프레임워크·SDK",
+    "Reasoning & Context": "추론·컨텍스트",
+    "Multimodal (Vision, Audio, Video)": "멀티모달 (이미지·음성·영상)",
+    "Pricing & Availability": "가격·출시 소식",
+    "Benchmarks & Evaluations": "벤치마크·평가",
+    "New & Emerging Models": "새로 나온 모델"
   }
 }

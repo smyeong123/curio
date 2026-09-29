@@ -98,8 +98,8 @@ class EmailServiceRenderTest {
 
         assertThat(html).contains("lang=\"ko\"");
         assertThat(html).contains("Alex 님, 좋은 아침이에요");
-        assertThat(html).contains("오늘의 브리핑").contains("왜 중요한가").contains("기사 전문 읽기");
-        assertThat(html).contains("퀴즈 풀기").contains("구독 해지").contains("AI 모델 뉴스 일간지");
+        assertThat(html).contains("오늘의 브리핑").contains("왜 중요할까요").contains("원문 보기");
+        assertThat(html).contains("퀴즈 풀기").contains("구독 해지").contains("매일 아침 AI 모델 소식");
         // Story content and the canonical topic name are data, never translated by the template.
         assertThat(html).contains("Anthropic turns on long-horizon tool use").contains("Claude (Anthropic)");
         assertThat(html).doesNotContain("Why it matters").doesNotContain("Take the quiz").doesNotContain("Good morning");
@@ -114,7 +114,7 @@ class EmailServiceRenderTest {
         // th:text escapes the apostrophe — that is correct for HTML mail.
         assertThat(html).contains("Good morning, Alex. Here&#39;s what moved in AI today.");
         assertThat(html).contains("Why it matters").contains("Read full story").contains("Take the quiz").contains("Unsubscribe");
-        assertThat(html).doesNotContain("왜 중요한가");
+        assertThat(html).doesNotContain("왜 중요할까요");
     }
 
     @Test
@@ -124,7 +124,7 @@ class EmailServiceRenderTest {
         String en = emailService.renderDigestEmail(user(" "),
                 digest(Map.of("summaries", List.of(STORY))));
 
-        assertThat(ko).contains("독자 님, 좋은 아침이에요");
+        assertThat(ko).contains("구독자 님, 좋은 아침이에요");
         assertThat(en).contains("Good morning, reader.");
     }
 
@@ -135,7 +135,7 @@ class EmailServiceRenderTest {
         String html = emailService.renderDigestEmail(user("Alex"),
                 digest(Map.of("language", "ko", "summaries", List.of(STORY))));
 
-        assertThat(html).doesNotContain("퀴즈 풀기").doesNotContain("기억력 테스트");
+        assertThat(html).doesNotContain("퀴즈 풀기").doesNotContain("오늘의 퀴즈");
     }
 
     @Test
@@ -157,7 +157,7 @@ class EmailServiceRenderTest {
 
         ArgumentCaptor<String> html = ArgumentCaptor.forClass(String.class);
         verify(transport).send(eq("reader@example.com"), eq("Curio 비밀번호 재설정"), html.capture());
-        assertThat(html.getValue()).contains("lang=\"ko\"").contains("비밀번호를 재설정하세요")
+        assertThat(html.getValue()).contains("lang=\"ko\"").contains("비밀번호를 재설정해 주세요")
                 .contains("<strong>1시간</strong>").contains("https://curio.test/reset-password?token=tok+en")
                 .doesNotContain("Reset your password");
     }
@@ -183,7 +183,7 @@ class EmailServiceRenderTest {
         String html = emailService.renderAuthEmail("code", Language.KO,
                 Map.of("code", "654321", "ttl", 10L, "verifyLink", "https://curio.test/verify?code=654321"));
 
-        assertThat(html).contains("인증 코드가 도착했어요").contains("<strong>10분</strong>").contains("코드 복사")
+        assertThat(html).contains("인증 코드를 알려 드려요").contains("<strong>10분</strong>").contains("코드 입력하러 가기")
                 .contains("Curio · 계정 보안").doesNotContain("Sign-in verification");
     }
 }

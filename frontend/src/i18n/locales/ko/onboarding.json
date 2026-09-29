@@ -4,40 +4,40 @@
     "logOut": "로그아웃 ↗"
   },
   "header": {
-    "kicker": "섹션 I — 관심 주제 고르기",
+    "kicker": "관심 주제 고르기",
     "headline": "어떤 {beat}이 궁금하세요?",
     "beat": "소식",
-    "lede": "Curio는 독자마다 다른 신문을 만들어요. 주제를 3개 이상 고르면 내일 아침 08:00에 첫 호를 보내 드려요. 주제는 언제든 바꿀 수 있어요."
+    "lede": "주제를 3개 이상 고르면 내일 아침 8시에 첫 다이제스트를 보내 드려요. 주제는 언제든 바꿀 수 있어요."
   },
   "counter": {
-    "selected": "선택됨",
-    "minimum": "최소 {min}개 · 원하는 만큼 고르세요",
+    "selected": "선택",
+    "minimum": "{min}개 이상 · 원하는 만큼 골라 주세요",
     "moreToGo": "{count}개 더 골라 주세요",
-    "allSet": "준비 완료"
+    "allSet": "준비됐어요"
   },
   "presets": {
-    "kicker": "— 또는 추천 묶음으로 한 번에 —",
-    "frontierWatcher": "프런티어 모델 추적",
+    "kicker": "— 추천 묶음으로 한 번에 고르기 —",
+    "frontierWatcher": "최신 대형 모델",
     "openSource": "오픈 소스",
     "agentBuilder": "에이전트 개발",
-    "capabilityTracker": "모델 성능 추적"
+    "capabilityTracker": "모델 성능"
   },
   "hierarchy": {
     "chapter": "분야",
     "onTheBeat": "{count}개 선택"
   },
   "summary": {
-    "kicker": "내 관심 주제",
+    "kicker": "고른 주제",
     "remove": "{topic} 빼기"
   },
   "cta": {
-    "filing": "저장하는 중…",
-    "start": "읽기 시작",
-    "moreToPublish": "주제를 {count}개 더 고르면 시작할 수 있어요",
-    "skip": "지금은 건너뛰기 —"
+    "filing": "저장 중…",
+    "start": "시작하기",
+    "moreToPublish": "{count}개 더 고르면 시작할 수 있어요",
+    "skip": "다음에 할게요"
   },
   "toasts": {
-    "saved": "관심 주제를 저장했어요! 곧 첫 호가 도착해요.",
-    "saveFailed": "설정을 저장하지 못했어요. 다시 시도해 주세요."
+    "saved": "관심 주제를 저장했어요. 곧 첫 다이제스트가 도착해요.",
+    "saveFailed": "저장하지 못했어요. 다시 시도해 주세요."
   }
 }

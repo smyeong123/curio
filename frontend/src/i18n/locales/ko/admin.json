@@ -3,34 +3,34 @@
     "loadFailed": "— 불러오지 못했어요 —",
     "search": "검색",
     "allBeats": "전체 주제",
-    "on": "켜짐",
-    "off": "꺼짐",
+    "on": "사용",
+    "off": "미사용",
     "yes": "예",
     "no": "아니요",
     "pagination": {
       "earlier": "이전",
       "newer": "이전",
       "older": "다음",
-      "pageOf": "{total}페이지 중 {page}페이지"
+      "pageOf": "{page}/{total}페이지"
     },
     "columns": {
       "email": "이메일",
       "name": "이름",
       "beats": "주제",
-      "delivery": "발송",
+      "delivery": "메일 받기",
       "joined": "가입일"
     },
     "kpi": {
-      "emailsToday": "오늘 발송한 다이제스트",
+      "emailsToday": "오늘 보낸 다이제스트",
       "quizzesToday": "오늘 제출된 퀴즈"
     }
   },
   "dashboard": {
-    "kicker": "뉴스룸 — 편집 데스크",
-    "headline": "편집 {desk}.",
-    "desk": "데스크",
-    "loadFailedTitle": "데스크를 불러오지 못했어요.",
-    "loading": "데스크 불러오는 중…",
+    "kicker": "관리자 · 대시보드",
+    "headline": "운영 {desk}.",
+    "desk": "현황",
+    "loadFailedTitle": "대시보드를 불러오지 못했어요.",
+    "loading": "대시보드를 불러오고 있어요…",
     "stats": {
       "totalUsers": "전체 구독자"
     },
@@ -40,42 +40,42 @@
       "failed": "실패",
       "runNow": "지금 실행",
       "lastRan": "마지막 실행 · {time}",
-      "whyFailed": "실패 원인",
+      "whyFailed": "실패 이유",
       "generate": {
         "title": "다이제스트 생성",
-        "cron": "Cron · 06:00 UTC",
+        "cron": "매일 06:00 UTC",
         "done": "생성 완료",
-        "body": "활성 구독자 전원의 AI 뉴스 다이제스트를 생성해요. 주제 하나만 골라 테스트로 생성해 볼 수도 있어요."
+        "body": "구독자 모두의 다이제스트를 생성해요. 주제 하나만 골라 테스트로 생성할 수도 있어요."
       },
       "send": {
-        "title": "아침 이메일 발송",
-        "cron": "Cron · 매시간 (사용자별 시간대)",
+        "title": "아침 메일 발송",
+        "cron": "매시간 · 구독자 시간대 기준",
         "done": "발송 완료",
-        "body": "발송이 켜진 구독자에게 다이제스트 이메일을 일괄 발송해요.",
+        "body": "메일 받기를 켠 구독자에게 다이제스트를 한꺼번에 보내요.",
         "sending": "발송 중…"
       },
       "cleanup": {
-        "title": "지난 호 정리",
-        "cron": "Cron · 00:00 UTC",
+        "title": "지난 데이터 정리",
+        "cron": "매일 00:00 UTC",
         "done": "정리 완료",
-        "body": "30일이 지난 다이제스트와 퀴즈를 영구 삭제해요.",
-        "recycling": "정리하는 중…"
+        "body": "30일이 지난 다이제스트와 퀴즈를 삭제해요.",
+        "recycling": "정리 중…"
       }
     },
     "result": {
-      "failed": "작업이 실패했어요 — 서버 로그를 확인해 주세요",
-      "digests": "{success} / {total}명 · 실패 {fail}건",
-      "digestsSkipped": "{success} / {total}명 · 실패 {fail}건 · 건너뜀 {skipped}건",
-      "emails": "발송 {sent}건, 실패 {fail}건 (사용자 {total}명)",
-      "cleanup": "다이제스트 {count}건 정리 (기준일: {cutoff})",
-      "quizzes": "퀴즈 · 생성 {success}건 · 실패 {fail}건",
+      "failed": "작업에 실패했어요. 서버 로그를 확인해 주세요",
+      "digests": "{success}/{total}명 성공 · 실패 {fail}건",
+      "digestsSkipped": "{success}/{total}명 성공 · 실패 {fail}건 · 생략 {skipped}건",
+      "emails": "발송 {sent}건 · 실패 {fail}건 · 대상 {total}명",
+      "cleanup": "다이제스트 {count}건 정리 · 기준일 {cutoff}",
+      "quizzes": "퀴즈 생성 {success}건 · 실패 {fail}건",
       "beats": "주제 · {beats}",
       "due": "이번 시간 발송 대상 {due}명",
-      "took": "소요 {duration}"
+      "took": "걸린 시간 {duration}"
     },
     "beats": {
       "kicker": "— 주제별 현황 —",
-      "count": "주제 {count}개",
+      "count": "{count}개 주제",
       "columns": {
         "beat": "주제",
         "subscribers": "구독자",
@@ -85,135 +85,135 @@
       "empty": "등록된 주제가 없어요"
     },
     "cleanupModal": {
-      "title": "정리 확인",
-      "body": "30일이 지난 다이제스트와 퀴즈를 영구 삭제해요. 되돌릴 수 없어요.",
-      "confirm": "정리 실행"
+      "title": "지난 데이터를 정리할까요?",
+      "body": "30일이 지난 다이제스트와 퀴즈를 삭제해요. 삭제한 데이터는 되돌릴 수 없어요.",
+      "confirm": "정리하기"
     },
     "toast": {
-      "cleanupDone": "정리 완료: 다이제스트 {count}건을 삭제했어요",
-      "cleanupFailed": "정리 작업을 실행하지 못했어요",
-      "jobSlow": "작업이 평소보다 오래 걸리고 있어요 — 아직 실행 중일 수 있어요. 나중에 새로고침해서 최종 결과를 확인해 주세요.",
-      "generateRunning": "다이제스트 생성이 이미 실행 중이에요",
-      "generateStarted": "다이제스트 생성을 시작했어요 — 아래 수치가 곧 갱신돼요",
+      "cleanupDone": "다이제스트 {count}건을 정리했어요",
+      "cleanupFailed": "정리하지 못했어요",
+      "jobSlow": "평소보다 오래 걸리고 있어요. 아직 실행 중일 수 있으니 잠시 후 새로고침해서 결과를 확인해 주세요.",
+      "generateRunning": "다이제스트를 이미 생성하고 있어요",
+      "generateStarted": "다이제스트 생성을 시작했어요. 아래 숫자가 곧 바뀌어요",
       "generateFailed": "다이제스트 생성을 시작하지 못했어요",
-      "sendRunning": "이메일 발송이 이미 실행 중이에요",
-      "sendStarted": "이메일 발송을 시작했어요 — 아래 수치가 곧 갱신돼요",
-      "sendFailed": "이메일 발송을 시작하지 못했어요",
-      "loadFailed": "대시보드 데이터를 불러오지 못했어요"
+      "sendRunning": "메일을 이미 보내고 있어요",
+      "sendStarted": "메일 발송을 시작했어요. 아래 숫자가 곧 바뀌어요",
+      "sendFailed": "메일 발송을 시작하지 못했어요",
+      "loadFailed": "대시보드를 불러오지 못했어요"
     }
   },
   "digests": {
-    "kicker": "뉴스룸 — 발행된 다이제스트",
+    "kicker": "관리자 · 다이제스트",
     "headline": "전체 {editions}.",
     "editions": "다이제스트",
     "filters": {
-      "topic": "주제로 필터",
-      "user": "독자 검색",
+      "topic": "주제",
+      "user": "구독자 검색",
       "userPlaceholder": "이메일"
     },
-    "loading": "다이제스트 불러오는 중…",
-    "count": "보관된 다이제스트 {count}개",
+    "loading": "다이제스트를 불러오고 있어요…",
+    "count": "다이제스트 {count}개",
     "perPage": "페이지당",
     "columns": {
-      "reader": "독자",
+      "reader": "구독자",
       "filed": "생성",
       "delivered": "발송",
       "quiz": "퀴즈"
     },
-    "notSent": "미발송",
-    "stories": "스토리 {count}개",
+    "notSent": "보내기 전",
+    "stories": "소식 {count}개",
     "collapse": "접기 −",
     "expand": "펼치기 +",
     "detail": {
       "digestId": "다이제스트 ID",
-      "userId": "사용자 ID",
-      "stories": "스토리"
+      "userId": "구독자 ID",
+      "stories": "소식"
     },
-    "empty": "보관된 다이제스트가 없어요",
+    "empty": "다이제스트가 없어요",
     "toast": {
       "loadFailed": "다이제스트를 불러오지 못했어요"
     }
   },
   "users": {
-    "kicker": "뉴스룸 — 독자 명부",
-    "headline": "{readers} 명부.",
-    "readers": "독자",
+    "kicker": "관리자 · 구독자",
+    "headline": "{readers} 목록.",
+    "readers": "구독자",
     "searchLabel": "이메일로 검색",
     "searchPlaceholder": "someone{'@'}example.com",
-    "loading": "명부 불러오는 중…",
+    "loading": "구독자를 불러오고 있어요…",
     "view": "보기",
-    "empty": "등록된 독자가 없어요",
+    "empty": "구독자가 없어요",
     "toast": {
-      "loadFailed": "사용자를 불러오지 못했어요"
+      "loadFailed": "구독자를 불러오지 못했어요"
     }
   },
   "userDetail": {
-    "back": "명부로 돌아가기",
-    "kicker": "뉴스룸 — 독자 파일",
-    "headline": "사용자 {details}.",
-    "details": "상세",
-    "loading": "파일 불러오는 중…",
-    "notFound": "독자를 찾을 수 없어요.",
+    "back": "구독자 목록으로",
+    "kicker": "관리자 · 구독자 정보",
+    "headline": "구독자 {details}.",
+    "details": "정보",
+    "loading": "불러오고 있어요…",
+    "notFound": "구독자를 찾을 수 없어요.",
     "sections": {
-      "profile": "§ I — 프로필",
-      "beats": "§ II — 관심 주제",
-      "metrics": "§ III — 지표",
-      "recentDigests": "§ IV — 최근 다이제스트",
-      "recentQuizzes": "§ V — 최근 퀴즈 시도"
+      "profile": "프로필",
+      "beats": "관심 주제",
+      "metrics": "활동",
+      "recentDigests": "최근 다이제스트",
+      "recentQuizzes": "최근 퀴즈"
     },
     "profile": {
       "admin": "관리자",
-      "verified": "인증됨"
+      "verified": "인증 완료"
     },
-    "noBeats": "선택한 주제가 없어요.",
+    "noBeats": "고른 주제가 없어요.",
     "metrics": {
-      "digests": "생성된 다이제스트",
-      "quizAttempts": "퀴즈 시도",
-      "avgScore": "평균 퀴즈 점수"
+      "digests": "받은 다이제스트",
+      "quizAttempts": "푼 퀴즈",
+      "avgScore": "평균 점수"
     },
     "noDigests": "아직 다이제스트가 없어요.",
-    "noQuizzes": "아직 퀴즈 시도가 없어요.",
+    "noQuizzes": "아직 푼 퀴즈가 없어요.",
     "pts": "{score}점",
     "toast": {
-      "loadFailed": "사용자 상세 정보를 불러오지 못했어요"
+      "loadFailed": "구독자 정보를 불러오지 못했어요"
     }
   },
   "stats": {
-    "kicker": "뉴스룸 — 숫자",
-    "headline": "{numbers} 한눈에.",
+    "kicker": "관리자 · 통계",
+    "headline": "{numbers} 한눈에 보기.",
     "numbers": "통계",
-    "loading": "숫자 집계 중…",
+    "loading": "집계하고 있어요…",
     "totals": {
-      "totalUsers": "전체 독자"
+      "totalUsers": "전체 구독자"
     },
     "distribution": {
-      "kicker": "— 주제별 분포 —",
+      "kicker": "— 주제별 구독자 —",
       "empty": "아직 주제 데이터가 없어요.",
       "subscribers": "구독자 {count}명"
     },
     "toast": {
-      "loadFailed": "관리자 통계를 불러오지 못했어요"
+      "loadFailed": "통계를 불러오지 못했어요"
     }
   },
   "audit": {
-    "kicker": "뉴스룸 — 감사 로그",
+    "kicker": "관리자 · 작업 기록",
     "headline": "관리자 {trail}.",
     "trail": "작업 기록",
-    "intro": "모든 관리자 작업을 최신순으로 — 누가, 어떤 기록에, 무엇을, 언제 했는지.",
-    "loading": "감사 로그 불러오는 중…",
+    "intro": "누가, 언제, 무엇을 했는지 관리자 작업을 최신순으로 보여 줘요.",
+    "loading": "작업 기록을 불러오고 있어요…",
     "empty": {
-      "kicker": "— 감사 로그가 비어 있어요 —",
+      "kicker": "— 작업 기록이 없어요 —",
       "body": "아직 기록된 관리자 작업이 없어요."
     },
     "columns": {
       "when": "일시",
-      "actor": "수행자",
+      "actor": "작업자",
       "action": "작업",
       "target": "대상",
-      "detail": "상세"
+      "detail": "내용"
     },
     "toast": {
-      "loadFailed": "감사 로그를 불러오지 못했어요"
+      "loadFailed": "작업 기록을 불러오지 못했어요"
     }
   }
 }

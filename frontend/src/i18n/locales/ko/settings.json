@@ -1,55 +1,55 @@
 {
   "header": {
-    "kicker": "섹션 VII — 계정",
+    "kicker": "계정",
     "headline": "내 {settings}.",
     "settings": "설정"
   },
   "profile": {
-    "kicker": "§ I — 프로필",
+    "kicker": "프로필",
     "fullName": "이름",
     "fullNamePlaceholder": "이름을 입력해 주세요",
-    "dailyDigest": "매일 아침 이메일 받기",
-    "dailyDigestHint": "매일 {time}에 다이제스트를 보내 드려요 · {timezone}",
-    "toggleDigest": "매일 아침 이메일 받기 켜기/끄기",
-    "autoTimezone": "기기 시간대 자동 적용",
+    "dailyDigest": "매일 아침 메일 받기",
+    "dailyDigestHint": "매일 {time}에 보내 드려요 · {timezone}",
+    "toggleDigest": "매일 아침 메일 받기",
+    "autoTimezone": "기기 시간대 따르기",
     "deliveryTime": "받는 시간",
     "timezone": "시간대",
-    "followingDevice": "기기 시간대 사용 중 · {timezone}",
-    "saving": "저장하는 중…",
-    "save": "변경 사항 저장"
+    "followingDevice": "기기 시간대를 따르고 있어요 · {timezone}",
+    "saving": "저장 중…",
+    "save": "저장"
   },
   "lights": {
-    "kicker": "§ II — 화면 테마",
-    "legend": "테마 설정",
+    "kicker": "화면 테마",
+    "legend": "화면 테마",
     "day": "라이트",
     "night": "다크",
     "system": "시스템",
     "hint": "시스템을 고르면 기기 설정을 따라가요"
   },
   "edition": {
-    "kicker": "§ III — 언어",
-    "hint": "화면은 물론 매일 받는 다이제스트, 퀴즈, 이메일의 언어도 함께 바뀌어요. 사이드바의 언어 메뉴는 화면 언어만 바꿔요.",
-    "saved": "다이제스트 언어를 저장했어요",
-    "saveFailed": "다이제스트 언어를 저장하지 못했어요"
+    "kicker": "언어",
+    "hint": "화면과 함께 다이제스트, 퀴즈, 메일 언어도 바뀌어요. 사이드바에서 바꾸면 화면 언어만 바뀌어요.",
+    "saved": "언어를 바꿨어요",
+    "saveFailed": "언어를 바꾸지 못했어요"
   },
   "password": {
-    "kicker": "§ IV — 비밀번호",
+    "kicker": "비밀번호",
     "current": "현재 비밀번호",
     "new": "새 비밀번호",
     "newPlaceholder": "8자 이상",
-    "updating": "변경하는 중…",
+    "updating": "변경 중…",
     "update": "비밀번호 변경"
   },
   "byok": {
-    "kicker": "§ V — 내 API 키 사용",
-    "intro": "Anthropic, Google AI, OpenAI의 API 키를 연결하면 매일 받는 다이제스트를 Curio 대신 내 계정으로 생성해요. 키는 AES-256-GCM으로 암호화해 저장하며, 저장한 뒤에는 어떤 경로로도 다시 조회할 수 없어요.",
+    "kicker": "내 API 키",
+    "intro": "Anthropic, Google AI, OpenAI API 키를 연결하면 다이제스트를 Curio 키 대신 내 키로 만들어요. 키는 AES-256-GCM으로 암호화해 저장하고, 저장한 뒤에는 누구도 다시 볼 수 없어요.",
     "loading": "불러오는 중…",
-    "empty": "— 등록된 키 없음 —",
-    "validated": "● 검증됨",
-    "notValidated": "○ 검증 안 됨",
+    "empty": "— 연결한 키가 없어요 —",
+    "validated": "● 사용 가능",
+    "notValidated": "○ 확인 전",
     "lastUsed": "마지막 사용 {when}",
     "relative": {
-      "justNow": "방금 전",
+      "justNow": "방금",
       "minutes": "{count}분 전",
       "hours": "{count}시간 전",
       "days": "{count}일 전"
@@ -58,59 +58,59 @@
     "add": "키 추가",
     "addModal": {
       "titleAdd": "{provider} 키 추가",
-      "titleReplace": "{provider} 키 교체",
-      "body": "비밀번호를 다시 입력하고 {provider} 키를 붙여넣어 주세요. 저장하기 전에 간단한 테스트 요청으로 키가 작동하는지 확인해요.",
-      "provider": "제공업체",
-      "replaceNotice": "이미 등록된 {provider} 키가 있어요. 저장하면 새 키로 교체되고, 검증을 통과한 뒤부터 사용돼요.",
+      "titleReplace": "{provider} 키 바꾸기",
+      "body": "비밀번호를 한 번 더 입력하고 {provider} 키를 붙여 넣어 주세요. 저장하기 전에 키가 잘 작동하는지 확인할게요.",
+      "provider": "서비스",
+      "replaceNotice": "이미 연결한 {provider} 키가 있어요. 저장하면 새 키로 바뀌고, 확인이 끝나면 바로 사용해요.",
       "apiKey": "API 키",
-      "confirmPassword": "비밀번호 확인",
+      "confirmPassword": "비밀번호",
       "passwordPlaceholder": "Curio 비밀번호",
-      "saving": "저장하는 중…",
-      "rotate": "교체하고 저장 →",
-      "save": "키 저장 →"
+      "saving": "저장 중…",
+      "rotate": "바꾸기 →",
+      "save": "저장 →"
     },
     "removeModal": {
       "title": "{provider} 키 삭제",
-      "body": "키를 삭제하려면 비밀번호를 다시 입력해 주세요. 이후 다이제스트는 Curio 기본 키로 생성돼요.",
+      "body": "비밀번호를 한 번 더 입력해 주세요. 삭제하면 다이제스트는 Curio 기본 키로 만들어요.",
       "password": "비밀번호",
-      "removing": "삭제하는 중…",
-      "remove": "키 삭제"
+      "removing": "삭제 중…",
+      "remove": "삭제"
     },
     "errors": {
-      "tooShort": "키가 너무 짧아요. 값을 다시 확인해 주세요.",
+      "tooShort": "키가 너무 짧아요. 다시 확인해 주세요.",
       "passwordRequired": "비밀번호를 입력해 주세요.",
-      "wrongPassword": "비밀번호가 틀렸어요.",
+      "wrongPassword": "비밀번호가 맞지 않아요.",
       "saveFailed": "키를 저장하지 못했어요.",
       "removeFailed": "키를 삭제하지 못했어요."
     },
     "toasts": {
-      "savedUnvalidated": "키를 저장했지만 아직 검증되지 않았어요. 검증을 통과해야 사용돼요",
+      "savedUnvalidated": "키를 저장했어요. 확인이 끝나면 사용할게요",
       "saved": "API 키를 저장했어요",
       "removed": "API 키를 삭제했어요"
     }
   },
   "beats": {
-    "kicker": "§ VI — 관심 주제",
+    "kicker": "관심 주제",
     "selectedCount": "{count}개 선택",
-    "minHint": " · 최소 3개",
+    "minHint": " · 3개 이상",
     "domainOn": "{count}개 선택",
-    "saving": "저장하는 중…",
-    "update": "관심 주제 저장"
+    "saving": "저장 중…",
+    "update": "저장"
   },
   "danger": {
-    "kicker": "§ VII — 계정 삭제",
-    "body": "계정과 다이제스트 기록, 퀴즈 점수 등 연결된 모든 데이터를 영구히 삭제해요. 삭제한 뒤에는 되돌릴 수 없어요.",
-    "delete": "계정 삭제하기",
-    "modalTitle": "계정 삭제",
-    "confirm": "정말 계정을 삭제할까요? 모든 다이제스트와 퀴즈 기록, 설정이 영구히 삭제돼요.",
-    "deleting": "삭제하는 중…"
+    "kicker": "계정 삭제",
+    "body": "계정과 다이제스트, 퀴즈 기록 등 모든 정보를 지워요. 지운 정보는 되돌릴 수 없어요.",
+    "delete": "계정 삭제",
+    "modalTitle": "계정을 삭제할까요?",
+    "confirm": "다이제스트와 퀴즈 기록, 설정이 모두 지워지고 되돌릴 수 없어요.",
+    "deleting": "삭제 중…"
   },
   "toasts": {
     "loadFailed": "설정을 불러오지 못했어요",
     "profileUpdated": "프로필을 저장했어요",
     "profileFailed": "프로필을 저장하지 못했어요",
-    "passwordUpdated": "비밀번호를 변경했어요",
-    "passwordFailed": "비밀번호를 변경하지 못했어요",
+    "passwordUpdated": "비밀번호를 바꿨어요",
+    "passwordFailed": "비밀번호를 바꾸지 못했어요",
     "preferencesUpdated": "관심 주제를 저장했어요",
     "preferencesFailed": "관심 주제를 저장하지 못했어요",
     "accountDeleted": "계정을 삭제했어요",
