@@ -23,16 +23,52 @@ Curio is an AI-powered personalized news service. Each day it fetches news artic
 
 ### Technology Stack
 
-| Layer | Technologies |
-|---|---|
-| Frontend | Vue 3 (Composition API, `<script setup>`), Vite 7, Pinia, Vue Router 4, Tailwind CSS v4, Axios, TypeScript |
-| Backend | Java 21, Spring Boot 3.5, Spring Data JPA, Spring Security + JWT, Maven |
-| Database | PostgreSQL 16 (Flyway migrations) |
-| Cache | Redis 7 (12h TTL for AI-generated content) |
-| AI Providers | Claude (default), Gemini, OpenAI -- selected via `AI_PROVIDER` env var |
-| Email | Resend API + Thymeleaf templates |
-| News Source | News API (`/v2/everything`) |
-| Containers | Docker multi-stage builds, Docker Compose for local dev |
+**Frontend**
+
+| Technology | Version | Purpose |
+|---|---|---|
+| Vue.js | 3.5 | UI framework (Composition API, `<script setup>`) |
+| TypeScript | 5.9 | Type safety |
+| Vite | 7 | Build tool + dev proxy for `/api` |
+| Pinia | 3 | State management |
+| Vue Router | 4 | Routing + auth guards |
+| vue-i18n | 11 | Bilingual UI (English / Korean), JSON catalogs per feature namespace |
+| Tailwind CSS | 4 | Utility CSS, `@theme` token system |
+| Axios | 1.13 | HTTP client (JWT interceptors, silent refresh, per-call timeouts) |
+| Fraunces / Inter Tight / JetBrains Mono (+ Noto Serif/Sans KR) | — | Editorial type system (Google Fonts) |
+| Vitest | 4 | Unit tests |
+| Cypress | 15 | E2E tests |
+
+**Backend**
+
+| Technology | Version | Purpose |
+|---|---|---|
+| Java | 21 | Runtime |
+| Spring Boot | 3.5 | Framework (Web, Data JPA, Security, Validation, Actuator) |
+| jjwt | 0.12.6 | JWT access tokens |
+| PostgreSQL | 16 | Primary DB, Flyway migrations (V1–V28) |
+| Redis | 7 | AI summary cache (12 h TTL) + job-status registry |
+| Resilience4j | 2.2 | Circuit breaker + bulkhead around AI calls |
+| ShedLock | 5.10 | Distributed scheduler locking |
+| Bucket4j | 8.10 | Per-IP rate limiting |
+| Springdoc OpenAPI | 2.8.6 | `/api-docs` + Swagger UI (dev only) |
+| Sentry | 7.14 | Error tracking (opt-in via DSN) |
+| Micrometer + Prometheus | — | Metrics (`/actuator/prometheus`, ADMIN-gated) |
+| Thymeleaf | — | Digest + auth email templates |
+| Maven | 3.9+ | Build tool |
+
+**External services**
+
+| Service | Purpose | Required? |
+|---|---|---|
+| Anthropic Claude API | Summary + quiz generation (default provider, `AI_PROVIDER=claude`) | Yes |
+| Google Gemini API / OpenAI API | Alternate providers | Optional |
+| NewsAPI (`/v2/everything`) | News source aggregation | Yes (without it digests fall back to lab blogs only) |
+| Resend | Transactional email + webhook tracking | Yes |
+| Google Identity Services | Sign-in with Google (ID-token flow) | Optional |
+| Sentry | Error tracking | Optional |
+
+Containers: Docker multi-stage builds; Docker Compose for local infra and the production stack.
 
 ---
 
@@ -664,7 +700,7 @@ All providers: Redis cache check first, call NewsApiClient for articles, call AI
 | `/admin/audit` | `admin-audit` | `AuditLogView` | Yes | Yes |
 | `/:pathMatch(.*)* ` | `not-found` | `NotFoundView` | No | No | (404 catchall) |
 
-**Navigation guard:** `requiresAuth` redirects to `/login` if no token. `requiresAdmin` redirects to `/home` if `user.isAdmin` is falsy.
+**Navigation guard:** `requiresAuth` redirects to `/login` (with a `redirect` query) if there is no session. `requiresAdmin` first re-syncs the role from `GET /user/me` (`authStore.syncRole()`), then redirects non-admins to the archive.
 
 **404 route:** Catch-all route `/:pathMatch(.*)* ` redirects to `NotFoundView` component.
 
@@ -973,6 +1009,8 @@ The full variable reference (what each var is, why it's needed, prod-required vs
 - Utils: `safeUrl`
 
 **E2E tests (Cypress): 10 spec files / 67 tests** (as of 2026-09-17; `tests/e2e/support.ts` pins the edition to English before boot)
+
+Session mocking is centralized in `tests/e2e/helpers.ts`: the app keeps the access token in memory and re-establishes sessions via a silent `POST /auth/refresh`, so specs seed the localStorage `user` (`withAuth()`) and stub the refresh call (`stubSession()`) — **never seed localStorage tokens**.
 
 | Spec | Coverage |
 |---|---|

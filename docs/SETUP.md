@@ -224,7 +224,7 @@ mvn test
 mvn test -Dtest=AuthServiceTest     # single class
 mvn test jacoco:report              # with coverage
 
-# Frontend — Vitest unit + Cypress E2E (E2E needs backend on :8080)
+# Frontend — Vitest unit + Cypress E2E (E2E needs the dev server on :5173; API calls are stubbed)
 cd frontend
 npm run test:unit
 npm run test:e2e
