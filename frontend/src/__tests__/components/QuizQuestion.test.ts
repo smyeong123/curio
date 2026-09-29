@@ -50,8 +50,8 @@ describe('QuizQuestion', () => {
     const wrapper = mount(QuizQuestion, {
       props: { question: mockQuestion, total: 5, submitted: true, selectedAnswer: 'B', result }
     })
-    expect(wrapper.text()).toContain('Correct!')
-    expect(wrapper.text()).toContain('Paris is the capital.')
+    // Verdict and explanation read as two sentences: no doubled punctuation, one space.
+    expect(wrapper.text()).toContain('Correct! Paris is the capital.')
   })
 
   it('shows incorrect feedback', () => {
@@ -59,7 +59,7 @@ describe('QuizQuestion', () => {
     const wrapper = mount(QuizQuestion, {
       props: { question: mockQuestion, total: 5, submitted: true, selectedAnswer: 'A', result }
     })
-    expect(wrapper.text()).toContain('Incorrect')
+    expect(wrapper.text()).toContain('Incorrect. Paris is the capital.')
   })
 
   it('highlights selected answer before submission', () => {
