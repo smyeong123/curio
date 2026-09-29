@@ -36,12 +36,12 @@ describe('useTopicLabels', () => {
     const w = mount(Probe)
     i18n.global.locale.value = 'ko'
     await w.vm.$nextTick()
-    expect(w.get('#leaf').text()).toBe('추론 & 컨텍스트')
+    expect(w.get('#leaf').text()).toBe('추론·컨텍스트')
     expect(w.get('#lab').text()).toBe('Claude (Anthropic)')
     expect(w.get('#unknown').text()).toBe('Not A Topic')
-    expect(w.get('#l1').text()).toBe('프런티어 연구소')
-    expect(w.get('#l2').text()).toBe('폐쇄형 프런티어 모델')
-    expect(w.get('#desc').text()).toBe('주요 AI 연구소의 새 기능과 출시 소식')
+    expect(w.get('#l1').text()).toBe('주요 AI 연구소')
+    expect(w.get('#l2').text()).toBe('비공개 대형 모델')
+    expect(w.get('#desc').text()).toBe('주요 AI 연구소의 새 모델과 기능 소식')
   })
 
   it('only maps names that exist in the taxonomy', () => {

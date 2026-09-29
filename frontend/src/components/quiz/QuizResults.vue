@@ -9,7 +9,7 @@
       <div class="flex items-end justify-between flex-wrap gap-4 mb-4">
         <h2 id="quiz-result-heading" class="display-headline text-[clamp(48px,8vw,108px)] leading-[0.92]">
           {{ message.lead }}
-          <em class="italic-display">{{ message.tail }}</em>.
+          <em class="italic-display">{{ message.tail }}</em>
         </h2>
         <div class="text-right">
           <span class="deco-num text-[80px] leading-none" :class="scoreColor" :aria-label="t('quiz.results.a11yScore', { score, total })">
@@ -95,6 +95,7 @@ const scoreBarColor = computed(() => {
 })
 
 // Headline is split lead/tail so the tail can carry the italic display face.
+// Tails carry their own end punctuation ("work!"), so the template adds none.
 const message = computed(() => {
   const key = tier.value === 'keep-reading' ? 'keepReading' : tier.value
   return {

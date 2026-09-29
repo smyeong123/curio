@@ -78,13 +78,13 @@ describe('SettingsView editions', () => {
 
     expect(w.get('h1').text()).toBe('내 설정.')
     const text = w.text()
-    expect(text).toContain('§ III — 언어')
-    expect(text).toContain('§ IV — 비밀번호')
-    expect(text).toContain('기기 시간대 자동 적용')
+    expect(text).toContain('언어')
+    expect(text).toContain('비밀번호')
+    expect(text).toContain('기기 시간대 따르기')
     expect(text).toContain('시스템을 고르면 기기 설정을 따라가요')
     expect(text).toContain('3개 선택')
-    expect(text).toContain('프런티어 연구소')
-    expect(text).toContain('관심 주제 저장')
+    expect(text).toContain('주요 AI 연구소')
+    expect(text).toContain('관심 주제')
     expect(text).not.toContain('Frontier Labs')
 
     expect(w.get('label[for="settings-edition"]').text()).toBe('언어')

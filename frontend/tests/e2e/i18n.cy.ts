@@ -15,7 +15,7 @@ describe('Bilingual editions', () => {
     cy.get('header nav select[aria-label="Language"]').select('ko', { force: true })
 
     cy.get('html').should('have.attr', 'lang', 'ko')
-    cy.title().should('eq', 'Curio — AI 모델 뉴스 일간지')
+    cy.title().should('eq', 'Curio — 매일 아침 AI 모델 소식')
     cy.contains('h1', '커피보다 먼저').should('be.visible')
     cy.contains('a', '구독하기').should('be.visible')
     cy.contains('관심 주제 고르기').should('exist')
@@ -52,7 +52,7 @@ describe('Bilingual editions', () => {
     cy.get('aside select[aria-label="Language"]').select('ko', { force: true })
 
     cy.get('html').should('have.attr', 'lang', 'ko')
-    cy.get('aside').contains('섹션').should('be.visible')
+    cy.get('aside').contains('메뉴').should('be.visible')
     cy.get('aside').contains('퀴즈 기록').should('be.visible')
     cy.get('aside').contains('로그아웃').should('be.visible')
     cy.get('aside select[aria-label="언어 선택"]').should('have.value', 'ko')

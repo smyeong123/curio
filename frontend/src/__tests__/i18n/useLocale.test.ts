@@ -65,7 +65,7 @@ describe('useLocale', () => {
     expect(i18n.global.t('common.language.label')).toBe('언어')
     expect(localStorage.setItem).toHaveBeenCalledWith(LOCALE_STORAGE_KEY, 'ko')
     expect(document.documentElement.lang).toBe('ko')
-    expect(document.title).toBe('Curio — AI 모델 뉴스 일간지')
+    expect(document.title).toBe('Curio — 매일 아침 AI 모델 소식')
   })
 
   it('syncDocumentLocale reflects the current edition', () => {
