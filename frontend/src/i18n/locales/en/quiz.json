@@ -38,7 +38,7 @@
     "correctTag": "Correct",
     "wrongTag": "Wrong",
     "feedbackCorrect": "Correct!",
-    "feedbackIncorrect": "Incorrect"
+    "feedbackIncorrect": "Incorrect."
   },
   "results": {
     "kicker": "— Returns are in —",

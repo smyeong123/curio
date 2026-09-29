@@ -66,8 +66,7 @@
       </span>
       <div class="col-span-10 sm:col-span-11">
         <p class="font-body-curio text-[14.5px] leading-[1.55] text-[color:var(--ink-soft)] border-l-2 border-[color:var(--signal)] pl-4">
-          {{ result.correct ? t('quiz.question.feedbackCorrect') : t('quiz.question.feedbackIncorrect') }}<span v-if="result.explanation">.</span>
-          <span v-if="result.explanation"> {{ result.explanation }}</span>
+          {{ feedbackText }}
         </p>
       </div>
     </div>
@@ -75,6 +74,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { QuizQuestion as QuizQuestionType, QuizSubmitResponse } from '@/types/quiz'
 
@@ -91,6 +91,14 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+// One string so the verdict and explanation keep their space; the catalog
+// labels carry their own end punctuation ("Correct!", "Incorrect.").
+const feedbackText = computed(() => {
+  if (!props.result) return ''
+  const verdict = t(props.result.correct ? 'quiz.question.feedbackCorrect' : 'quiz.question.feedbackIncorrect')
+  return props.result.explanation ? `${verdict} ${props.result.explanation}` : verdict
+})
 
 // ── WAI-ARIA radio group keyboard pattern ──────────────────────────
 // Roving tabindex: only one option is in the Tab order — the selected one, or

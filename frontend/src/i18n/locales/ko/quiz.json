@@ -38,7 +38,7 @@
     "correctTag": "정답",
     "wrongTag": "오답",
     "feedbackCorrect": "정답이에요!",
-    "feedbackIncorrect": "아쉽게도 오답이에요"
+    "feedbackIncorrect": "아쉽게도 오답이에요."
   },
   "results": {
     "kicker": "— 채점 결과 —",
