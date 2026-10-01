@@ -15,6 +15,7 @@ import com.curio.user.port.in.UserApiKeyUseCase;
 import com.curio.user.port.out.UserPort;
 import com.curio.user.port.out.UserPreferencesPort;
 import com.curio.shared.exception.ResourceNotFoundException;
+import com.curio.shared.time.DigestDay;
 import com.curio.shared.i18n.Language;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,8 +26,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -108,12 +109,12 @@ public class NewsService implements NewsUseCase {
         DigestProgressListener listener = (progressListener != null)
                 ? progressListener : DigestProgressListener.NOOP;
 
-        // UTC to match how Digest.generatedAt is stamped and how the V23
-        // per-user-per-day unique index defines "day".
-        LocalDateTime startOfDay = LocalDate.now(java.time.ZoneOffset.UTC).atStartOfDay();
-        LocalDateTime endOfDay = startOfDay.plusDays(1);
-        if (digestPort.existsByUserIdAndGeneratedAtBetween(user.getId(), startOfDay, endOfDay)) {
-            log.info("Digest already exists for user {} today, skipping", user.getId());
+        // One digest per user per digest day (05:00 KST → 05:00 KST), matching the
+        // V29 unique index; generatedAt is stored in UTC, so compare in UTC.
+        LocalDate day = DigestDay.current(Clock.systemUTC());
+        if (digestPort.existsByUserIdAndGeneratedAtBetween(
+                user.getId(), DigestDay.startUtc(day), DigestDay.endUtc(day))) {
+            log.info("Digest already exists for user {} for digest day {}, skipping", user.getId(), day);
             return DigestGeneration.alreadyExists();
         }
 

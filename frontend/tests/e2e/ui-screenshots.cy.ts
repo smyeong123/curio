@@ -54,7 +54,7 @@ const mockProfile = {
 // tries to PUT an update mid-screenshot.
 const mockPreferences = {
   topics: ['Claude (Anthropic)', 'Pricing & Availability', 'Reasoning & Context', 'New & Emerging Models'],
-  deliveryHour: 8,
+  deliveryHour: 6,
   timezone: 'UTC',
   timezoneAuto: false
 }

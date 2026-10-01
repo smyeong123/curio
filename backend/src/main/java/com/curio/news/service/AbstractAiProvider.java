@@ -4,6 +4,7 @@ import com.curio.news.port.out.AiService;
 import com.curio.news.dto.NewsSummary;
 import com.curio.news.dto.QuizGenerationResult;
 import com.curio.shared.concurrent.SingleFlight;
+import com.curio.shared.time.DigestDay;
 import com.curio.shared.i18n.Language;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -140,9 +141,12 @@ public abstract class AbstractAiProvider implements AiService {
     /**
      * Redis key for a topic's platform-generated summaries. The language is part of
      * the key: the Korean edition must never be served an English entry or vice versa.
+     * The date is the digest day (05:00 KST rollover), so every generation for one
+     * day — the 05:00 run, a just-in-time fallback, Studio — shares one entry.
      */
     protected static String summariesCacheKey(String topic, Language language) {
-        return "news:summaries:" + topic + ":" + java.time.LocalDate.now() + ":" + Language.orDefault(language).code();
+        return "news:summaries:" + topic + ":" + DigestDay.current(java.time.Clock.systemUTC())
+                + ":" + Language.orDefault(language).code();
     }
 
     /** Reads + deserializes cached summaries for the key, or null on miss/garbage. */

@@ -29,7 +29,7 @@ is, **why** it's needed, and **how** it works.
 | `CURIO_DOMAIN` / `ACME_EMAIL` | TLS | only with `docker-compose.tls.yml` | Caddy + Let's Encrypt |
 | `API_KEY_ENCRYPTION_KEY` | BYOK | ✅ | at-rest encryption; **don't lose it** |
 | `FRONTEND_PORT` | Frontend | default 80 | host port for nginx |
-| `APP_DEFAULT_DELIVERY_TIMEZONE` | Email | optional (default `UTC`) | fallback zone for users with no captured timezone |
+| `APP_DEFAULT_DELIVERY_TIMEZONE` | Email | optional (default `Asia/Seoul`) | fallback zone for users with no captured timezone |
 | `CLAUDE_MODEL` | AI | optional (default `claude-sonnet-4-6`) | Claude model selection |
 | `OPENAI_MODEL` | AI | optional (default `gpt-4o-mini`) | OpenAI model selection |
 | `RESEND_WEBHOOK_TOLERANCE_SECONDS` | Email | optional (default `300`) | webhook signature timestamp tolerance |
@@ -245,8 +245,8 @@ a DB leak exposes every user's key.
 ## Delivery timezone fallback — `APP_DEFAULT_DELIVERY_TIMEZONE`
 
 **What:** IANA timezone used to compute a user's delivery hour when no timezone was ever captured for them (timezone normally auto-follows the device — V26).
-**Why:** The hourly `EmailSendJob` needs *some* zone to gate each user's send; this is the last-resort fallback.
-**Default:** `UTC`.
+**Why:** The hourly `EmailSendJob` needs *some* zone to gate each user's send (default delivery hour 06:00); this is the last-resort fallback.
+**Default:** `Asia/Seoul`.
 
 ---
 

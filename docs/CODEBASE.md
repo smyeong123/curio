@@ -46,7 +46,7 @@ Curio is an AI-powered personalized news service. Each day it fetches news artic
 | Java | 21 | Runtime |
 | Spring Boot | 3.5 | Framework (Web, Data JPA, Security, Validation, Actuator) |
 | jjwt | 0.12.6 | JWT access tokens |
-| PostgreSQL | 16 | Primary DB, Flyway migrations (V1–V28) |
+| PostgreSQL | 16 | Primary DB, Flyway migrations (V1–V29) |
 | Redis | 7 | AI summary cache (12 h TTL) + job-status registry |
 | Resilience4j | 2.2 | Circuit breaker + bulkhead around AI calls |
 | ShedLock | 5.10 | Distributed scheduler locking |
@@ -170,7 +170,7 @@ curio/
 │       │       ├── application-dev.yml
 │       │       ├── application-prod.yml
 │       │       ├── application-test.yml
-│       │       ├── db/migration/    # V1-V28 Flyway SQL scripts
+│       │       ├── db/migration/    # V1-V29 Flyway SQL scripts
 │       │       ├── messages.properties      # email chrome, English (digest + auth mails: subject, labels, date patterns)
 │       │       ├── messages_ko.properties   # same keys, Korean edition
 │       │       └── templates/
@@ -196,6 +196,7 @@ curio/
 │           ├── shared/concurrent/   SingleFlightTest
 │           ├── shared/config/       JwtSecretsValidatorTest
 │           ├── shared/i18n/         LanguageTest
+│           ├── shared/time/         DigestDayTest
 │           ├── shared/email/        EmailServiceRenderTest, EmailTransportTest
 │           └── shared/security/     ApiKeyCipherTest, UnsubscribeTokenServiceTest
 │
@@ -521,12 +522,13 @@ Indexes: `idx_audit_log_actor_id` (actor_id), `idx_audit_log_action` (action), `
 | V20 | `add_user_delivery_time` (Per-user custom delivery time) |
 | V21 | `create_digest_content_fts` (Full-text search index) |
 | V22 | `drop_subscriptions` (Removed Stripe integration) |
-| V23 | `digest_unique_per_user_day` (one digest per user per UTC day; idempotency backstop) |
+| V23 | `digest_unique_per_user_day` (one digest per user per UTC day; idempotency backstop — superseded by V29) |
 | V24 | `email_verification_codes` (Email/password login 2FA codes: challenge_hash + code_hash SHA-256, attempts_remaining) |
 | V25 | `quiz_attempt_unique_per_user` (adds `uq_quiz_attempts_user_quiz` UNIQUE(user_id, quiz_id): one attempt row per (user, quiz), "better score wins") |
 | V26 | `add_timezone_auto` (Adds timezone_auto column to user_preferences for device-based timezone auto-follow) |
 | V27 | `normalize_emails_lowercase` (Folds existing emails to trimmed-lowercase and adds a `lower(email)` unique index — one account per real mailbox regardless of case; backs `EmailNormalizer`) |
 | V28 | `add_language_to_user_preferences` (Adds `language` VARCHAR(8) NOT NULL DEFAULT 'en' + CHECK ('en','ko') to user_preferences — the edition the AI writes the digest/quiz/email in) |
+| V29 | `digest_day_kst_and_default_delivery_hour` (Replaces V23's UTC-day index with `idx_digests_user_digest_day` on `curio_digest_day(generated_at)` — one digest per user per 05:00-KST digest day; dedupes any pair sharing a digest day, keeping the newest; moves every `delivery_hour = 8` to the new default 6) |
 
 ### Service Layer
 
@@ -594,11 +596,11 @@ All providers: Redis cache check first, call NewsApiClient for articles, call AI
 
 ### Scheduled Jobs
 
-| Job | Schedule (UTC) | What it Does |
+| Job | Schedule | What it Does |
 |-----|---------------|--------------|
-| `DigestGenerationJob` | 6:00 AM | `DigestBatch.runForAll()`: digest **and quiz** for every user with `deliveryEnabled=true` and preferences set (the same pipeline Studio and the admin trigger use) |
-| `EmailSendJob` | Hourly (`:00`) | `DigestEmailBatch.sendDue()`: emails each user whose local hour is at or past their delivery hour (catch-up gate — DST spring-forward cannot skip a day; only a digest generated today UTC is sent; claim-before-send prevents doubles; default 08:00 local) — NOT a fixed daily send. Generates the digest + quiz just in time if the morning run missed the user |
-| `CleanupJob` | Midnight | Deletes digests/quizzes older than 30 days via `digestRepository.deleteByGeneratedAtBefore()` |
+| `DigestGenerationJob` | 05:00 Asia/Seoul (20:00 UTC) | `DigestBatch.runForAll()`: one run per **digest day** (05:00 KST → 05:00 KST, `shared/time/DigestDay`), worldwide — digest **and quiz** for every user with `deliveryEnabled=true` and preferences set (the same pipeline Studio and the admin trigger use) |
+| `EmailSendJob` | Hourly (`:00`) | `DigestEmailBatch.sendDue()`: emails each user whose local hour is at or past their delivery hour (default 06:00; catch-up gate — DST spring-forward cannot skip a day) the digest day that was current at that hour, at most once per local day: a digest day that starts later the same local day (e.g. 16:00 in New York) waits for tomorrow. Claim-before-send prevents doubles. Generates the digest + quiz just in time only if the 05:00 run missed the user |
+| `CleanupJob` | 00:00 UTC | Deletes digests/quizzes older than 30 days via `digestRepository.deleteByGeneratedAtBefore()` |
 | `ExpiredAuthRowReaper` | - | Reaps expired refresh tokens, password-reset tokens, and email-verification codes |
 | `JobFailureNotifier` | - | Surfaces/notifies on scheduled-job failures (alongside `JobStatusRegistry`) |
 

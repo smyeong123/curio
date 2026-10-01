@@ -357,7 +357,7 @@ const deliveryEnabled = ref(true)
 const savingProfile = ref(false)
 
 // Per-user delivery time (backend-backed via /user/preferences).
-const deliveryHour = ref<number>(8)
+const deliveryHour = ref<number>(6)
 const timezone = ref<string>('UTC')
 // true = timezone auto-follows this device (default); false = user pinned a zone.
 const autoTimezone = ref<boolean>(true)
@@ -415,7 +415,7 @@ onMounted(async () => {
     ])
     fullName.value = userStore.profile?.fullName || ''
     deliveryEnabled.value = userStore.profile?.deliveryEnabled ?? true
-    deliveryHour.value = userStore.deliveryHour ?? 8
+    deliveryHour.value = userStore.deliveryHour ?? 6
     autoTimezone.value = userStore.timezoneAuto ?? true
     // In auto mode show the live device zone; when pinned show the saved one.
     timezone.value = autoTimezone.value

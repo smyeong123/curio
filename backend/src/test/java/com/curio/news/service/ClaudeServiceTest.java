@@ -5,6 +5,7 @@ import com.curio.news.dto.NewsSummary;
 import com.curio.news.dto.QuizGenerationResult;
 import com.curio.shared.concurrent.SingleFlight;
 import com.curio.shared.i18n.Language;
+import com.curio.shared.time.DigestDay;
 import io.github.resilience4j.bulkhead.BulkheadRegistry;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,7 +24,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
-import java.time.LocalDate;
+import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 
@@ -229,8 +230,8 @@ class ClaudeServiceTest {
 
         assertThat(result).hasSize(1);
         // Read twice on a cold cache: the fast path, then the re-check under the single-flight lock.
-        verify(valueOperations, atLeastOnce()).get("news:summaries:technology:" + LocalDate.now() + ":ko");
-        verify(valueOperations).set(eq("news:summaries:technology:" + LocalDate.now() + ":ko"), anyList(), eq(Duration.ofHours(12)));
+        verify(valueOperations, atLeastOnce()).get("news:summaries:technology:" + DigestDay.current(Clock.systemUTC()) + ":ko");
+        verify(valueOperations).set(eq("news:summaries:technology:" + DigestDay.current(Clock.systemUTC()) + ":ko"), anyList(), eq(Duration.ofHours(12)));
         verify(restTemplate).exchange(anyString(), eq(HttpMethod.POST),
                 argThat((HttpEntity<?> e) -> promptOf(e).contains("한국어") && promptOf(e).contains("해요체")
                         && promptOf(e).contains("\"topic\": \"technology\"")),
@@ -247,7 +248,7 @@ class ClaudeServiceTest {
 
         claudeService.generateNewsSummaries("technology");
 
-        verify(valueOperations).set(eq("news:summaries:technology:" + LocalDate.now() + ":en"), anyList(), eq(Duration.ofHours(12)));
+        verify(valueOperations).set(eq("news:summaries:technology:" + DigestDay.current(Clock.systemUTC()) + ":en"), anyList(), eq(Duration.ofHours(12)));
         verify(restTemplate).exchange(anyString(), eq(HttpMethod.POST),
                 argThat((HttpEntity<?> e) -> promptOf(e).contains("in English") && !promptOf(e).contains("한국어")),
                 eq(String.class));

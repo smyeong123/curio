@@ -41,7 +41,7 @@ describe('Bilingual editions', () => {
     cy.intercept('GET', '**/news/digests*', { statusCode: 200, body: emptyPage }).as('digests')
     cy.intercept('GET', '**/user/preferences', {
       statusCode: 200,
-      body: { topics: ['Claude (Anthropic)', 'Reasoning & Context', 'Pricing & Availability'], deliveryHour: 8, timezone: 'UTC', timezoneAuto: false }
+      body: { topics: ['Claude (Anthropic)', 'Reasoning & Context', 'Pricing & Availability'], deliveryHour: 6, timezone: 'UTC', timezoneAuto: false }
     })
 
     cy.visit('/dashboard/archive', withAuth())

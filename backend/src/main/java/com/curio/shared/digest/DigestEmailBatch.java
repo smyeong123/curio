@@ -9,6 +9,7 @@ import com.curio.shared.batch.SubscriberBatch.Tally;
 import com.curio.shared.exception.RootCauses;
 import com.curio.shared.jobs.JobRunRecorder;
 import com.curio.shared.port.in.EmailUseCase;
+import com.curio.shared.time.DigestDay;
 import com.curio.user.entity.User;
 import com.curio.user.entity.UserPreferences;
 import com.curio.user.port.out.UserPreferencesPort;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Component;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -36,8 +38,10 @@ import java.util.function.Predicate;
 /**
  * Emails digests to subscribers. Two modes share one loop:
  * <ul>
- *   <li>{@link #sendDue()} — the hourly run: only users whose local delivery hour
- *       has arrived, only today's digest, generated just-in-time when missing.</li>
+ *   <li>{@link #sendDue()} — the hourly run: users whose local delivery hour has
+ *       arrived get the digest day that was current at that hour (the 05:00 KST
+ *       run's digest), at most once per local day; generated just-in-time only
+ *       when that run produced nothing for them.</li>
  *   <li>{@link #sendAllUnsent()} — the admin "Send now": every subscriber with any
  *       unsent digest, no hour gate, nothing generated.</li>
  * </ul>
@@ -59,11 +63,13 @@ public class DigestEmailBatch {
     private final ThreadPoolTaskExecutor emailExecutor;
     private final Clock clock;
 
+    /** Local delivery hour for readers who never chose one. */
+    static final int DEFAULT_DELIVERY_HOUR = 6;
+
     /**
      * Fallback timezone for users who have no timezone set (registered before
-     * timezone capture, or never opened the app). Set APP_DEFAULT_DELIVERY_TIMEZONE
-     * (e.g. "Asia/Seoul") to give unknown-location users a sensible local 08:00
-     * instead of 08:00 UTC.
+     * timezone capture, or never opened the app). APP_DEFAULT_DELIVERY_TIMEZONE,
+     * default Asia/Seoul.
      */
     private final String defaultDeliveryTimezone;
 
@@ -75,7 +81,7 @@ public class DigestEmailBatch {
                             JobRunRecorder recorder,
                             @Qualifier("emailExecutor") ThreadPoolTaskExecutor emailExecutor,
                             Clock clock,
-                            @Value("${app.default-delivery-timezone:UTC}") String defaultDeliveryTimezone) {
+                            @Value("${app.default-delivery-timezone:Asia/Seoul}") String defaultDeliveryTimezone) {
         this.subscriberBatch = subscriberBatch;
         this.digestPort = digestPort;
         this.emailService = emailService;
@@ -121,7 +127,8 @@ public class DigestEmailBatch {
         // calls as digest generation, so 5 min could time out a normal cold send.
         Spec spec = Spec.forPool(JOB_NAME, emailExecutor, Duration.ofMinutes(10), 5);
         Tally tally = subscriberBatch.run(spec, preload, include,
-                scheduled ? this::deliverTodaysDigest : this::deliverAnyUnsentDigest);
+                scheduled ? user -> deliverDueDigest(user, prefsByUser.get(user.getId()))
+                          : this::deliverAnyUnsentDigest);
 
         Map<String, Object> extras = new LinkedHashMap<>();
         extras.put("sentCount", tally.success());
@@ -130,19 +137,24 @@ public class DigestEmailBatch {
     }
 
     /**
-     * Scheduled delivery: only ever send TODAY's digest. Delivery hours before the
-     * 06:00 UTC generation run would otherwise ship yesterday's edition, so a
-     * missing today's digest is generated just-in-time (idempotent per user/day
-     * and cache-backed, so cheap). A generation that throws is this user's
-     * failure; one that quietly yields nothing is a skip rather than mislabelling
-     * a stale digest as today's — the next hourly tick retries either way.
+     * Scheduled delivery. The digest a reader is due is the digest day that was
+     * current at their delivery moment today (local): for a 06:00 Seoul reader that
+     * is the 05:00 run an hour earlier; for a 06:00 New York reader it is the run
+     * that happened at 16:00 the previous local day. A newer digest day that starts
+     * later in the reader's local day waits for tomorrow's delivery hour — that is
+     * what keeps it to one email per local day even though the hour gate is a
+     * catch-up ({@code >=}) gate.
      *
-     * <p>One query answers the common case: every tick after a user's delivery
-     * hour finds today's digest already sent and stops there.
+     * <p>Normally the 05:00 run has already produced the due digest. If it hasn't
+     * (the run failed for this user, or they signed up after it), one is generated
+     * just-in-time; it is sent only if it lands in the due digest day, otherwise it
+     * goes out at tomorrow's delivery hour. A generation that throws is this user's
+     * failure; one that quietly yields nothing is a skip, never a stale send.
      */
-    private Outcome deliverTodaysDigest(User user) {
+    private Outcome deliverDueDigest(User user, UserPreferences prefs) {
+        LocalDate due = DigestDay.of(dueMoment(prefs).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime());
         Optional<Digest> newest = digestPort.findFirstByUserIdOrderByGeneratedAtDesc(user.getId());
-        if (newest.isEmpty() || !isFromToday(newest.get())) {
+        if (newest.isEmpty() || dayOf(newest.get()).isBefore(due)) {
             try {
                 pipeline.generateWithQuiz(user);
             } catch (Exception e) {
@@ -151,7 +163,7 @@ public class DigestEmailBatch {
             }
             newest = digestPort.findFirstByUserIdOrderByGeneratedAtDesc(user.getId());
         }
-        if (newest.isEmpty() || !isFromToday(newest.get()) || newest.get().getEmailSentAt() != null) {
+        if (newest.isEmpty() || !dayOf(newest.get()).equals(due) || newest.get().getEmailSentAt() != null) {
             return Outcome.skipped();
         }
         return send(user, newest.get());
@@ -173,41 +185,47 @@ public class DigestEmailBatch {
 
     /**
      * True when the current hour in the user's timezone is at or past their
-     * delivery hour (catch-up semantics). Defaults: 8:00 in their zone; the
+     * delivery hour (catch-up semantics). Defaults: 06:00 in their zone; the
      * configured fallback zone when unset.
      *
      * <p>{@code >=} rather than equality so a DST spring-forward that skips the
      * target hour still delivers on the next hourly tick. Repeated post-target
-     * ticks don't double-send: the send claim stamps {@code emailSentAt}, so the
-     * "newest unsent digest" lookup comes back empty once sent.
+     * ticks don't double-send: the send claim stamps {@code emailSentAt}, and a
+     * digest day that begins later the same local day is not due until tomorrow
+     * (see {@link #deliverDueDigest}).
      */
     boolean isDeliveryHourFor(UserPreferences prefs) {
+        return !ZonedDateTime.now(clock).isBefore(dueMoment(prefs));
+    }
+
+    /** Today's delivery moment in the reader's zone: local date, their hour, :00. */
+    ZonedDateTime dueMoment(UserPreferences prefs) {
         Integer prefHour = (prefs != null) ? prefs.getDeliveryHour() : null;
+        int targetHour = (prefHour != null) ? prefHour : DEFAULT_DELIVERY_HOUR;
+        ZoneId zone = zoneOf(prefs);
+        return ZonedDateTime.now(clock.withZone(zone)).toLocalDate().atTime(targetHour, 0).atZone(zone);
+    }
+
+    private ZoneId zoneOf(UserPreferences prefs) {
         String tz = (prefs != null) ? prefs.getTimezone() : null;
-        int targetHour = (prefHour != null) ? prefHour : 8;
-        ZoneId zone;
         try {
-            zone = (tz != null && !tz.isBlank()) ? ZoneId.of(tz) : defaultZone();
+            return (tz != null && !tz.isBlank()) ? ZoneId.of(tz) : defaultZone();
         } catch (Exception e) {
-            zone = defaultZone();
+            return defaultZone();
         }
-        return ZonedDateTime.now(clock.withZone(zone)).getHour() >= targetHour;
     }
 
     private ZoneId defaultZone() {
         try {
             return ZoneId.of(defaultDeliveryTimezone);
         } catch (Exception e) {
-            return ZoneOffset.UTC;
+            return ZoneId.of(DigestDay.ZONE);
         }
     }
 
-    /**
-     * Generated on the current UTC calendar day — UTC to match how
-     * {@code Digest.generatedAt} is stamped and how the V23 unique index defines "day".
-     */
-    boolean isFromToday(Digest digest) {
-        return digest != null && digest.getGeneratedAt() != null
-                && digest.getGeneratedAt().toLocalDate().equals(LocalDate.now(clock.withZone(ZoneOffset.UTC)));
+    /** The digest day a digest was generated in. */
+    private static LocalDate dayOf(Digest digest) {
+        LocalDateTime generatedAt = digest.getGeneratedAt();
+        return (generatedAt != null) ? DigestDay.of(generatedAt) : LocalDate.MIN;
     }
 }
