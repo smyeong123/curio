@@ -292,7 +292,7 @@ const handleSave = async () => {
     // Korean-UI signup gets Korean stories from the first issue.
     await userStore.updatePreferences(selectedTopics.value, {
       timezone: detectBrowserTimezone(),
-      deliveryHour: 8,
+      deliveryHour: 6,
       language: locale.value,
     })
     success(t('onboarding.toasts.saved'))

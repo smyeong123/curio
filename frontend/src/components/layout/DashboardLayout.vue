@@ -150,7 +150,7 @@ function dismissPlanNotice() {
 }
 
 // Once per app entry, make sure the user's delivery timezone reflects their actual
-// location so their digest lands at 08:00 local (not 08:00 UTC). No-op if already set.
+// location so their digest lands at 06:00 local (not in the fallback zone). No-op if already set.
 const { ensure: ensureTimezone } = useEnsureTimezone()
 onMounted(ensureTimezone)
 

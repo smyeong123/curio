@@ -6,7 +6,7 @@ import type { User, UpdateProfileRequest, DeliverySettings, DigestLanguage } fro
 export const useUserStore = defineStore('user', () => {
   const profile = ref<User | null>(null)
   const preferences = ref<string[]>([])
-  // Per-user delivery time (backend-backed via /user/preferences). null = default 08:00 UTC.
+  // Per-user delivery time (backend-backed via /user/preferences). null = default 06:00 local (fallback zone Asia/Seoul).
   const deliveryHour = ref<number | null>(null)
   const timezone = ref<string | null>(null)
   // true = timezone auto-follows the device; false = user pinned a fixed zone.

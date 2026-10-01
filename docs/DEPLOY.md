@@ -211,7 +211,7 @@ On the server, in `~/curio`:
   - `curio-frontend` (healthy after ~5s)
 - [ ] Check logs for errors: `docker compose logs --tail=50 backend`
   - Must see: `Started CurioApplication in N seconds`
-  - Must see: Flyway migrations applied (V1–V28)
+  - Must see: Flyway migrations applied (V1–V29)
 - [ ] Tail front: `docker compose logs --tail=20 frontend` — should show nginx ready
 
 ---
@@ -304,13 +304,13 @@ the browser-facing scheme is HTTPS end to end.
 
 The three jobs are wired with `@Scheduled` and run automatically:
 
-- **06:00 UTC** — Generate today's digests for everyone
-- **Hourly** — email each user once their local time reaches their delivery hour (default 08:00)
+- **05:00 Asia/Seoul (20:00 UTC)** — Generate the day's digest for everyone, worldwide (one run per day)
+- **Hourly** — email each user that digest once their local time reaches their delivery hour (default 06:00), at most once per local day
 - **00:00 UTC** — Delete digests + quizzes older than 30 days
 
 ShedLock prevents double-runs if you scale to multiple backend pods. No action needed.
 
-- [ ] After the next 06:00 UTC tick (or a manual run), confirm `/admin/jobs/status` shows
+- [ ] After the next 05:00 KST tick (or a manual run), confirm `/admin/jobs/status` shows
       `digest-generation: SUCCESS @ <recent timestamp>`
 
 ---

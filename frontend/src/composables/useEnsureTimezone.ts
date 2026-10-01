@@ -8,12 +8,13 @@ import { detectBrowserTimezone } from '@/utils/timezone'
  *
  *  - If the timezone is in AUTO mode (default) and the device's zone differs from
  *    the stored one, it updates the stored zone to the device's — so a Seoul→NY
- *    traveler starts getting 08:00 NY automatically.
+ *    traveler starts getting 06:00 NY automatically.
  *  - If the user has PINNED a zone in Settings (timezoneAuto = false), it does
  *    nothing, respecting their explicit choice.
  *
- * The digest send-gate defaults an unset timezone to UTC, so without this a user
- * would get 08:00 UTC (e.g. 17:00 in Seoul) rather than 08:00 local.
+ * The digest send-gate defaults an unset timezone to the server fallback zone
+ * (Asia/Seoul), so without this a reader abroad would get 06:00 Seoul time rather
+ * than their own 06:00.
  */
 export function useEnsureTimezone() {
   const userStore = useUserStore()
@@ -33,7 +34,7 @@ export function useEnsureTimezone() {
       if (device !== userStore.timezone) {
         await userStore.updatePreferences(userStore.preferences, {
           timezone: device,
-          deliveryHour: userStore.deliveryHour ?? 8,
+          deliveryHour: userStore.deliveryHour ?? 6,
           timezoneAuto: true,
         })
       }

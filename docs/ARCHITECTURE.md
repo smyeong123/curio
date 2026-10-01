@@ -14,7 +14,7 @@ _AI-powered personalized news service: daily digests tailored to user interests,
 
 ### 1. Daily digest pipeline (scheduled)
 
-![Daily digest pipeline: scheduled generation at 06:00 UTC and hourly delivery with per-user gates](diagrams/daily-digest-pipeline.png)
+![Daily digest pipeline: scheduled generation once a day and hourly delivery with per-user gates (diagram predates the move from 06:00 UTC to 05:00 KST)](diagrams/daily-digest-pipeline.png)
 
 [Edit in Excalidraw](diagrams/daily-digest-pipeline.excalidraw)
 
@@ -38,7 +38,7 @@ _AI-powered personalized news service: daily digests tailored to user interests,
 
 ## Feature internals
 
-- **Content pipeline** — one `DigestPipeline` (digest + quiz per user) behind `DigestBatch` / `DigestEmailBatch`. It is driven by `DigestGenerationJob` (06:00 UTC), the hourly `EmailSendJob` (per-user delivery hour + IANA timezone, catch-up gate, claim-before-send), the admin triggers and Studio. `CleanupJob` (00:00 UTC, 30-day retention) and `ExpiredAuthRowReaper` round it out; all jobs are ShedLock-coordinated. A digest is capped at 8 stories, round-robin across the user's topics.
+- **Content pipeline** — one `DigestPipeline` (digest + quiz per user) behind `DigestBatch` / `DigestEmailBatch`. It is driven by `DigestGenerationJob` (05:00 Asia/Seoul, once per **digest day** — `shared/time/DigestDay`), the hourly `EmailSendJob` (per-user delivery hour + IANA timezone, default 06:00; each reader gets the digest day that was current at their delivery hour, once per local day; catch-up gate, claim-before-send), the admin triggers and Studio. `CleanupJob` (00:00 UTC, 30-day retention) and `ExpiredAuthRowReaper` round it out; all jobs are ShedLock-coordinated. A digest is capped at 8 stories, round-robin across the user's topics.
 - **Topics** — 18 model-centric leaf topics across four domains (Frontier Labs · Agentic & Developer Tools · Capabilities & Ecosystem · Emerging), shown as a 3-level accordion. Canonical ids live in `frontend/src/data/topics.ts` and `TopicConstants.java`.
 - **Editions (EN / KO)** — the UI ships in both languages (vue-i18n). The account's `user_preferences.language` also sets the language the AI writes the digest, quiz and email in; the summary cache key includes the language, so editions never share content.
 - **Auth** — email/password login is two-step (password → emailed 6-digit code, toggle `AUTH_EMAIL_VERIFICATION_ENABLED`); Google sign-in is a single-step ID-token flow. JWT access tokens (15 min) live in memory; the refresh token is an httpOnly, SHA-256-hashed cookie with single-use rotation and a 3-hour sliding idle timeout. Password change and reset revoke every session.
@@ -66,7 +66,7 @@ The self-serve **Studio** (`studio/` package) lets a signed-in user manually tri
 
 - **No Stripe / subscriptions** — removed 2026-06-21 (`V22__drop_subscriptions.sql` drops the table); all features unlocked for everyone.
 - **BYOK** now works for all three providers (Claude, Gemini, OpenAI) — verified in an internal hardening audit.
-- **Custom delivery-hour + IANA timezone** (V20) are now wired end-to-end — the Settings UI persists delivery-hour and timezone selects (`/user/preferences` carries `timezone` + `deliveryHour`; default 08:00 UTC when unset). **Full-text search** (V21) is wired in ArchiveView with debounced 300ms search over the full 30-day archive. **Audit log** (V18) has a dedicated UI at `/admin/audit` (AuditLogView) with paginated admin action history.
+- **Custom delivery-hour + IANA timezone** (V20) are now wired end-to-end — the Settings UI persists delivery-hour and timezone selects (`/user/preferences` carries `timezone` + `deliveryHour`; default 06:00 in the fallback zone, Asia/Seoul, when unset). **Full-text search** (V21) is wired in ArchiveView with debounced 300ms search over the full 30-day archive. **Audit log** (V18) has a dedicated UI at `/admin/audit` (AuditLogView) with paginated admin action history.
 - **Single t3.micro EC2** runs the whole stack (nginx + backend + Postgres + Redis via docker-compose). DB backup/restore scripts (`scripts/pg_backup.sh`, `scripts/db_restore.sh`) and a TLS-enforcing deploy script (`scripts/deploy-prod.sh`, Caddy overlay) now exist; remaining operational gaps are tracked in an internal hardening audit.
 
 > A production-readiness audit (2026-06-22) and the resulting fixes are recorded in an

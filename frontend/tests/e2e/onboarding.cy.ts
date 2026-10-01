@@ -85,7 +85,7 @@ describe('Onboarding', () => {
     cy.wait('@savePrefs').its('request.body').should(body => {
       expect(body.topics).to.include('Claude (Anthropic)')
       expect(body.topics).to.have.length.of.at.least(3)
-      expect(body.deliveryHour).to.eq(8)
+      expect(body.deliveryHour).to.eq(6)
       expect(body.timezone).to.be.a('string').and.not.be.empty
     })
 

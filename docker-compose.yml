@@ -105,11 +105,10 @@ services:
       UNSUBSCRIBE_SECRET: ${UNSUBSCRIBE_SECRET}
       API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY}
       # Fallback delivery timezone for users with no timezone captured yet (e.g.
-      # registered before timezone capture, or never opened the app). Defaults to
-      # UTC — set APP_DEFAULT_DELIVERY_TIMEZONE=Asia/Seoul in .env.prod to give
-      # unknown-location users a local 08:00. Users with a captured/pinned zone
-      # are unaffected.
-      APP_DEFAULT_DELIVERY_TIMEZONE: ${APP_DEFAULT_DELIVERY_TIMEZONE:-UTC}
+      # registered before timezone capture, or never opened the app): they get
+      # their digest at 06:00 in this zone. Users with a captured/pinned zone are
+      # unaffected.
+      APP_DEFAULT_DELIVERY_TIMEZONE: ${APP_DEFAULT_DELIVERY_TIMEZONE:-Asia/Seoul}
       # Optional backend error tracking (application-prod.yml reads these;
       # without the pass-through, setting SENTRY_DSN in .env.prod only wired
       # up the frontend build arg below).

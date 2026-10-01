@@ -27,7 +27,7 @@
       {
         "heading": "How we use it",
         "bullets": [
-          "To generate and send your personalized news digest each morning at 08:00 in your local timezone (we detect it from your device, or you can pin one in Settings).",
+          "To generate and send your personalized news digest each morning at 06:00 in your local timezone (we detect it from your device, or you can pin one in Settings).",
           "To build the recall quiz attached to each digest and remember your results.",
           "To operate your account, secure it, and respond when you contact us."
         ]
@@ -81,7 +81,7 @@
       {
         "heading": "The service",
         "paragraphs": [
-          "Curio is a daily email digest of AI-model news, tailored to topics you choose, with an optional recall quiz. Digests are delivered each morning at 08:00 in your local timezone (detected from your device, or pinned in Settings). We may add, change, or remove features as the product evolves."
+          "Curio is a daily email digest of AI-model news, tailored to topics you choose, with an optional recall quiz. Digests are delivered each morning at 06:00 in your local timezone (detected from your device, or pinned in Settings). We may add, change, or remove features as the product evolves."
         ]
       },
       {
@@ -166,7 +166,7 @@
       {
         "heading": "New here?",
         "paragraphs": [
-          "Curio sends one tailored AI-model news digest every morning at 08:00 your local time, with a quick quiz to help it stick. [Subscribe free](/register) or [sign in](/login) to your account."
+          "Curio sends one tailored AI-model news digest every morning at 06:00 your local time, with a quick quiz to help it stick. [Subscribe free](/register) or [sign in](/login) to your account."
         ]
       }
     ]

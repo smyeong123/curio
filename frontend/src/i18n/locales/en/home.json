@@ -1,7 +1,7 @@
 {
   "strip": {
     "vol": "Vol.",
-    "issue": "Issue ∞ — Daily, 08:00 your time",
+    "issue": "Issue ∞ — Daily, 06:00 your time",
     "readIt": "Read it"
   },
   "ticker": {
@@ -25,7 +25,7 @@
     "headline": "The AI beat, {curated} before {coffee}.",
     "curated": "curated",
     "coffee": "coffee",
-    "lede": "Every morning at 08:00, Curio reads the lab blogs, the pricing pages, the release notes and the bench charts — and writes you a five-minute brief on the AI model news that actually matters. Then it quizzes you on it, because we don't trust ourselves to remember it either.",
+    "lede": "Every morning at 06:00, Curio reads the lab blogs, the pricing pages, the release notes and the bench charts — and writes you a five-minute brief on the AI model news that actually matters. Then it quizzes you on it, because we don't trust ourselves to remember it either.",
     "cta": "Read tomorrow's edition",
     "signIn": "Sign in",
     "fineprint": "Free · 5 min/day · unsubscribe any time",
@@ -37,7 +37,7 @@
     }
   },
   "sample": {
-    "stamp": "Tomorrow · 08:00",
+    "stamp": "Tomorrow · 06:00",
     "kicker": "Sample edition · Vol. {vol}",
     "headline": "What shipped while you were {asleep}.",
     "asleep": "asleep",
@@ -73,11 +73,11 @@
         "body": "Choose from 18 model-specific topics — Claude, GPT, Gemini, Llama, agentic frameworks, benchmarks. Pick at least three. Change them whenever."
       },
       {
-        "title": "We file by 06:00",
+        "title": "We file before dawn",
         "body": "Curio scans first-party feeds and lab blogs, asks Claude Sonnet to summarize like a senior editor, then files an issue tuned to your beats."
       },
       {
-        "title": "You read by 08:00",
+        "title": "You read by 06:00",
         "body": "Five-minute brief in your inbox. Five-question quiz on the web. We track what you remember — and what to revisit."
       }
     ]

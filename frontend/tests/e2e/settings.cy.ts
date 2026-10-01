@@ -16,7 +16,7 @@ const mockProfile = {
 // when the mocked zone differs from the test browser's device zone.
 const mockPreferences = {
   topics: ['Claude (Anthropic)', 'GPT & ChatGPT (OpenAI)', 'Pricing & Availability'],
-  deliveryHour: 8,
+  deliveryHour: 6,
   timezone: 'Asia/Seoul',
   timezoneAuto: false
 }
@@ -55,9 +55,9 @@ describe('Settings', () => {
     cy.contains(mockProfile.email).should('be.visible')
     cy.get('#settings-name').should('have.value', 'Test User')
 
-    // Delivery: enabled, 08:00, pinned to Asia/Seoul (auto-timezone off).
+    // Delivery: enabled, 06:00, pinned to Asia/Seoul (auto-timezone off).
     cy.get('[role="switch"]').should('have.attr', 'aria-checked', 'true')
-    cy.get('#settings-delivery-hour').should('have.value', '8')
+    cy.get('#settings-delivery-hour').should('have.value', '6')
     cy.get('#settings-timezone').should('have.value', 'Asia/Seoul').and('not.be.disabled')
     cy.contains("Automatically use my device's timezone")
       .parent()
@@ -127,7 +127,7 @@ describe('Settings', () => {
     cy.wait('@updatePrefs').its('request.body').then((body) => {
       expect(body.timezoneAuto).to.equal(true)
       expect(body.timezone).to.be.a('string').and.to.have.length.greaterThan(0)
-      expect(body.deliveryHour).to.equal(8)
+      expect(body.deliveryHour).to.equal(6)
     })
   })
 

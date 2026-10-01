@@ -55,7 +55,7 @@ export interface PreferencesResponse {
   topics: string[]
   /** IANA timezone id the digest is scheduled in. Null = UTC. */
   timezone?: string | null
-  /** Preferred delivery hour 0-23 in the chosen timezone. Null = 8 (08:00). */
+  /** Preferred delivery hour 0-23 in the chosen timezone. Null = 6 (06:00). */
   deliveryHour?: number | null
   /** true = timezone auto-follows the device; false = pinned to a chosen zone. */
   timezoneAuto?: boolean
