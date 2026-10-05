@@ -15,7 +15,9 @@ export const options = {
   }
 }
 
-const answers = Array.from({ length: 5 }, (_, i) => ({ id: i + 1, answer: 'A' }))
+// QuizSubmitRequest takes a map of question id (1-5) → chosen option, e.g.
+// {"1":"A","2":"A",...} — not an array of {id, answer} (that 400s).
+const answers = Object.fromEntries(Array.from({ length: 5 }, (_, i) => [String(i + 1), 'A']))
 
 export default function () {
   const res = http.post(

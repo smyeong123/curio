@@ -335,8 +335,9 @@ From your laptop:
       Use the bundled script (timestamped, gzipped, auto-pruned):
   ```bash
   ./scripts/pg_backup.sh                       # one-off
-  # cron (daily 03:30, before the 06:00 digest job):
-  30 3 * * *  cd /opt/curio && ./scripts/pg_backup.sh >> /var/log/curio-backup.log 2>&1
+  # cron (daily 03:30 KST = 18:30 UTC on a UTC host clock — clear of the
+  # 05:00 KST digest run and the hourly :00 email sends; use your checkout dir):
+  30 18 * * *  cd /opt/curio && ./scripts/pg_backup.sh >> "$HOME/curio-backup.log" 2>&1
   ```
   Tune `RETENTION_DAYS` (default 14) and uncomment the S3/rclone `SYNC` line in the script
   to push dumps off-box. Restore with `./scripts/db_restore.sh <dump.sql.gz>`.

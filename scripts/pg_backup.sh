@@ -10,8 +10,11 @@
 # Usage:
 #   ./scripts/pg_backup.sh
 #
-# Cron (daily 03:30, before the 06:00 digest job touches the DB):
-#   30 3 * * *  cd /opt/curio && ./scripts/pg_backup.sh >> /var/log/curio-backup.log 2>&1
+# Cron (daily 03:30 KST — clear of the 05:00 KST digest run, the hourly email
+# sends at :00 and the 00:00 UTC cleanup). Cron uses the host clock, which is
+# UTC on a stock EC2 box, so 03:30 KST is 18:30 UTC. Replace /opt/curio with
+# your checkout directory:
+#   30 18 * * *  cd /opt/curio && ./scripts/pg_backup.sh >> "$HOME/curio-backup.log" 2>&1
 #
 # Env (override as needed):
 #   BACKUP_DIR        where dumps are written        (default: ./backups)
