@@ -8,6 +8,21 @@ branches, commits, pull requests, and what "done" means for a change.
 - Codebase reference: [`docs/CODEBASE.md`](./docs/CODEBASE.md)
 - Security issues: **do not open a public issue** — see [`SECURITY.md`](./SECURITY.md)
 
+## License and contribution terms
+
+Curio is source-available under the [PolyForm Noncommercial License 1.0.0](./LICENSE.md),
+not an open-source license. Commercial use needs a separate license from the copyright
+holder.
+
+- **Issues are welcome:** bug reports, questions and ideas.
+- **Code contributions (pull requests) from outside the maintainer are not accepted
+  unless you have signed a contributor agreement first.** The agreement lets the
+  project keep offering commercial licenses for code that includes your change.
+  Open an issue describing what you want to change, and the maintainer will follow up.
+
+The rest of this guide describes how changes are made in this repository. It applies to
+the maintainer and to contributors who have signed an agreement.
+
 ## Workflow
 
 We use GitHub Flow: `main` is always releasable, and every change lands through a
