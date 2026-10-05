@@ -98,7 +98,7 @@ get AI features working locally is one of `CLAUDE_API_KEY` / `GEMINI_API_KEY` /
 ## 5. Infrastructure (PostgreSQL + Redis)
 
 ```bash
-# Start both (PostgreSQL 16.9-alpine, Redis 7.4.2-alpine)
+# Start both (PostgreSQL 16.14-alpine, Redis 7.4.9-alpine)
 docker compose --env-file .env.dev -f docker-compose.infra.yml up -d
 
 # Verify

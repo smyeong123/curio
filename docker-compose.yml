@@ -19,7 +19,10 @@ x-logging: &default-logging
 
 services:
   postgres:
-    image: postgres:16.9-alpine
+    # Pinned to the patch level production already runs. Never pin below it:
+    # minor versions share an on-disk format, but a lower pin silently drops
+    # security fixes when the container is recreated.
+    image: postgres:16.14-alpine
     container_name: curio-postgres
     logging: *default-logging
     restart: unless-stopped
@@ -44,7 +47,7 @@ services:
           cpus: "1.0"
 
   redis:
-    image: redis:7.4.2-alpine
+    image: redis:7.4.9-alpine
     container_name: curio-redis
     logging: *default-logging
     restart: unless-stopped
