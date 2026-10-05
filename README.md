@@ -91,8 +91,15 @@ curio/
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for branch and commit conventions, the checks to run before a PR, and code conventions. Report security issues privately per [`SECURITY.md`](./SECURITY.md).
+External code contributions are not accepted without a contributor agreement (see [`CONTRIBUTING.md`](./CONTRIBUTING.md)); bug reports and ideas are welcome as issues. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for branch and commit conventions, the checks to run before a PR, and code conventions. Report security issues privately per [`SECURITY.md`](./SECURITY.md).
 
 ## License
 
-Proprietary
+Curio is **source-available, not open source**. It is licensed under the [PolyForm Noncommercial License 1.0.0](./LICENSE.md):
+
+- **Allowed:** reading, running and modifying it for personal, study, research or other noncommercial purposes, and use by noncommercial organizations.
+- **Not allowed without a separate license:** any commercial use. This includes running it as a paid or ad-supported service, or building it into a commercial product.
+
+For a commercial license, contact [@smyeong123](https://github.com/smyeong123).
+
+Copyright (c) 2026 Sangmyeong Lee.

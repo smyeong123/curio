@@ -26,4 +26,4 @@ body:
     attributes:
       label: Contribution
       options:
-        - label: I'd like to open a PR for this
+        - label: I'd like to contribute code for this (requires a contributor agreement — see CONTRIBUTING.md)

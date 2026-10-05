@@ -93,8 +93,15 @@ curio/
 
 ## 기여하기
 
-브랜치·커밋 규칙, PR 전에 돌려야 할 검사, 코드 규칙은 [`CONTRIBUTING.md`](./CONTRIBUTING.md)에 있어요. 보안 문제는 공개 이슈 대신 [`SECURITY.md`](./SECURITY.md)에 안내된 방법으로 알려 주세요.
+외부 코드 기여는 기여자 동의서 없이는 받지 않아요([`CONTRIBUTING.md`](./CONTRIBUTING.md) 참고). 버그 제보와 아이디어는 이슈로 남겨 주세요. 브랜치·커밋 규칙, PR 전에 돌려야 할 검사, 코드 규칙은 [`CONTRIBUTING.md`](./CONTRIBUTING.md)에 있어요. 보안 문제는 공개 이슈 대신 [`SECURITY.md`](./SECURITY.md)에 안내된 방법으로 알려 주세요.
 
 ## 라이선스
 
-Proprietary
+Curio는 **소스는 공개하지만 오픈소스는 아니에요.** [PolyForm Noncommercial License 1.0.0](./LICENSE.md)을 따라요.
+
+- **할 수 있어요:** 개인, 학습, 연구 같은 비상업적 목적으로 코드를 읽고, 실행하고, 고칠 수 있어요. 비영리 단체도 쓸 수 있어요.
+- **별도 라이선스가 필요해요:** 상업적으로 쓰는 모든 경우예요. 유료 서비스나 광고 수익 서비스로 운영하거나, 상업 제품에 넣는 것도 포함돼요.
+
+상업적 이용은 [@smyeong123](https://github.com/smyeong123)에게 문의해 주세요.
+
+Copyright (c) 2026 Sangmyeong Lee.
