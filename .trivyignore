@@ -1,0 +1,11 @@
+# Reviewed CVEs that Trivy flags but that do not apply to Curio. Every entry
+# needs a reason and an expiry (exp:) so it gets re-reviewed, not forgotten.
+
+# Spring Framework 6.2.19 (Boot 3.5.16). Fixed only in 7.0.9 — there is no OSS
+# 6.2.x patch, so the real fix is the Spring Boot 4 upgrade.
+# CVE-2026-47884: RCE via XsltView path handling. Curio has no XSLT views
+#   (no XsltView, no spring-context-support).
+CVE-2026-47884 exp:2027-01-31
+# CVE-2026-47890: SSE stream corruption with view rendering. Curio serves no
+#   Server-Sent Events (no SseEmitter/ResponseBodyEmitter/WebFlux).
+CVE-2026-47890 exp:2027-01-31
