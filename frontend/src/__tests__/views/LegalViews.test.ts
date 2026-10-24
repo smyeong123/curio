@@ -30,14 +30,17 @@ describe('Legal views editions', () => {
     const w = mountView(PrivacyView)
     expect(w.get('h1').text()).toBe('Privacy Policy')
     expect(w.text()).toContain('← Back to home')
-    expect(w.text()).toContain('Last updated May 2026')
+    expect(w.text()).toContain('Last updated October 2026')
     expect(w.findAll('.legal-body h2').map((h) => h.text())).toEqual([
       'What we collect',
       'How we use it',
-      'Service providers',
+      'Service providers & international transfers',
+      'Your own API key',
       'Cookies & sessions',
       'How long we keep it',
-      'Your choices',
+      'How we protect it',
+      'Your rights & choices',
+      'Privacy officer',
       'Changes'
     ])
     // Intro comes first, before any heading (keeps the h2:first-child rule inert as before).
@@ -46,7 +49,7 @@ describe('Legal views editions', () => {
     const firstBullet = w.findAll('.legal-body li')[0]!
     expect(firstBullet.get('strong').text()).toBe('Account details')
     expect(firstBullet.text()).toBe(
-      'Account details — your email address, and either a password (stored only as a salted hash, never in plain text) or your Google account identifier if you sign in with Google.'
+      'Account details — your email address, the name you give us, and either a password (stored only as a salted hash, never in plain text) or your Google account identifier if you sign in with Google.'
     )
     expect(w.get(MAILTO).text()).toBe(EMAIL)
     expect(w.get('.legal-body a[href="/contact"]').text()).toBe('Contact us')
@@ -65,8 +68,8 @@ describe('Legal views editions', () => {
     expect(w.get('h1').text()).toBe('개인정보 처리방침')
     expect(w.text()).toContain('— 매일 아침 AI 모델 소식')
     expect(w.text()).toContain('← 홈으로')
-    expect(w.text()).toContain('최종 수정일 2026년 5월')
-    expect(w.findAll('.legal-body h2').length).toBe(7)
+    expect(w.text()).toContain('최종 수정일 2026년 10월')
+    expect(w.findAll('.legal-body h2').length).toBe(10)
     expect(w.findAll('.legal-body h2')[0]!.text()).toBe('모으는 정보')
     expect(w.findAll('.legal-body li')[0]!.get('strong').text()).toBe('계정 정보')
     expect(w.get(MAILTO).text()).toBe(EMAIL)

@@ -12,55 +12,84 @@
   "privacy": {
     "kicker": "Privacy",
     "title": "Privacy Policy",
-    "updated": "May 2026",
+    "updated": "October 2026",
     "intro": "This policy explains what Curio collects, why, and the choices you have. We keep it short and specific — we only collect what the service genuinely needs to deliver your daily digest.",
     "sections": [
       {
         "heading": "What we collect",
         "bullets": [
-          "**Account details** — your email address, and either a password (stored only as a salted hash, never in plain text) or your Google account identifier if you sign in with Google.",
-          "**Your interests** — the AI-model topics you select during onboarding, used to tailor each digest.",
+          "**Account details** — your email address, the name you give us, and either a password (stored only as a salted hash, never in plain text) or your Google account identifier if you sign in with Google.",
+          "**Your settings** — the AI-model topics you select, your edition (English or Korean), delivery hour and timezone.",
           "**Quiz activity** — your answers and scores, so we can show your history and track retention.",
-          "**Email engagement** — whether a digest email was delivered, opened, or clicked, reported back to us by our email provider."
+          "**Email engagement** — whether a digest email was delivered, opened, or clicked, reported back to us by our email provider.",
+          "**Your own AI API key** (optional) — only if you add one in Settings. See \"Your own API key\" below.",
+          "**Technical data** — your IP address and browser details in short-lived server logs, used to keep the service secure and to rate-limit abuse."
         ]
       },
       {
         "heading": "How we use it",
         "bullets": [
-          "To generate and send your personalized news digest each morning at 06:00 in your local timezone (we detect it from your device, or you can pin one in Settings).",
+          "To generate and send your personalized news digest each morning at your chosen hour in your local timezone (we detect it from your device, or you can pin one in Settings).",
           "To build the recall quiz attached to each digest and remember your results.",
-          "To operate your account, secure it, and respond when you contact us."
+          "To operate your account, secure it, prevent abuse, and respond when you contact us.",
+          "We do not sell your data, use it for advertising, or share it with anyone for their own purposes."
         ]
       },
       {
-        "heading": "Service providers",
+        "heading": "Service providers & international transfers",
         "paragraphs": [
-          "We share the minimum necessary data with trusted providers who process it on our behalf:"
+          "We share the minimum necessary data with providers who process it on our behalf. Most are based outside Korea, so your data is transferred to them over encrypted connections (TLS) whenever you use Curio, and kept only as long as each needs it or until you delete your account:"
         ],
         "bullets": [
-          "**Anthropic (Claude)** — summarizes source articles into your digest. We send article text, not your identity.",
-          "**News API** — supplies the source articles we summarize.",
-          "**Resend** — delivers your digest emails and reports delivery, open, and click events."
+          "**Amazon Web Services** (USA) — hosts our servers and database, which hold the account data above.",
+          "**Cloudflare** (USA, global network) — delivers the site over HTTPS and protects it from attacks; sees your IP address and requests.",
+          "**Anthropic (Claude)** (USA) — summarizes source articles into your digest and writes its quiz. We send article text, not your identity.",
+          "**Google** (USA) — Google sign-in, if you choose it (we receive your email, name and Google account identifier), and the web fonts the site loads, which exposes your IP address to Google.",
+          "**Resend** (USA) — delivers our emails (your email address and the digest content) and reports delivery, open, and click events.",
+          "**Sentry** (USA) — receives error reports when something breaks, with sign-in tokens and codes stripped out.",
+          "**News API** and public lab feeds — supply the source articles we summarize. No personal data is sent to them."
+        ]
+      },
+      {
+        "heading": "Your own API key",
+        "paragraphs": [
+          "If you add your own AI provider key, we store it encrypted (AES-256-GCM) and use it only to generate your own digests and quizzes, sending it only to that provider. It is never shown back in full, never used for other readers, and you can delete it in Settings at any time."
         ]
       },
       {
         "heading": "Cookies & sessions",
         "paragraphs": [
-          "We use authentication tokens to keep you signed in — a short-lived access token (15 minutes) and a refresh token stored on our side only as a hash. The refresh token is a sliding session: it stays valid while you use Curio and expires after about 3 hours of inactivity. We do not use third-party advertising or tracking cookies."
+          "We use authentication tokens to keep you signed in — a short-lived access token (15 minutes) held only in memory, and a refresh token in an HTTP-only cookie that we store on our side only as a hash. The refresh token is a sliding session: it stays valid while you use Curio and expires after about 3 hours of inactivity. Your browser's local storage keeps small preferences such as theme and language. We do not use advertising or tracking cookies."
         ]
       },
       {
         "heading": "How long we keep it",
         "paragraphs": [
-          "Generated digests and quizzes are automatically deleted after **30 days** on a rolling basis. Your account information is retained until you delete your account, after which it is removed."
+          "Generated digests and quizzes are automatically deleted after **30 days** on a rolling basis. Server logs are kept only briefly. Your account information is retained until you delete your account; it is then permanently erased from our database without delay, except where a law requires us to keep something longer."
         ]
       },
       {
-        "heading": "Your choices",
+        "heading": "How we protect it",
         "bullets": [
-          "**Unsubscribe anytime** — every email includes a one-click unsubscribe link; you can also turn delivery off in your settings.",
-          "**Delete your account** — this removes your profile, preferences, and history.",
-          "**Reach us** — for any privacy request, email Sangmyeong Lee at [{email}](mailto:{email})."
+          "Encrypted connections (HTTPS) everywhere; passwords and every sign-in token or code stored only as one-way hashes; API keys encrypted at rest.",
+          "Access to the servers and database is limited to the operator, and sign-in attempts are rate-limited."
+        ]
+      },
+      {
+        "heading": "Your rights & choices",
+        "bullets": [
+          "**See or correct your data** — most of it is in Settings; for a copy of everything we hold, email us.",
+          "**Unsubscribe anytime** — every email includes an unsubscribe link; you can also turn delivery off in Settings.",
+          "**Delete your account** — this removes your profile, preferences, API key and history.",
+          "**Ask us to stop processing** your data, or withdraw your consent, by emailing [{email}](mailto:{email}). We reply within 10 days.",
+          "Curio is not intended for children under 14, and we don't knowingly collect their data."
+        ]
+      },
+      {
+        "heading": "Privacy officer",
+        "paragraphs": [
+          "Curio's privacy officer is **Sangmyeong Lee** — email [{email}](mailto:{email}) for any privacy question or request.",
+          "If you are in Korea and a concern isn't resolved, you can also contact the Personal Information Infringement Report Center (privacy.kisa.or.kr, 118) or the Personal Information Dispute Mediation Committee (kopico.go.kr, 1833-6972)."
         ]
       },
       {
