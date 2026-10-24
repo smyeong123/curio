@@ -21,6 +21,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -54,6 +55,10 @@ public class EmailTransport {
     @Value("${resend.from-email:no-reply@curio-news.dev}")
     private String fromEmail;
 
+    /** Where reader replies go (the sender mailbox doesn't receive mail). Blank = no Reply-To. */
+    @Value("${resend.reply-to:}")
+    private String replyTo;
+
     private RestTemplate restTemplate;
 
     @PostConstruct
@@ -74,12 +79,14 @@ public class EmailTransport {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Authorization", "Bearer " + resendApiKey);
 
-        Map<String, Object> body = Map.of(
-                "from", "Curio <" + fromEmail + ">",
-                "to", List.of(to),
-                "subject", subject,
-                "html", html
-        );
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("from", "Curio <" + fromEmail + ">");
+        body.put("to", List.of(to));
+        body.put("subject", subject);
+        body.put("html", html);
+        if (replyTo != null && !replyTo.isBlank()) {
+            body.put("reply_to", replyTo);
+        }
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         Exception lastException = null;
@@ -129,6 +136,9 @@ public class EmailTransport {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
             helper.setFrom(fromEmail);
+            if (replyTo != null && !replyTo.isBlank()) {
+                helper.setReplyTo(replyTo);
+            }
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(html, true);

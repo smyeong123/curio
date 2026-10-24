@@ -55,8 +55,22 @@ class EmailTransportTest {
                 argThat((HttpEntity<?> e) -> {
                     @SuppressWarnings("unchecked") Map<String, Object> body = (Map<String, Object>) e.getBody();
                     return "Curio <no-reply@curio.test>".equals(body.get("from"))
+                            && !body.containsKey("reply_to")
                             && "Bearer re_test".equals(e.getHeaders().getFirst("Authorization"));
                 }), eq(String.class));
+    }
+
+    @Test
+    void setsReplyTo_whenConfigured() {
+        ReflectionTestUtils.setField(transport, "replyTo", "hello@curio.test");
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok("{\"id\":\"msg_3\"}"));
+
+        transport.send("to@example.com", "Hi", "<p>hi</p>");
+
+        verify(restTemplate).exchange(anyString(), eq(HttpMethod.POST),
+                argThat((HttpEntity<?> e) -> "hello@curio.test".equals(((Map<?, ?>) e.getBody()).get("reply_to"))),
+                eq(String.class));
     }
 
     @Test

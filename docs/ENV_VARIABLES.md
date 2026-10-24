@@ -36,6 +36,7 @@ is, **why** it's needed, and **how** it works.
 | `UNSUBSCRIBE_TOKEN_TTL_HOURS` | Email | optional (default `720`) | unsubscribe token lifetime (hours) |
 | `SENTRY_RELEASE` | Observability | optional | release version for Sentry tracking |
 | `FROM_EMAIL` | Email | optional | sender email address |
+| `REPLY_TO_EMAIL` | Email | optional | Reply-To on every email (prod default `hello@curio-news.dev`) |
 | `APP_RATE_LIMIT_TRUSTED_PROXY_HOPS` | Security | optional (default `1`) | X-Forwarded-For hops to trust for client IP |
 | `SENTRY_*` (3) | Observability | optional | error tracking |
 | `BACKEND_IMAGE` / `FRONTEND_IMAGE` | Deploy | optional | pre-built images vs. local build |
@@ -239,6 +240,8 @@ a DB leak exposes every user's key.
 **What:** Sender address for all transactional email (digests, password resets, verification codes).
 **Why:** Must belong to a Resend-verified domain or sends fail with 403.
 **Default:** prod `digest@curio-news.dev` (`application-prod.yml`), dev `onboarding@resend.dev`, with a `no-reply@curio-news.dev` code-level fallback in `EmailService`.
+
+`REPLY_TO_EMAIL` sets the Reply-To header, so reader replies reach a real mailbox instead of the send-only sender address. Default: prod `hello@curio-news.dev`; unset elsewhere (no Reply-To). The address must actually receive mail (e.g. via Cloudflare Email Routing).
 
 ---
 

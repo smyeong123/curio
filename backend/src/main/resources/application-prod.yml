@@ -34,6 +34,7 @@ claude:
 resend:
   api-key: ${RESEND_API_KEY}
   from-email: ${FROM_EMAIL:digest@curio-news.dev}
+  reply-to: ${REPLY_TO_EMAIL:hello@curio-news.dev}
   webhook-secret: ${RESEND_WEBHOOK_SECRET}
   webhook-tolerance-seconds: ${RESEND_WEBHOOK_TOLERANCE_SECONDS:300}
 
