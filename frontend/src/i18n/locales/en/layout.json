@@ -34,8 +34,8 @@
   "notice": {
     "label": "Service announcement",
     "lead": "Notice —",
-    "body": "Curio is free while we test, through the end of July 2026. From August–September, payments open and paid plans with extra features arrive — the free digest stays. Questions? Email {contact}.",
-    "contactName": "Sangmyeong Lee",
+    "body": "Curio is free. If we ever add paid extras, we'll tell you first — the free digest stays. Questions or feedback? Email {contact}.",
+    "contactName": "us",
     "dismiss": "Dismiss notice"
   }
 }

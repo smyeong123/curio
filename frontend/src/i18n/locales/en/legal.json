@@ -75,7 +75,7 @@
   "terms": {
     "kicker": "Terms",
     "title": "Terms of Service",
-    "updated": "July 2026",
+    "updated": "October 2026",
     "intro": "These terms govern your use of Curio. By creating an account or reading a digest, you agree to them. If you don't agree, please don't use the service.",
     "sections": [
       {
@@ -109,7 +109,7 @@
       {
         "heading": "Pricing",
         "paragraphs": [
-          "Curio is in a **free testing period through 31 July 2026** — the full daily digest, complete archive, and all topics at no cost. From **August–September 2026** we plan to enable payments and introduce paid plans with additional features for paid subscribers. We'll give clear notice here and by email before any paid plan launches, and you will never be charged unless you explicitly subscribe to one — the existing free tier isn't going away without notice."
+          "Curio is **free** — the full daily digest, complete archive, and all topics at no cost. If we ever introduce paid plans with additional features, we'll give **at least 30 days' notice** here and by email first, and you will never be charged unless you explicitly subscribe to one. The free daily digest isn't going away without notice."
         ]
       },
       {
@@ -151,9 +151,9 @@
         ]
       },
       {
-        "heading": "Pricing & upcoming paid plans",
+        "heading": "Pricing",
         "paragraphs": [
-          "Curio is **free while we test, through the end of July 2026** — every feature is open to everyone. From **August–September 2026** we'll enable payments and introduce paid plans with additional features. See the [terms](/terms) for details."
+          "Curio is **free** — every feature is open to everyone. If we ever add paid plans, we'll give notice first. See the [terms](/terms) for details."
         ]
       },
       {

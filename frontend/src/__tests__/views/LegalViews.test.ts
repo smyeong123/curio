@@ -17,7 +17,7 @@ const router = createRouter({
 
 const mountView = (view: Component) => mount(view, { global: { plugins: [router] } })
 
-const EMAIL = 'sangmyeonglee123@gmail.com'
+const EMAIL = 'hello@curio-news.dev'
 const MAILTO = `.legal-body a[href="mailto:${EMAIL}"]`
 const NOTICE = '이 문서는 영문 원본을 번역한 것이에요. 내용이 다르게 해석되면 영문 원본을 따라요.'
 
@@ -79,7 +79,7 @@ describe('Legal views editions', () => {
   it('Terms renders both editions with the same section structure', async () => {
     const w = mountView(TermsView)
     expect(w.get('h1').text()).toBe('Terms of Service')
-    expect(w.text()).toContain('Last updated July 2026')
+    expect(w.text()).toContain('Last updated October 2026')
     const enHeadings = w.findAll('.legal-body h2').map((h) => h.text())
     expect(enHeadings).toEqual([
       'The service',
@@ -94,8 +94,8 @@ describe('Legal views editions', () => {
     ])
     expect(w.findAll('.legal-body strong').map((s) => s.text())).toEqual([
       'may contain errors or omissions',
-      'free testing period through 31 July 2026',
-      'August–September 2026'
+      'free',
+      "at least 30 days' notice"
     ])
     expect(w.text()).toContain('The service is provided "as is" without warranties of any kind.')
     expect(w.get(MAILTO).text()).toBe(EMAIL)
@@ -105,7 +105,7 @@ describe('Legal views editions', () => {
     i18n.global.locale.value = 'ko'
     await nextTick()
     expect(w.get('h1').text()).toBe('이용약관')
-    expect(w.text()).toContain('최종 수정일 2026년 7월')
+    expect(w.text()).toContain('최종 수정일 2026년 10월')
     expect(w.findAll('.legal-body h2').length).toBe(enHeadings.length)
     expect(w.findAll('.legal-body h2')[2]!.text()).toBe('이렇게는 이용할 수 없어요')
     expect(w.findAll('.legal-body strong')[0]!.text()).toBe('틀리거나 빠진 내용이 있을 수 있어요')
@@ -121,7 +121,7 @@ describe('Legal views editions', () => {
     expect(w.get('.legal-body p strong').text()).toBe('Sangmyeong Lee')
     expect(w.findAll('.legal-body h2').map((h) => h.text())).toEqual([
       'Email',
-      'Pricing & upcoming paid plans',
+      'Pricing',
       'Before you write',
       'New here?'
     ])

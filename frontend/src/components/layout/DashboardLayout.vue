@@ -96,7 +96,7 @@
           <strong class="text-[color:var(--ink)]">{{ t('layout.notice.lead') }}</strong>{{ ' ' }}
           <i18n-t scope="global" keypath="layout.notice.body" tag="span">
             <template #contact>
-              <a href="mailto:sangmyeonglee123@gmail.com" class="underline underline-offset-2 hover:text-[color:var(--ink)]">{{ t('layout.notice.contactName') }}</a>
+              <a :href="`mailto:${CONTACT_EMAIL}`" class="underline underline-offset-2 hover:text-[color:var(--ink)]">{{ t('layout.notice.contactName') }}</a>
             </template>
           </i18n-t>
         </p>
@@ -132,6 +132,7 @@ import { focusPageHeading } from '@/composables/useFocusOnEnter'
 import { useEnsureTimezone } from '@/composables/useEnsureTimezone'
 import DashboardMenu from '@/components/layout/DashboardMenu.vue'
 import DashboardMenuFoot from '@/components/layout/DashboardMenuFoot.vue'
+import { CONTACT_EMAIL } from '@/data/contact'
 
 const route = useRoute()
 const router = useRouter()
@@ -140,7 +141,7 @@ const { t } = useI18n()
 const { locale, intlLocale } = useLocale()
 const { formatDate } = useFormat()
 
-// One-time announcement: free testing period ends July 2026, paid plans Aug–Sep.
+// One-time announcement: Curio is free; paid extras (if any) get advance notice.
 const PLAN_NOTICE_KEY = 'curio.notice.paidPlans2026'
 const canUseStorage = typeof localStorage !== 'undefined'
 const showPlanNotice = ref(canUseStorage && localStorage.getItem(PLAN_NOTICE_KEY) !== '1')
