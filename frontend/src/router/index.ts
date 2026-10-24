@@ -19,6 +19,8 @@ const router = createRouter({
       }, 180)
     })
   },
+  // A new top-level path must also be added to the SPA-route regex in
+  // frontend/nginx.conf, or production serves it as a 404.
   routes: [
     {
       path: '/',
