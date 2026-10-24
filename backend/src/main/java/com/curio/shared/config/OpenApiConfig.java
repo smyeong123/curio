@@ -21,7 +21,7 @@ public class OpenApiConfig {
                 .version("1.0.0")
                 .contact(new Contact()
                     .name("Sangmyeong Lee")
-                    .email("sangmyeonglee123@gmail.com")))
+                    .email("hello@curio-news.dev")))
             .addSecurityItem(new SecurityRequirement().addList("bearer-jwt"))
             .components(new Components()
                 .addSecuritySchemes("bearer-jwt",

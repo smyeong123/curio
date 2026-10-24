@@ -63,6 +63,7 @@ import { computed, h, type FunctionalComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import LanguageSelect from '@/components/ui/LanguageSelect.vue'
+import { CONTACT_EMAIL } from '@/data/contact'
 
 /**
  * Chrome + prose renderer for the legal pages. All copy lives in the `legal`
@@ -79,8 +80,6 @@ import LanguageSelect from '@/components/ui/LanguageSelect.vue'
  * skipped when empty.
  */
 const props = defineProps<{ page: 'privacy' | 'terms' | 'contact' }>()
-
-const CONTACT_EMAIL = 'sangmyeonglee123@gmail.com'
 
 type RawSection = { heading: string; paragraphs?: string[]; bullets?: string[] }
 type RawCopy = {

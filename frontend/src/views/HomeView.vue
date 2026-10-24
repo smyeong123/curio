@@ -278,7 +278,7 @@
           <router-link to="/privacy" class="hover:text-[color:var(--ink)]">{{ t('home.footer.privacy') }}</router-link>
           <router-link to="/terms" class="hover:text-[color:var(--ink)]">{{ t('home.footer.terms') }}</router-link>
           <router-link to="/contact" class="hover:text-[color:var(--ink)]">{{ t('home.footer.contact') }}</router-link>
-          <a href="mailto:sangmyeonglee123@gmail.com" class="normal-case tracking-normal hover:text-[color:var(--ink)]">sangmyeonglee123@gmail.com</a>
+          <a :href="`mailto:${CONTACT_EMAIL}`" class="normal-case tracking-normal hover:text-[color:var(--ink)]">{{ CONTACT_EMAIL }}</a>
           <span>{{ t('home.footer.copyright') }}</span>
         </div>
       </div>
@@ -292,6 +292,7 @@ import { useI18n } from 'vue-i18n'
 import { useFormat } from '@/composables/useFormat'
 import { useTopicLabels } from '@/composables/useTopicLabels'
 import { ALL_TOPICS } from '@/data/topics'
+import { CONTACT_EMAIL } from '@/data/contact'
 import LanguageSelect from '@/components/ui/LanguageSelect.vue'
 
 const { t, tm, rt } = useI18n()
