@@ -106,6 +106,8 @@ jobs:
           image-ref: curio-backend:ci
           format: table
           severity: CRITICAL,HIGH
+          # Reviewed, not-applicable CVEs (each with a reason + expiry).
+          trivyignores: .trivyignore
           # Fail CI on fixable CRITICAL/HIGH CVEs. ignore-unfixed skips CVEs with
           # no upstream patch yet (nothing actionable), so the gate stays green
           # until a fix exists, then goes red until we rebuild on the patched base.

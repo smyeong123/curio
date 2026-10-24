@@ -20,6 +20,9 @@ RUN mvn clean package -DskipTests -B && \
 FROM eclipse-temurin:21-jre-alpine
 VOLUME /tmp
 
+# Pull Alpine security fixes newer than the base image (Trivy gate).
+RUN apk upgrade --no-cache
+
 # Create non-root user
 RUN addgroup -g 1001 -S appgroup && \
     adduser -u 1001 -S appuser -G appgroup
