@@ -321,7 +321,7 @@ From your laptop:
 
 - [ ] Backend health (internal — nginx blocks `/actuator` at the edge by design):
       `docker compose exec backend wget -qO- http://localhost:8080/actuator/health` → `{"status":"UP"}`
-      (External `https://your-domain/actuator/health` returns 404 — that's intentional, not a failure.)
+      (External `https://your-domain/actuator/health` returns 404 — that's intentional. Use `https://your-domain/healthz` for external checks and uptime monitors.)
 - [ ] Sign in as your admin account, take a quiz end-to-end
 - [ ] Sign out, hit forgot-password, check the email arrived (only works if Resend domain is verified or you used your verified address)
 - [ ] Try the unsubscribe link in that email → must land on the unsubscribe confirmation page
