@@ -36,9 +36,12 @@
 
     <!-- ── Masthead ─────────────────────────────────────────────────── -->
     <header
-      class="sticky top-0 z-30 backdrop-blur border-b border-[color:var(--rule)]"
-      style="background-color: color-mix(in srgb, var(--paper) 92%, transparent)"
+      ref="navBar"
+      class="nav-glass sticky top-0 z-30"
+      :class="{ 'is-scrolled': navScrolled, 'is-hidden': navHidden }"
+      :style="{ '--nav-progress': navProgress }"
     >
+      <span class="nav-progress" aria-hidden="true"></span>
       <div class="mx-auto flex w-full max-w-[1280px] items-center justify-between gap-3 sm:gap-6 px-4 sm:px-6 py-5">
         <router-link to="/" class="group flex items-baseline gap-3">
           <span class="display-headline text-[34px] leading-none">Curio</span>
@@ -71,7 +74,7 @@
             <span class="kicker">{{ t('home.hero.kicker') }}</span>
           </div>
 
-          <i18n-t scope="global" keypath="home.hero.headline" tag="h1" class="rise rise-d-2 display-headline text-[clamp(56px,9vw,148px)] mb-8">
+          <i18n-t scope="global" keypath="home.hero.headline" tag="h1" class="rise-mask rise-d-2 display-headline text-[clamp(56px,9vw,148px)] mb-8">
             <template #curated>
               <em class="italic-display hl-sweep hl-sweep-1"><span class="hl-sweep-band" aria-hidden="true"></span><span class="hl-sweep-text">{{ t('home.hero.curated') }}</span></em>
             </template>
@@ -114,7 +117,7 @@
         </div>
 
         <!-- Right: "tomorrow's front page" preview card -->
-        <aside class="col-span-12 lg:col-span-4 rise rise-d-3">
+        <aside ref="sampleCard" class="parallax col-span-12 lg:col-span-4 rise rise-d-3">
           <div class="card-paper card-lift p-6 relative">
             <!-- Edition stamp -->
             <div class="stamp-tilt absolute -top-3 -right-3 bg-signal text-[color:var(--paper)] px-3 py-1.5 font-mono-curio text-[10px] font-bold uppercase tracking-[0.18em]">
@@ -156,18 +159,15 @@
         <div class="grid grid-cols-12 gap-6 mb-12 items-end">
           <div class="col-span-12 md:col-span-7" data-reveal>
             <p class="kicker kicker-signal mb-3">{{ t('home.method.kicker') }}</p>
-            <i18n-t scope="global" keypath="home.method.headline" tag="h2" class="display-headline text-[clamp(40px,5.5vw,72px)] leading-[0.98]">
+            <i18n-t scope="global" keypath="home.method.headline" tag="h2" class="reveal-mask display-headline text-[clamp(40px,5.5vw,72px)] leading-[0.98]">
               <template #tail><em class="italic-display">{{ t('home.method.tail') }}</em></template>
             </i18n-t>
             <div class="rule-strong rule-draw mt-6 max-w-[240px]"></div>
           </div>
-          <p
+          <ScrollWords
+            :text="t('home.method.body')"
             class="col-span-12 md:col-span-5 font-body-curio text-[15px] text-[color:var(--ink-soft)] leading-relaxed"
-            data-reveal
-            style="--reveal-delay: 0.12s"
-          >
-            {{ t('home.method.body') }}
-          </p>
+          />
         </div>
 
         <ol class="grid grid-cols-1 md:grid-cols-3 gap-0 border-t-2 border-[color:var(--rule)]">
@@ -198,13 +198,11 @@
         <div class="grid grid-cols-12 gap-8 items-start">
           <div class="col-span-12 md:col-span-4" data-reveal>
             <p class="kicker kicker-signal mb-3">{{ t('home.beat.kicker') }}</p>
-            <i18n-t scope="global" keypath="home.beat.headline" tag="h2" class="display-headline text-[clamp(36px,5vw,64px)] leading-[1]">
+            <i18n-t scope="global" keypath="home.beat.headline" tag="h2" class="reveal-mask display-headline text-[clamp(36px,5vw,64px)] leading-[1]">
               <template #cover><em class="italic-display">{{ t('home.beat.cover') }}</em></template>
             </i18n-t>
             <div class="rule-strong rule-draw mt-4 mb-5 max-w-[160px]"></div>
-            <p class="font-body-curio text-[14.5px] text-[color:var(--ink-soft)] leading-relaxed mb-6">
-              {{ t('home.beat.body') }}
-            </p>
+            <ScrollWords :text="t('home.beat.body')" class="font-body-curio text-[14.5px] text-[color:var(--ink-soft)] leading-relaxed mb-6" />
             <router-link to="/register" class="ink-link font-mono-curio text-[12.5px] uppercase tracking-[0.14em]">
               {{ t('home.beat.pickYours') }}
             </router-link>
@@ -230,7 +228,7 @@
     <section class="border-t-2 border-b-2 border-[color:var(--rule)] bg-ink text-[color:var(--paper)]">
       <div class="mx-auto w-full max-w-[1100px] px-6 py-24 text-center" data-reveal>
         <p class="kicker mb-6" style="color: var(--signal);">{{ t('home.quote.kicker') }}</p>
-        <i18n-t scope="global" keypath="home.quote.text" tag="blockquote" class="display-headline text-[clamp(32px,4.5vw,56px)] leading-[1.05]">
+        <i18n-t scope="global" keypath="home.quote.text" tag="blockquote" class="reveal-mask display-headline text-[clamp(32px,4.5vw,56px)] leading-[1.05]">
           <template #br><br class="hidden md:inline" /></template>
           <template #minutes><em class="italic-display" style="color: var(--signal);">{{ t('home.quote.minutes') }}</em></template>
         </i18n-t>
@@ -244,14 +242,12 @@
         <div class="grid grid-cols-12 gap-8 items-end">
           <div class="col-span-12 md:col-span-7" data-reveal>
             <p class="kicker kicker-signal mb-4">{{ t('home.subscribe.kicker') }}</p>
-            <i18n-t scope="global" keypath="home.subscribe.headline" tag="h2" class="display-headline text-[clamp(48px,7vw,108px)] leading-[0.95]">
+            <i18n-t scope="global" keypath="home.subscribe.headline" tag="h2" class="reveal-mask display-headline text-[clamp(48px,7vw,108px)] leading-[0.95]">
               <template #edition><em class="italic-display">{{ t('home.subscribe.edition') }}</em></template>
             </i18n-t>
           </div>
           <div class="col-span-12 md:col-span-5" data-reveal style="--reveal-delay: 0.15s">
-            <p class="font-body-curio text-[16px] text-[color:var(--ink-soft)] mb-6 leading-relaxed">
-              {{ t('home.subscribe.body') }}
-            </p>
+            <ScrollWords :text="t('home.subscribe.body')" class="font-body-curio text-[16px] text-[color:var(--ink-soft)] mb-6 leading-relaxed" />
             <div class="flex flex-wrap items-center gap-3">
               <router-link to="/register" class="btn-editorial">
                 {{ t('home.subscribe.startFree') }}
@@ -295,6 +291,8 @@ import { ALL_TOPICS } from '@/data/topics'
 import { CONTACT_EMAIL } from '@/data/contact'
 import LanguageSelect from '@/components/ui/LanguageSelect.vue'
 import { useVolume } from '@/composables/useVolume'
+import { useScrollNav } from '@/composables/useScrollNav'
+import ScrollWords from '@/components/ui/ScrollWords.vue'
 
 const { t, tm, rt } = useI18n()
 const { formatDate } = useFormat()
@@ -303,6 +301,24 @@ const { topicLabel } = useTopicLabels()
 const today = computed(() => formatDate(new Date(), 'full').toUpperCase())
 
 const { volumeLabel, nextVolumeLabel } = useVolume()
+
+const navBar = ref<HTMLElement | null>(null)
+const { scrolled: navScrolled, hidden: navHidden, progress: navProgress } = useScrollNav(navBar)
+
+// The sample card drifts up a touch faster than the page while the hero
+// scrolls away (desktop two-column layout only).
+const sampleCard = ref<HTMLElement | null>(null)
+let parallaxFrame = 0
+const updateParallax = () => {
+  parallaxFrame = 0
+  const el = sampleCard.value
+  if (!el) return
+  const wide = window.matchMedia('(min-width: 1024px)').matches
+  el.style.setProperty('--parallax', wide ? String(Math.max(-80, -window.scrollY * 0.12)) : '0')
+}
+const onParallaxScroll = () => {
+  if (!parallaxFrame) parallaxFrame = requestAnimationFrame(updateParallax)
+}
 
 const liveClock = ref(formatClock())
 function formatClock() {
@@ -351,6 +367,11 @@ onMounted(() => {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const revealTargets = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'))
 
+  if (!reducedMotion) {
+    window.addEventListener('scroll', onParallaxScroll, { passive: true })
+    window.addEventListener('resize', onParallaxScroll, { passive: true })
+  }
+
   if (reducedMotion || typeof IntersectionObserver === 'undefined') {
     revealTargets.forEach((el) => el.classList.add('is-inview'))
     setStatsFinal()
@@ -394,6 +415,9 @@ onBeforeUnmount(() => {
   revealObserver?.disconnect()
   statObserver?.disconnect()
   if (countUpRaf !== null) cancelAnimationFrame(countUpRaf)
+  window.removeEventListener('scroll', onParallaxScroll)
+  window.removeEventListener('resize', onParallaxScroll)
+  if (parallaxFrame) cancelAnimationFrame(parallaxFrame)
 })
 
 // Editorial copy lists live in the catalogs (home.json) so both editions can

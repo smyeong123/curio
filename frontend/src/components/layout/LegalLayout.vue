@@ -1,7 +1,13 @@
 <template>
   <div class="min-h-screen text-[color:var(--ink)]" style="background-color: var(--paper)">
     <!-- ── Masthead ─────────────────────────────────────────────────── -->
-    <header class="border-b border-[color:var(--rule)]">
+    <header
+      ref="navBar"
+      class="nav-glass sticky top-0 z-30"
+      :class="{ 'is-scrolled': navScrolled, 'is-hidden': navHidden }"
+      :style="{ '--nav-progress': navProgress }"
+    >
+      <span class="nav-progress" aria-hidden="true"></span>
       <div class="mx-auto flex w-full max-w-[820px] items-center justify-between gap-6 px-6 py-5">
         <router-link to="/" class="flex items-baseline gap-3">
           <span class="display-headline text-[28px] leading-none">Curio</span>
@@ -22,7 +28,7 @@
     <!-- ── Title + body ─────────────────────────────────────────────── -->
     <main class="mx-auto w-full max-w-[820px] px-6 py-12 md:py-16">
       <p class="kicker kicker-signal mb-4">{{ copy.kicker }}</p>
-      <h1 class="display-headline text-[40px] md:text-[52px] leading-[0.95] mb-3">{{ copy.title }}</h1>
+      <h1 class="rise-mask display-headline text-[40px] md:text-[52px] leading-[0.95] mb-3">{{ copy.title }}</h1>
       <p v-if="copy.updated" class="font-mono-curio text-[12px] uppercase tracking-[0.14em] text-[color:var(--mute)] mb-10">
         {{ t('legal.layout.lastUpdated', { date: copy.updated }) }}
       </p>
@@ -59,11 +65,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, type FunctionalComponent } from 'vue'
+import { computed, h, ref, type FunctionalComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import LanguageSelect from '@/components/ui/LanguageSelect.vue'
 import { CONTACT_EMAIL } from '@/data/contact'
+import { useScrollNav } from '@/composables/useScrollNav'
 
 /**
  * Chrome + prose renderer for the legal pages. All copy lives in the `legal`
@@ -113,6 +120,9 @@ function parseInline(line: string): Segment[] {
 }
 
 const { t, tm, rt } = useI18n()
+
+const navBar = ref<HTMLElement | null>(null)
+const { scrolled: navScrolled, hidden: navHidden, progress: navProgress } = useScrollNav(navBar)
 
 // `tm` hands back the raw catalog subtree; `rt` renders each leaf (and fills
 // `{email}`), then the inline marks are split into segments for RichText.

@@ -45,7 +45,8 @@
       <li
         v-for="(summary, i) in stories"
         :key="i"
-        class="grid grid-cols-12 gap-x-6 gap-y-2"
+        class="stagger-rise grid grid-cols-12 gap-x-6 gap-y-2"
+        :style="{ '--i': i }"
       >
         <!-- Story number gutter -->
         <div class="col-span-12 sm:col-span-1">

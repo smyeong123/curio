@@ -28,7 +28,13 @@
     </aside>
 
     <!-- ── Mobile masthead ────────────────────────────────────────── -->
-    <header class="sticky top-0 z-30 bg-paper/95 backdrop-blur border-b border-[color:var(--rule)] px-5 py-3 md:hidden">
+    <header
+      ref="mobileBar"
+      class="nav-glass sticky top-0 z-30 px-5 py-3 md:hidden"
+      :class="{ 'is-scrolled': barScrolled, 'is-hidden': barHidden && !isMenuOpen }"
+      :style="{ '--nav-progress': barProgress }"
+    >
+      <span class="nav-progress" aria-hidden="true"></span>
       <div class="flex items-center justify-between">
         <router-link to="/dashboard/archive" class="flex items-baseline gap-2">
           <span class="display-headline text-[28px] leading-none">Curio</span>
@@ -131,6 +137,7 @@ import { useFocusTrap } from '@/composables/useFocusTrap'
 import { focusPageHeading } from '@/composables/useFocusOnEnter'
 import { useEnsureTimezone } from '@/composables/useEnsureTimezone'
 import { useVolume } from '@/composables/useVolume'
+import { useScrollNav } from '@/composables/useScrollNav'
 import DashboardMenu from '@/components/layout/DashboardMenu.vue'
 import DashboardMenuFoot from '@/components/layout/DashboardMenuFoot.vue'
 import { CONTACT_EMAIL } from '@/data/contact'
@@ -140,6 +147,9 @@ const router = useRouter()
 const authStore = useAuthStore()
 const { t } = useI18n()
 const { volumeLabel } = useVolume()
+
+const mobileBar = ref<HTMLElement | null>(null)
+const { scrolled: barScrolled, hidden: barHidden, progress: barProgress } = useScrollNav(mobileBar)
 const { locale, intlLocale } = useLocale()
 const { formatDate } = useFormat()
 

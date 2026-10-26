@@ -35,7 +35,7 @@ const props = withDefaults(defineProps<{
 
 const headlineClass = computed(() =>
   props.size === 'compact'
-    ? 'display-headline text-[clamp(36px,5vw,64px)] leading-[0.95]'
-    : 'display-headline text-[clamp(48px,7vw,96px)] leading-[0.95]'
+    ? 'rise-mask display-headline text-[clamp(36px,5vw,64px)] leading-[0.95]'
+    : 'rise-mask display-headline text-[clamp(48px,7vw,96px)] leading-[0.95]'
 )
 </script>

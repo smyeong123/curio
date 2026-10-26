@@ -83,8 +83,10 @@
         <!-- Questions -->
         <div class="space-y-10 mb-10">
           <QuizQuestion
-            v-for="q in questions"
+            v-for="(q, qi) in questions"
             :key="q.id"
+            class="stagger-rise"
+            :style="{ '--i': qi }"
             :question="q"
             :total="questions.length"
             :selected-answer="answers[q.id]"

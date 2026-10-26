@@ -15,7 +15,7 @@
       <!-- ── Header ──────────────────────────────────────────────── -->
       <header class="mb-12">
         <p class="kicker kicker-signal mb-4">{{ t('onboarding.header.kicker') }}</p>
-        <i18n-t scope="global" keypath="onboarding.header.headline" tag="h1" class="display-headline text-[clamp(40px,6vw,84px)] leading-[0.96] mb-6">
+        <i18n-t scope="global" keypath="onboarding.header.headline" tag="h1" class="rise-mask display-headline text-[clamp(40px,6vw,84px)] leading-[0.96] mb-6">
           <template #beat><em class="italic-display">{{ t('onboarding.header.beat') }}</em></template>
         </i18n-t>
         <p class="font-body-curio text-[16px] text-[color:var(--ink-soft)] leading-relaxed max-w-[60ch]">

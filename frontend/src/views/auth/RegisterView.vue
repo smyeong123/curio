@@ -6,7 +6,7 @@
 
       <div class="my-auto max-w-[460px]">
         <p class="kicker mb-5" style="color: var(--signal);">{{ t('auth.register.aside.kicker') }}</p>
-        <i18n-t scope="global" keypath="auth.register.aside.headline" tag="h2" class="display-headline text-[clamp(40px,5vw,68px)] leading-[0.96] mb-8">
+        <i18n-t scope="global" keypath="auth.register.aside.headline" tag="h2" class="rise-mask rise-d-1 display-headline text-[clamp(40px,5vw,68px)] leading-[0.96] mb-8">
           <template #daily>
             <em class="italic-display" style="color: var(--signal);">{{ t('auth.register.aside.daily') }}</em>
           </template>
@@ -37,7 +37,7 @@
 
         <header class="mb-10">
           <p class="kicker kicker-signal mb-3">{{ t('auth.register.kicker') }}</p>
-          <i18n-t scope="global" keypath="auth.register.headline" tag="h1" class="display-headline text-[clamp(40px,5vw,64px)] leading-[0.96] mb-4">
+          <i18n-t scope="global" keypath="auth.register.headline" tag="h1" class="rise-mask rise-d-2 display-headline text-[clamp(40px,5vw,64px)] leading-[0.96] mb-4">
             <template #subscription><em class="italic-display">{{ t('auth.register.subscription') }}</em></template>
           </i18n-t>
           <p class="font-body-curio text-[15px] text-[color:var(--ink-soft)] leading-relaxed">

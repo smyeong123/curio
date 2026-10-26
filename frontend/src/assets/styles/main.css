@@ -212,7 +212,12 @@
     align-items: center;
     gap: 0.625rem;
     white-space: nowrap;
-    background: var(--ink);
+    background-color: var(--ink);
+    /* Signal wash that sweeps in from the left on hover (background-size). */
+    background-image: linear-gradient(var(--signal), var(--signal));
+    background-repeat: no-repeat;
+    background-position: left center;
+    background-size: 0% 100%;
     color: var(--paper);
     border: 1px solid var(--ink);
     padding: 0.875rem 1.5rem;
@@ -221,21 +226,40 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.14em;
-    transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
+    transition:
+      transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1),
+      box-shadow 0.25s cubic-bezier(0.2, 0.7, 0.2, 1),
+      background-size 0.45s cubic-bezier(0.65, 0, 0.35, 1),
+      border-color 0.3s ease,
+      color 0.18s ease;
   }
   .btn-editorial:hover {
-    background: var(--signal);
+    background-size: 100% 100%;
     border-color: var(--signal);
     color: var(--paper);
     transform: translate(-2px, -2px);
     box-shadow: 4px 4px 0 var(--rule);
+  }
+  .btn-editorial:active {
+    transform: translate(0, 0);
+    box-shadow: 0 0 0 var(--rule);
+  }
+  /* The trailing arrow glides forward on hover. */
+  .btn-editorial > [aria-hidden='true'],
+  .btn-editorial-ghost > [aria-hidden='true'] {
+    transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .btn-editorial:hover > [aria-hidden='true'],
+  .btn-editorial-ghost:hover > [aria-hidden='true'] {
+    transform: translateX(4px);
   }
   .btn-editorial:disabled {
     opacity: 0.4;
     cursor: not-allowed;
   }
   .btn-editorial:disabled:hover {
-    background: var(--ink);
+    background-size: 0% 100%;
+    border-color: var(--ink);
     transform: none;
     box-shadow: none;
   }
@@ -245,7 +269,12 @@
     display: inline-flex;
     align-items: center;
     gap: 0.625rem;
-    background: transparent;
+    background-color: transparent;
+    /* Ink fill that sweeps in from the left on hover. */
+    background-image: linear-gradient(var(--ink), var(--ink));
+    background-repeat: no-repeat;
+    background-position: left center;
+    background-size: 0% 100%;
     color: var(--ink);
     border: 1px solid var(--rule);
     padding: 0.875rem 1.5rem;
@@ -254,10 +283,12 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.14em;
-    transition: all 0.18s ease;
+    transition:
+      background-size 0.45s cubic-bezier(0.65, 0, 0.35, 1),
+      color 0.3s ease;
   }
   .btn-editorial-ghost:hover {
-    background: var(--ink);
+    background-size: 100% 100%;
     color: var(--paper);
   }
 
@@ -451,6 +482,124 @@
     color: var(--signal-deep);
   }
 
+  /* ── Scroll-aware nav bar (useScrollNav) ─────────────────────────────
+     At the top of the page the bar melts into the paper; once it sticks it
+     gains a frosted fill and a 1px hairline (ink at low alpha — a dark line
+     on paper, a light one at night). It slides away while the reader scrolls
+     down and returns on the first scroll up. .nav-progress is the signal
+     reading bar riding the hairline. */
+  .nav-glass {
+    border-bottom: 1px solid transparent;
+    background-color: color-mix(in srgb, var(--paper) 0%, transparent);
+    transition:
+      transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+      background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .nav-glass.is-scrolled {
+    background-color: color-mix(in srgb, var(--paper) 80%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(1.3);
+    backdrop-filter: blur(14px) saturate(1.3);
+    border-bottom-color: color-mix(in srgb, var(--ink) 26%, transparent);
+    box-shadow: 0 10px 30px -22px color-mix(in srgb, var(--ink) 60%, transparent);
+  }
+  .nav-glass.is-hidden {
+    transform: translateY(-100%);
+    box-shadow: none;
+  }
+  .nav-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: var(--signal);
+    transform-origin: left;
+    transform: scaleX(var(--nav-progress, 0));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+  .nav-glass.is-scrolled .nav-progress {
+    opacity: 1;
+  }
+
+  /* ── Word-by-word ink fill (ScrollWords) ─────────────────────────────
+     --sw-p counts filled words; each word ramps from faint to full ink as
+     the count passes it. */
+  .scroll-word {
+    opacity: clamp(0.16, calc(var(--sw-p, 9999) - var(--sw-i, 0)), 1);
+    transition: opacity 0.12s linear;
+  }
+
+  /* ── Masked headline rise ───────────────────────────────────────────
+     Display type wipes up from behind a baseline mask — like a line coming
+     off the press — instead of a plain fade. .rise-mask plays on load;
+     .reveal-mask plays when its [data-reveal] ancestor scrolls into view.
+     The final inset is generous so italic overhang and descenders never clip. */
+  @keyframes maskrise {
+    from { clip-path: inset(0 -10% 100% -10%); translate: 0 0.35em; }
+    to   { clip-path: inset(-20% -10% -30% -10%); translate: 0 0; }
+  }
+  .rise-mask { animation: maskrise 1s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .reveal-mask {
+    clip-path: inset(0 -10% 100% -10%);
+    translate: 0 0.35em;
+    transition: clip-path 0.3s ease, translate 0.3s ease;
+  }
+  .is-inview .reveal-mask {
+    clip-path: inset(-20% -10% -30% -10%);
+    translate: 0 0;
+    transition:
+      clip-path 1s cubic-bezier(0.2, 0.7, 0.2, 1) 0.08s,
+      translate 1s cubic-bezier(0.2, 0.7, 0.2, 1) 0.08s;
+  }
+
+  /* ── Staggered entrance for lists that arrive with data (digest stories,
+     quiz questions). Plays once on render — reading content never hides
+     again on scroll. Set --i on each item; the delay caps at the 8th. */
+  .stagger-rise {
+    animation: risefade 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: calc(min(var(--i, 0), 8) * 70ms);
+  }
+
+  /* Scroll parallax — the view writes --parallax (px) on scroll. Uses the
+     independent `translate` property so it composes with transform-based
+     animations and hovers on the same element. */
+  .parallax {
+    translate: 0 calc(var(--parallax, 0) * 1px);
+  }
+
+  /* Sidebar active-section slab that slides between items (DashboardMenu).
+     It sits ABOVE the links and inverts what it covers (difference blend), so
+     a label reads light-on-dark wherever the slab is mid-slide — no label
+     colour has to flip, so nothing ever vanishes ink-on-ink. #dfdad2 is
+     light-paper minus ink: over light paper it renders exactly as --ink, and
+     over the night ink labels it renders them exactly as night --paper. */
+  .menu-indicator {
+    position: absolute;
+    top: 0;
+    left: 0.75rem;
+    right: 0.75rem;
+    z-index: 2;
+    background: #dfdad2;
+    mix-blend-mode: difference;
+    pointer-events: none;
+  }
+  @media (forced-colors: active) {
+    .menu-indicator {
+      mix-blend-mode: normal;
+      background: Highlight;
+      opacity: 0.35;
+    }
+  }
+  .menu-indicator.is-animated {
+    transition:
+      transform 0.45s cubic-bezier(0.65, 0, 0.35, 1),
+      height 0.45s cubic-bezier(0.65, 0, 0.35, 1);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .rise {
       animation: none;
@@ -483,6 +632,34 @@
     }
     .card-lift:hover .stamp-tilt {
       transform: rotate(3deg);
+    }
+    .nav-glass,
+    .menu-indicator.is-animated,
+    .btn-editorial,
+    .btn-editorial-ghost,
+    .btn-editorial > [aria-hidden='true'],
+    .btn-editorial-ghost > [aria-hidden='true'] {
+      transition: none;
+    }
+    .nav-glass.is-hidden {
+      transform: none;
+    }
+    .scroll-word {
+      opacity: 1;
+      transition: none;
+    }
+    .rise-mask,
+    .stagger-rise {
+      animation: none;
+    }
+    .reveal-mask,
+    .is-inview .reveal-mask {
+      clip-path: none;
+      translate: none;
+      transition: none;
+    }
+    .parallax {
+      translate: none;
     }
   }
 }

@@ -6,7 +6,7 @@
 
       <div class="my-auto max-w-[420px]">
         <p class="kicker mb-5" style="color: var(--signal);">{{ t('auth.login.aside.kicker') }}</p>
-        <i18n-t scope="global" keypath="auth.login.aside.headline" tag="h2" class="display-headline text-[clamp(40px,5vw,68px)] leading-[0.96] mb-8">
+        <i18n-t scope="global" keypath="auth.login.aside.headline" tag="h2" class="rise-mask rise-d-1 display-headline text-[clamp(40px,5vw,68px)] leading-[0.96] mb-8">
           <template #running>
             <em class="italic-display" style="color: var(--signal);">{{ t('auth.login.aside.running') }}</em>
           </template>
@@ -33,7 +33,7 @@
 
         <header class="mb-10">
           <p class="kicker kicker-signal mb-3">{{ t('auth.login.kicker') }}</p>
-          <i18n-t scope="global" keypath="auth.login.headline" tag="h1" class="display-headline text-[clamp(40px,5vw,64px)] leading-[0.96] mb-4">
+          <i18n-t scope="global" keypath="auth.login.headline" tag="h1" class="rise-mask rise-d-2 display-headline text-[clamp(40px,5vw,64px)] leading-[0.96] mb-4">
             <template #back><em class="italic-display">{{ t('auth.login.back') }}</em></template>
           </i18n-t>
           <i18n-t scope="global" keypath="auth.login.lede" tag="p" class="font-body-curio text-[15px] text-[color:var(--ink-soft)] leading-relaxed">

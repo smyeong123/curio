@@ -5,7 +5,7 @@
 
       <header class="mb-10">
         <p class="kicker kicker-signal mb-3">{{ hasToken ? t('auth.reset.choose.kicker') : t('auth.reset.request.kicker') }}</p>
-        <h1 class="display-headline text-[clamp(36px,5vw,52px)] leading-[0.96] mb-3">
+        <h1 class="rise-mask display-headline text-[clamp(36px,5vw,52px)] leading-[0.96] mb-3">
           <i18n-t v-if="hasToken" scope="global" keypath="auth.reset.choose.headline">
             <template #password><em class="italic-display">{{ t('auth.reset.choose.password') }}</em></template>
           </i18n-t>
