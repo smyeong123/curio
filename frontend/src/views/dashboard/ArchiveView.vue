@@ -141,6 +141,7 @@ import ArchiveSearch from '@/components/archive/ArchiveSearch.vue'
 import BeatFilter from '@/components/archive/BeatFilter.vue'
 import DigestIssue from '@/components/archive/DigestIssue.vue'
 import type { TopicGroup, TopicItem } from '@/components/archive/BeatFilter.vue'
+import { parseApiDate } from '@/utils/apiDate'
 
 const newsStore = useNewsStore()
 const { digests, topicFilter } = storeToRefs(newsStore)
@@ -163,7 +164,7 @@ const localPage = ref(0) // index into dayGroups (0 = most recent day)
 // Digests within the last 7 days (rolling window) — the only ones the user sees.
 const recentDigests = computed(() => {
   const cutoff = Date.now() - DAYS_WINDOW * DAY_MS
-  return digests.value.filter((d) => new Date(d.generatedAt).getTime() >= cutoff)
+  return digests.value.filter((d) => parseApiDate(d.generatedAt).getTime() >= cutoff)
 })
 
 const readableNumber = computed(() => String(recentDigests.value.length).padStart(2, '0'))
@@ -362,7 +363,7 @@ interface DayGroup {
 }
 
 const dayKey = (dateStr: string) => {
-  const d = new Date(dateStr)
+  const d = parseApiDate(dateStr)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
@@ -380,7 +381,7 @@ const dayGroups = computed<DayGroup[]>(() => {
       key,
       label: formatDate(group[0]!.digest.generatedAt, 'full'),
       issues: [...group].sort(
-        (x, y) => new Date(y.digest.generatedAt).getTime() - new Date(x.digest.generatedAt).getTime()
+        (x, y) => parseApiDate(y.digest.generatedAt).getTime() - parseApiDate(x.digest.generatedAt).getTime()
       ),
     }))
 })

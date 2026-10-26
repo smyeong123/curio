@@ -160,6 +160,7 @@ import type { ApiKeySummary } from '@/types/user'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import { getApiErrorMessage, getApiErrorStatus } from '@/utils/apiError'
+import { parseApiDate } from '@/utils/apiDate'
 
 type Provider = ApiKeySummary['provider']
 
@@ -203,7 +204,7 @@ const apiKeyPlaceholder = (p: Provider) => {
 }
 
 const formatRelative = (iso: string) => {
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  const seconds = Math.floor((Date.now() - parseApiDate(iso).getTime()) / 1000)
   if (seconds < 60) return t('settings.byok.relative.justNow')
   if (seconds < 3600) return t('settings.byok.relative.minutes', { count: Math.floor(seconds / 60) })
   if (seconds < 86400) return t('settings.byok.relative.hours', { count: Math.floor(seconds / 3600) })

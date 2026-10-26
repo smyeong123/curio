@@ -1,4 +1,5 @@
 import { useLocale } from '@/composables/useLocale'
+import { parseApiDate } from '@/utils/apiDate'
 
 /**
  * Locale-aware date/time/number formatting for the current edition. One place
@@ -33,13 +34,13 @@ export function useFormat() {
   const { intlLocale } = useLocale()
 
   const formatDate = (value: string | Date, style: DateStyle = 'short') =>
-    new Date(value).toLocaleDateString(intlLocale.value, DATE[style])
+    parseApiDate(value).toLocaleDateString(intlLocale.value, DATE[style])
 
   const formatDateTime = (value: string | Date, style: DateTimeStyle = 'short') =>
-    new Date(value).toLocaleString(intlLocale.value, DATE_TIME[style])
+    parseApiDate(value).toLocaleString(intlLocale.value, DATE_TIME[style])
 
   const formatTime = (value: string | Date) =>
-    new Date(value).toLocaleTimeString(intlLocale.value, { hour: '2-digit', minute: '2-digit' })
+    parseApiDate(value).toLocaleTimeString(intlLocale.value, { hour: '2-digit', minute: '2-digit' })
 
   const formatNumber = (value?: number | null) => (value ?? 0).toLocaleString(intlLocale.value)
 
