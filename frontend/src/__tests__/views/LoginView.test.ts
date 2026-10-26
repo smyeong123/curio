@@ -30,7 +30,7 @@ describe('LoginView editions', () => {
     expect(w.text()).toContain('Continue with Google')
     expect(w.text()).toContain('© 2026 — set in Fraunces')
     expect(w.get('#login-email').attributes('placeholder')).toBe('you@example.com')
-    expect(w.text()).toContain('Vol. 047')
+    expect(w.text()).toMatch(/Vol\. \d{3}/)
   })
 
   it('re-renders in Korean when picked from the masthead dropdown', async () => {
@@ -47,7 +47,7 @@ describe('LoginView editions', () => {
     expect(w.text()).toContain('Google로 계속하기')
     expect(w.text()).toContain('아직 계정이 없나요?')
     expect(w.get('#login-email').attributes('placeholder')).toBe('you@example.com')
-    expect(w.text()).toContain('Vol. 047')
+    expect(w.text()).toMatch(/Vol\. \d{3}/)
     expect(w.get('section span[lang]').text()).toBe('한국어')
 
     // Validation copy follows the edition too.

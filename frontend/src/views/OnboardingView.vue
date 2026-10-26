@@ -2,9 +2,9 @@
   <div class="relative min-h-screen bg-paper text-[color:var(--ink)]">
     <!-- ── Top strip ────────────────────────────────────────────── -->
     <div class="bg-ink text-[color:var(--paper)] py-2">
-      <div class="mx-auto flex w-full max-w-[1100px] items-center justify-between px-6 text-[11px] uppercase tracking-[0.18em] font-mono-curio">
-        <span>{{ t('onboarding.strip.title') }}</span>
-        <div class="flex items-center gap-4">
+      <div class="mx-auto flex w-full max-w-[1100px] items-center justify-between gap-4 px-6 text-[11px] uppercase tracking-[0.18em] font-mono-curio">
+        <span class="min-w-0 truncate">{{ t('onboarding.strip.title') }}</span>
+        <div class="flex shrink-0 items-center gap-4 whitespace-nowrap">
           <LanguageSelect />
           <button class="opacity-80 hover:opacity-100" @click="handleLogout">{{ t('onboarding.strip.logOut') }}</button>
         </div>

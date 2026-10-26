@@ -66,8 +66,8 @@
         <!-- Left: kicker + huge serif headline -->
         <div class="col-span-12 lg:col-span-8">
           <div class="rise rise-d-1 flex items-center gap-3 mb-7">
-            <span class="kicker kicker-signal">{{ t('home.hero.number') }}</span>
-            <span class="h-px w-10 bg-[color:var(--rule)]"></span>
+            <span class="kicker kicker-signal shrink-0 whitespace-nowrap">{{ t('home.hero.number') }}</span>
+            <span class="h-px w-10 shrink-0 bg-[color:var(--rule)]"></span>
             <span class="kicker">{{ t('home.hero.kicker') }}</span>
           </div>
 
@@ -98,17 +98,17 @@
             ref="statRow"
             class="rise rise-d-5 grid grid-cols-3 border-t border-b border-[color:var(--rule)] divide-x divide-[color:var(--rule)]"
           >
-            <div class="px-5 py-5">
+            <div class="px-3 py-5 sm:px-5">
               <div class="deco-num text-[44px] leading-none">{{ statTopics }}</div>
-              <p class="kicker mt-3">{{ t('home.hero.stats.topics') }}</p>
+              <p class="kicker mt-3 tracking-[0.1em] sm:tracking-[0.16em]">{{ t('home.hero.stats.topics') }}</p>
             </div>
-            <div class="px-5 py-5">
+            <div class="px-3 py-5 sm:px-5">
               <div class="deco-num text-[44px] leading-none">{{ statMinutes }}<span class="text-[color:var(--signal-deep)]">·</span>{{ t('home.hero.stats.min') }}</div>
-              <p class="kicker mt-3">{{ t('home.hero.stats.minutes') }}</p>
+              <p class="kicker mt-3 tracking-[0.1em] sm:tracking-[0.16em]">{{ t('home.hero.stats.minutes') }}</p>
             </div>
-            <div class="px-5 py-5">
+            <div class="px-3 py-5 sm:px-5">
               <div class="deco-num text-[44px] leading-none">{{ statQuiz }}<span class="text-[color:var(--mute)]">/</span>5</div>
-              <p class="kicker mt-3">{{ t('home.hero.stats.quiz') }}</p>
+              <p class="kicker mt-3 tracking-[0.1em] sm:tracking-[0.16em]">{{ t('home.hero.stats.quiz') }}</p>
             </div>
           </div>
         </div>
@@ -294,6 +294,7 @@ import { useTopicLabels } from '@/composables/useTopicLabels'
 import { ALL_TOPICS } from '@/data/topics'
 import { CONTACT_EMAIL } from '@/data/contact'
 import LanguageSelect from '@/components/ui/LanguageSelect.vue'
+import { useVolume } from '@/composables/useVolume'
 
 const { t, tm, rt } = useI18n()
 const { formatDate } = useFormat()
@@ -301,16 +302,7 @@ const { topicLabel } = useTopicLabels()
 
 const today = computed(() => formatDate(new Date(), 'full').toUpperCase())
 
-// Volume = the daily edition number, counting from the 1 Aug 2026 production
-// launch (Vol. 001 on launch day, +1 each day after). Clamped to ≥1 so the
-// pre-launch masthead never shows 000 or a negative number. The sample card
-// previews tomorrow's edition, so it uses vol + 1.
-const VOLUME_EPOCH = Date.UTC(2026, 7, 1) // 1 Aug 2026, 00:00 UTC (month is 0-indexed)
-const volume = computed(() =>
-  Math.max(1, Math.floor((Date.now() - VOLUME_EPOCH) / 86_400_000) + 1)
-)
-const volumeLabel = computed(() => String(volume.value).padStart(3, '0'))
-const nextVolumeLabel = computed(() => String(volume.value + 1).padStart(3, '0'))
+const { volumeLabel, nextVolumeLabel } = useVolume()
 
 const liveClock = ref(formatClock())
 function formatClock() {

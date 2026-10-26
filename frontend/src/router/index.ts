@@ -77,6 +77,9 @@ const router = createRouter({
       component: () => import('@/components/layout/DashboardLayout.vue'),
       meta: { requiresAuth: true },
       children: [
+        // A bare /dashboard (bookmark, typed URL) would otherwise render the
+        // layout with an empty main column.
+        { path: '', redirect: { name: 'archive' } },
         {
           path: 'archive',
           name: 'archive',

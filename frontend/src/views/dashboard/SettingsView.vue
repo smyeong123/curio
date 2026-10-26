@@ -137,7 +137,6 @@
             type="password"
             :label="t('settings.password.current')"
             id="settings-current-password"
-            placeholder="••••••••"
           />
           <BaseInput
             v-model="newPassword"

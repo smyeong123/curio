@@ -1,12 +1,12 @@
 <template>
   <router-link v-if="onInk" to="/" class="flex items-baseline gap-3">
     <span class="display-headline text-[36px] leading-none">Curio</span>
-    <span class="kicker" style="color: var(--paper); opacity: 0.6;">{{ t('layout.masthead.vol') }}</span>
+    <span class="kicker" style="color: var(--paper); opacity: 0.6;">{{ t('layout.masthead.vol', { vol: volumeLabel }) }}</span>
   </router-link>
   <div v-else class="mb-10 flex items-baseline justify-between gap-4">
     <router-link to="/" class="flex items-baseline gap-3">
       <span class="display-headline text-[28px] leading-none">Curio</span>
-      <span class="kicker">{{ t('layout.masthead.vol') }}</span>
+      <span class="kicker">{{ t('layout.masthead.vol', { vol: volumeLabel }) }}</span>
     </router-link>
     <LanguageSelect class="text-[12px]" />
   </div>
@@ -19,8 +19,10 @@
 
 import { useI18n } from 'vue-i18n'
 import LanguageSelect from '@/components/ui/LanguageSelect.vue'
+import { useVolume } from '@/composables/useVolume'
 
 withDefaults(defineProps<{ onInk?: boolean }>(), { onInk: false })
 
 const { t } = useI18n()
+const { volumeLabel } = useVolume()
 </script>
