@@ -13,13 +13,13 @@
       @retry="loadStats"
     />
 
-    <section v-else-if="loading" class="border-t-2 border-[color:var(--rule)] pt-12 text-center">
+    <section v-else-if="loading" class="border-t border-[color:var(--rule)] pt-12 text-center">
       <p class="kicker">{{ t('admin.stats.loading') }}</p>
     </section>
 
     <div v-else class="space-y-12">
       <!-- Totals -->
-      <section class="grid grid-cols-3 border-t-2 border-b-2 border-[color:var(--rule)] divide-x divide-[color:var(--rule)]">
+      <section class="grid grid-cols-3 border-t border-b border-[color:var(--rule)] divide-x divide-[color:var(--rule)]">
         <div class="px-5 py-6">
           <div class="deco-num text-[44px] leading-none">{{ formatNumber(stats.totalUsers) }}</div>
           <p class="kicker mt-3">{{ t('admin.stats.totals.totalUsers') }}</p>

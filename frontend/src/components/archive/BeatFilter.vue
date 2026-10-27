@@ -17,7 +17,7 @@
         <span
           class="inline-flex items-center px-3 py-1 text-[11px] font-mono-curio uppercase tracking-[0.14em] border max-w-full truncate"
           :class="activeTopic
-            ? 'bg-signal text-[color:var(--paper)] border-[color:var(--signal)]'
+            ? 'bg-signal text-[color:var(--on-signal)] border-[color:var(--signal)]'
             : 'bg-ink text-[color:var(--paper)] border-[color:var(--ink)]'"
         >{{ activeTopic ? topicLabel(activeTopic) : t('archive.filter.all') }}</span>
         <span v-if="!activeTopic" class="kicker text-[color:var(--mute)] flex-shrink-0 hidden sm:inline">· {{ t('archive.filter.beatCount', { count: totalActive }) }}</span>
@@ -97,7 +97,7 @@
                       item.count === 0
                         ? 'bg-transparent text-[color:var(--mute)] border-[color:var(--rule)] opacity-40 cursor-not-allowed'
                         : activeTopic === item.name
-                          ? 'bg-signal text-[color:var(--paper)] border-[color:var(--signal)]'
+                          ? 'bg-signal text-[color:var(--on-signal)] border-[color:var(--signal)]'
                           : 'bg-transparent text-[color:var(--mute)] border-[color:var(--rule)] hover:text-[color:var(--ink)]'
                     ]"
                     @click="item.count > 0 && emit('select', activeTopic === item.name ? '' : item.name)"

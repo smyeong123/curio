@@ -111,7 +111,7 @@
       <!-- Pagination — one day per page (most recent first, last 7 days only) -->
       <PagerNav
         v-if="totalPages > 1"
-        class="border-t-2 border-[color:var(--rule)] pt-6"
+        class="border-t border-[color:var(--rule)] pt-6"
         :page="localPage"
         :total-pages="totalPages"
         :newer-label="t('archive.paging.newer')"

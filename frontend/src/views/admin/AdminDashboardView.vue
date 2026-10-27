@@ -14,14 +14,14 @@
       @retry="loadDashboard"
     />
 
-    <div v-else-if="statsLoading" class="border-t-2 border-[color:var(--rule)] pt-12 flex items-center justify-center gap-3 text-[color:var(--mute)]">
+    <div v-else-if="statsLoading" class="border-t border-[color:var(--rule)] pt-12 flex items-center justify-center gap-3 text-[color:var(--mute)]">
       <BaseSpinner :size="16" />
       <p class="kicker">{{ t('admin.dashboard.loading') }}</p>
     </div>
 
     <div v-else class="space-y-14">
       <!-- ── Quick stats ─────────────────────── -->
-      <section class="grid grid-cols-3 border-t-2 border-b-2 border-[color:var(--rule)] divide-x divide-[color:var(--rule)]">
+      <section class="grid grid-cols-3 border-t border-b border-[color:var(--rule)] divide-x divide-[color:var(--rule)]">
         <div class="px-5 py-6">
           <div class="deco-num text-[44px] leading-none">{{ formatNumber(quickStats.totalUsers) }}</div>
           <p class="kicker mt-3">{{ t('admin.dashboard.stats.totalUsers') }}</p>
@@ -39,7 +39,7 @@
       <!-- ── Scheduled jobs ──────────────────── -->
       <section>
         <p class="kicker mb-4">{{ t('admin.dashboard.jobs.kicker') }}</p>
-        <div class="space-y-0 border-t-2 border-b-2 border-[color:var(--rule)] divide-y divide-[color:var(--rule)]">
+        <div class="space-y-0 border-t border-b border-[color:var(--rule)] divide-y divide-[color:var(--rule)]">
           <JobCard
             :title="t('admin.dashboard.jobs.generate.title')"
             :cron="t('admin.dashboard.jobs.generate.cron')"
@@ -123,7 +123,7 @@
           <p class="kicker">{{ t('admin.dashboard.beats.kicker') }}</p>
           <span class="kicker">{{ t('admin.dashboard.beats.count', { count: topics.length }) }}</span>
         </div>
-        <table class="w-full text-[13.5px] border-t-2 border-[color:var(--rule)]">
+        <table class="w-full text-[13.5px] border-t border-[color:var(--rule)]">
           <thead>
             <tr class="border-b border-[color:var(--rule)]">
               <th class="text-left py-3 kicker">{{ t('admin.dashboard.beats.columns.beat') }}</th>

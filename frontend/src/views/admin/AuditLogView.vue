@@ -17,7 +17,7 @@
       @retry="load(page)"
     />
 
-    <section v-else-if="loading" class="border-t-2 border-[color:var(--rule)] pt-12 text-center">
+    <section v-else-if="loading" class="border-t border-[color:var(--rule)] pt-12 text-center">
       <p class="kicker">{{ t('admin.audit.loading') }}</p>
     </section>
 
@@ -29,7 +29,7 @@
     </section>
 
     <div v-else class="space-y-8">
-      <table class="w-full border-t-2 border-b-2 border-[color:var(--rule)] text-left">
+      <table class="w-full border-t border-b border-[color:var(--rule)] text-left">
         <thead>
           <tr class="border-b border-[color:var(--rule)]">
             <th class="kicker py-3 pr-4">{{ t('admin.audit.columns.when') }}</th>

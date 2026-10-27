@@ -42,7 +42,7 @@
 
     <!-- ── Stat row ──────────────────────────────────── -->
     <template v-else>
-      <section class="grid grid-cols-3 border-t-2 border-b-2 border-[color:var(--rule)] divide-x divide-[color:var(--rule)] mb-10">
+      <section class="grid grid-cols-3 border-t border-b border-[color:var(--rule)] divide-x divide-[color:var(--rule)] mb-10">
         <div class="px-5 py-6">
           <div class="deco-num text-[44px] leading-none">{{ String(history.length).padStart(2, '0') }}</div>
           <p class="kicker mt-3">{{ t('quiz.history.stats.filed') }}</p>

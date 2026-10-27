@@ -16,7 +16,7 @@
           v-model="searchInput"
           type="text"
           :placeholder="t('admin.users.searchPlaceholder')"
-          class="w-full bg-transparent border-b-2 border-[color:var(--rule)] py-2 font-display text-[18px] focus:outline-none focus:border-[color:var(--signal)] placeholder:font-body-curio placeholder:text-[14px] placeholder:text-[color:var(--mute)]"
+          class="w-full bg-transparent border-b border-[color:var(--rule)] py-2 font-display text-[18px] focus:outline-none focus:border-[color:var(--signal)] placeholder:font-body-curio placeholder:text-[14px] placeholder:text-[color:var(--mute)]"
           @keyup.enter="applySearch"
         />
       </div>
@@ -33,12 +33,12 @@
       @retry="load(page)"
     />
 
-    <section v-else-if="loading" class="border-t-2 border-[color:var(--rule)] pt-12 text-center">
+    <section v-else-if="loading" class="border-t border-[color:var(--rule)] pt-12 text-center">
       <p class="kicker">{{ t('admin.users.loading') }}</p>
     </section>
 
     <section v-else>
-      <table class="w-full text-[13.5px] border-t-2 border-[color:var(--rule)]">
+      <table class="w-full text-[13.5px] border-t border-[color:var(--rule)]">
         <thead>
           <tr class="border-b border-[color:var(--rule)]">
             <th class="text-left py-3 kicker">{{ t('admin.common.columns.email') }}</th>
@@ -81,7 +81,7 @@
 
       <PagerNav
         v-if="totalPages > 1"
-        class="border-t-2 border-[color:var(--rule)] pt-6 mt-2"
+        class="border-t border-[color:var(--rule)] pt-6 mt-2"
         :page="page"
         :total-pages="totalPages"
         :newer-label="t('admin.common.pagination.earlier')"

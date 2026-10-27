@@ -10,7 +10,7 @@
       <span class="nav-progress" aria-hidden="true"></span>
       <div class="mx-auto flex w-full max-w-[820px] items-center justify-between gap-6 px-6 py-5">
         <router-link to="/" class="flex items-baseline gap-3">
-          <span class="display-headline text-[28px] leading-none">Curio</span>
+          <span class="wordmark display-headline text-[28px] leading-none">Curio</span>
           <span class="kicker hidden sm:inline">{{ t('common.app.tagline') }}</span>
         </router-link>
         <div class="flex items-center gap-4">

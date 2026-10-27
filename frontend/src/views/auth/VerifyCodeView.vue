@@ -92,7 +92,7 @@
               :maxlength="codeLength"
               placeholder="000000"
               :class="[
-                'block w-full border-b-2 bg-transparent px-2 py-3 font-display text-[18px] text-[color:var(--ink)] placeholder:text-[color:var(--mute)] placeholder:font-body-curio placeholder:text-[15px] transition-all duration-150',
+                'block w-full border-b bg-transparent px-2 py-3 font-display text-[18px] text-[color:var(--ink)] placeholder:text-[color:var(--mute)] placeholder:font-body-curio placeholder:text-[15px] transition-all duration-150',
                 'focus:outline-none focus:border-[color:var(--signal)]',
                 codeError
                   ? 'border-red-300 text-red-900 placeholder-red-300'

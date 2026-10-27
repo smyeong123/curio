@@ -1,9 +1,11 @@
 @import "tailwindcss";
 
 /* ──────────────────────────────────────────────────────────────────────────
- * Curio — editorial brutalist theme.
- * Newsprint paper, ink, signal orange. Fraunces for display, JetBrains Mono
- * for kickers/metadata, Inter Tight for body.
+ * Curio — ruled-grid editorial theme.
+ * Warm paper, ink, signal red as the accent, a spark of orange for the logo
+ * period / "now" dot / focus ring. One family, Geist, for display and body;
+ * Geist Mono for labels. Structure comes from 1px rules and flat blocks —
+ * no rounded cards, shadows or gradients.
  * ────────────────────────────────────────────────────────────────────────── */
 
 /* `inline` makes the generated utilities (bg-paper, text-ink, …) emit
@@ -19,25 +21,32 @@
   --color-rule: var(--rule);
   --color-signal: var(--signal);
   --color-signal-deep: var(--signal-deep);
+  --color-hairline: var(--hairline);
+  --color-spark: var(--spark);
   --color-leaf: var(--leaf);
 
-  /* Korean glyphs fall through to the Noto KR faces (Google Fonts serves them
-     as unicode-range subsets, so English readers never download them). */
-  --font-display: 'Fraunces', 'Noto Serif KR', 'Times New Roman', serif;
-  --font-body: 'Inter Tight', 'Inter', 'Noto Sans KR', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Noto Sans KR', monospace;
+  /* Korean glyphs fall through to Noto Sans KR (Google Fonts serves it as
+     unicode-range subsets, so English readers never download it). */
+  --font-display: 'Geist', 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+  --font-body: 'Geist', 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', 'Noto Sans KR', monospace;
 }
 
 :root {
   color-scheme: light;
-  --paper: #f3ede1;
-  --paper-deep: #ece4d2;
-  --ink: #14130f;
-  --ink-soft: #2c2a23;
-  --mute: #6e695b;
-  --rule: #1a1812;
-  --signal: #ff4a1c;
-  --signal-deep: #c4290a;
+  --paper: #f3ede1;        /* ground */
+  --paper-deep: #ebe3d1;   /* flat secondary block */
+  --ink: #14130f;          /* text, rules, ink sections */
+  --ink-soft: #3a362c;     /* secondary text */
+  --mute: #635d4f;         /* tertiary text, ≥4.5:1 on paper */
+  --rule: #14130f;         /* section rules */
+  --hairline: #d6ccb8;     /* light dividers between cells */
+  --signal: #d93a1a;       /* accent: CTAs, active segment, correct answer */
+  --signal-deep: #a82c10;  /* accent as small text on paper */
+  --spark: #ff7a1a;        /* ONLY the logo period, "now" dot, focus ring */
+  --on-signal: #ffffff;    /* text on the accent (4.6:1; cream would be 3.9:1) */
+  --miss: #ffb27a;         /* wrong answer on ink */
+  --on-ink-2: #cfc8b8;     /* secondary text on ink */
   --leaf: #2a5d3c;
 }
 
@@ -45,13 +54,18 @@
 :root.dark {
   color-scheme: dark;
   --paper: #14130f;
-  --paper-deep: #0c0b08;
+  --paper-deep: #0d0c09;
   --ink: #f3ede1;
   --ink-soft: #d6d0c2;
-  --mute: #8a8576;
+  --mute: #9c9686;
   --rule: #f3ede1;
-  --signal: #ff5e36;
-  --signal-deep: #ff8862;
+  --hairline: #3a372e;
+  --signal: #ff6a45;
+  --signal-deep: #ff8a6a;
+  --spark: #ff9a4a;
+  --on-signal: #14130f;
+  --miss: #b8481a;
+  --on-ink-2: #4a463b;
   --leaf: #6cc18a;
 }
 
@@ -59,13 +73,18 @@
   :root:not([data-theme='light']) {
     color-scheme: dark;
     --paper: #14130f;
-    --paper-deep: #0c0b08;
+    --paper-deep: #0d0c09;
     --ink: #f3ede1;
     --ink-soft: #d6d0c2;
-    --mute: #8a8576;
+    --mute: #9c9686;
     --rule: #f3ede1;
-    --signal: #ff5e36;
-    --signal-deep: #ff8862;
+    --hairline: #3a372e;
+    --signal: #ff6a45;
+    --signal-deep: #ff8a6a;
+    --spark: #ff9a4a;
+    --on-signal: #14130f;
+    --miss: #b8481a;
+    --on-ink-2: #4a463b;
     --leaf: #6cc18a;
   }
 }
@@ -81,30 +100,10 @@
     background-color: var(--paper);
     color: var(--ink);
     font-family: var(--font-body);
-    font-feature-settings: 'ss01', 'ss02', 'cv11';
-    font-optical-sizing: auto;
+    font-feature-settings: 'ss01';
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     transition: background-color 0.2s ease, color 0.2s ease;
-  }
-
-  /* Subtle paper grain — applied to body via a fixed pseudo-element so
-     it never scrolls and never costs render. */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0.35;
-    mix-blend-mode: multiply;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.45 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-  }
-
-  :root.dark body::before,
-  :root[data-theme='dark'] body::before {
-    opacity: 0.18;
-    mix-blend-mode: screen;
   }
 
   #app {
@@ -115,7 +114,13 @@
 
   ::selection {
     background-color: var(--signal);
-    color: var(--paper);
+    color: var(--on-signal);
+  }
+
+  /* One focus ring everywhere: the orange spark, offset off the element. */
+  :focus-visible {
+    outline: 2px solid var(--spark);
+    outline-offset: 3px;
   }
 }
 
@@ -125,78 +130,172 @@
  * ────────────────────────────────────────────────────────────────────────── */
 @layer utilities {
   /* Typography */
-  .font-display { font-family: var(--font-display); font-optical-sizing: auto; }
+  /* Overridable defaults sit in :where() (zero specificity): these primitives
+     come after Tailwind's utilities in the cascade, so without it a
+     per-instance utility (font-bold, leading-[1], text-[color:…],
+     min-h-[56px]) could never win against the shared class. */
+  .font-display { font-family: var(--font-display); }
+  :where(.font-display) { font-weight: 600; letter-spacing: -0.025em; }
   .font-mono-curio { font-family: var(--font-mono); }
   .font-body-curio { font-family: var(--font-body); }
 
-  /* Display headline — Fraunces with high opsz, low SOFT, slight WONK */
+  /* Display headline — Geist heavy, tight. Emphasis is colour, not italics. */
   .display-headline {
     font-family: var(--font-display);
-    font-weight: 500;
-    font-variation-settings: 'opsz' 144, 'SOFT' 30, 'WONK' 1;
-    letter-spacing: -0.025em;
-    line-height: 0.95;
+  }
+  :where(.display-headline) {
+    font-weight: 800;
+    letter-spacing: -0.055em;
+    line-height: 0.92;
   }
   .display-headline em,
-  .display-headline .italic-display {
-    font-style: italic;
-    font-weight: 400;
-    font-variation-settings: 'opsz' 144, 'SOFT' 50, 'WONK' 1;
-    color: var(--signal-deep);
+  .italic-display {
+    font-style: normal;
+    font-weight: inherit;
+    color: var(--signal);
   }
 
-  /* Editorial kicker — small caps, mono, with bullet rule */
+  /* Label — mono uppercase, the grid's metadata voice (§ 1 — The brief). */
   .kicker {
     font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.16em;
-    color: var(--mute);
+  }
+  :where(.kicker) {
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
   }
   .kicker-signal { color: var(--signal-deep); }
+  @media (max-width: 639px) {
+    :where(.kicker) { font-size: 0.6875rem; }
+  }
 
   /* Horizontal newsprint rule */
   .rule { border-bottom: 1px solid var(--rule); }
-  .rule-strong { border-bottom: 2px solid var(--rule); }
+  .rule-strong { border-bottom: 1px solid var(--rule); }
+  /* Was a newsprint double rule; the grid uses one full-width ink rule. */
   .rule-double {
     border-top: 1px solid var(--rule);
-    border-bottom: 1px solid var(--rule);
-    height: 5px;
-    box-sizing: content-box;
+    height: 0;
   }
+  .rule-light { border-bottom: 1px solid var(--hairline); }
 
   /* Paper backgrounds */
   .bg-paper { background-color: var(--paper); }
   .bg-paper-deep { background-color: var(--paper-deep); }
   .bg-ink { background-color: var(--ink); color: var(--paper); }
-  .bg-signal { background-color: var(--signal); color: var(--paper); }
+  .bg-signal { background-color: var(--signal); color: var(--on-signal); }
 
-  /* Paper card — sharp corners, single-stroke border */
+  /* Flat ruled block — sharp corners, single 1px rule, no shadow */
   .card-paper {
     background-color: var(--paper);
     border: 1px solid var(--rule);
   }
 
-  /* Dropcap — first letter of paragraph, oversized Fraunces */
-  .dropcap::first-letter {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-variation-settings: 'opsz' 144, 'SOFT' 0, 'WONK' 0;
-    font-size: 4.25em;
-    line-height: 0.85;
-    float: left;
-    margin: 0.05em 0.08em -0.05em 0;
-    color: var(--signal-deep);
+  /* Dropcap retired in the grid design — the class stays a no-op so the
+     archive markup doesn't need to know. */
+  .dropcap::first-letter { all: unset; }
+
+  /* Hero display — the landing page's one oversized line. */
+  .hero-display {
+    font-size: clamp(60px, 9.4vw, 164px);
+    line-height: 0.86;
+    letter-spacing: -0.065em;
+  }
+  /* On the accent block: rules at low paper alpha, emphasis in ink (accent on
+     accent would vanish). */
+  .dot-block {
+    --on-accent-rule: rgba(255, 255, 255, 0.28);
+  }
+  .dot-block .italic-display,
+  .dot-block .display-headline em {
+    color: #14130f;
   }
 
-  /* Decorative numeral (Vol. 047, etc.) */
+  /* Rules on ink sections. */
+  .bg-ink {
+    --on-ink-rule: color-mix(in srgb, var(--paper) 22%, transparent);
+  }
+
+  /* The beats as one run of large text, split by grey slashes. */
+  .beat-run {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0.4em;
+    row-gap: 0.1em;
+    font-family: var(--font-display);
+    font-size: clamp(26px, 3.1vw, 48px);
+    font-weight: 600;
+    letter-spacing: -0.04em;
+    line-height: 1.15;
+  }
+  .beat-word {
+    color: var(--mute);
+    transition: color 0.2s ease, text-decoration-color 0.2s ease;
+    text-decoration: underline 3px transparent;
+    text-underline-offset: 0.14em;
+  }
+  .beat-word:hover {
+    color: var(--ink);
+    text-decoration-color: var(--signal);
+  }
+  .beat-word:not(:last-child)::after {
+    content: '/';
+    margin-left: 0.4em;
+    color: var(--hairline);
+    text-decoration: none;
+    display: inline-block;
+  }
+
+  /* Brand wordmark — "Curio." with the orange spark period (decorative). */
+  .wordmark::after {
+    content: '.';
+    color: var(--spark);
+  }
+
+  /* Display numeral — counters and stats (solid). */
   .deco-num {
     font-family: var(--font-display);
-    font-weight: 400;
-    font-variation-settings: 'opsz' 144, 'SOFT' 0, 'WONK' 0;
+    font-weight: 800;
     font-feature-settings: 'tnum';
-    letter-spacing: -0.02em;
+    letter-spacing: -0.06em;
+  }
+  /* Outlined story numeral — the grid's signature "01 / 02 / 03". */
+  /* Geist builds some digits ("1") from overlapping contours, and a plain
+     text-stroke would trace every overlap. Stroke first, then fill with the
+     ground colour on top: the overlaps are buried and the outer half of a 3px
+     stroke reads as a clean 1.5px outline. Override --num-outline-fill when
+     the numeral sits on a non-paper block. */
+  .num-outline {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.08em;
+    line-height: 0.78;
+    color: var(--num-outline-fill, var(--paper));
+    -webkit-text-stroke: 3px var(--ink);
+    paint-order: stroke fill;
+    font-feature-settings: 'tnum';
+  }
+  .num-outline-on-ink {
+    --num-outline-fill: var(--ink);
+    -webkit-text-stroke-color: var(--paper);
+  }
+  /* Accent block texture: a fine dot grid on flat colour. */
+  /* Fixed palette in both themes (a brand block): white text clears 4.5:1 on
+     the red, emphasis is ink, rules are translucent white. */
+  .dot-block {
+    background-color: #d93a1a;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1.2px);
+    background-size: 14px 14px;
+    color: #ffffff;
+  }
+  .dot-block :where(.kicker) {
+    color: inherit;
+  }
+  .dot-block .kicker-signal {
+    color: #14130f;
   }
 
   /* Tabular monospace counter */
@@ -206,52 +305,47 @@
     letter-spacing: 0;
   }
 
-  /* Ink button (primary CTA in editorial system) */
+  /* Primary CTA — a square accent bar. A trailing aria-hidden glyph (the
+     arrow every CTA already carries) becomes the ink "icon cell" on the
+     right, as in the grid design. Ink sweeps in from the left on hover. */
   .btn-editorial {
     display: inline-flex;
     align-items: center;
-    gap: 0.625rem;
     white-space: nowrap;
-    background-color: var(--ink);
-    /* Signal wash that sweeps in from the left on hover (background-size). */
-    background-image: linear-gradient(var(--signal), var(--signal));
+    background-color: var(--signal);
+    background-image: linear-gradient(var(--ink), var(--ink));
     background-repeat: no-repeat;
     background-position: left center;
     background-size: 0% 100%;
-    color: var(--paper);
-    border: 1px solid var(--ink);
-    padding: 0.875rem 1.5rem;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
+    color: var(--on-signal);
+    border: 1px solid var(--signal);
+    font-family: var(--font-body);
+    text-transform: none;
     transition:
-      transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1),
-      box-shadow 0.25s cubic-bezier(0.2, 0.7, 0.2, 1),
       background-size 0.45s cubic-bezier(0.65, 0, 0.35, 1),
       border-color 0.3s ease,
       color 0.18s ease;
   }
+  :where(.btn-editorial),
+  :where(.btn-editorial-ghost) {
+    gap: 1rem;
+    min-height: 3rem;
+    padding: 0.5rem 1.25rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  :where(.btn-editorial) { justify-content: space-between; }
+  :where(.btn-editorial-ghost) { justify-content: center; gap: 0.625rem; }
+  :where(.btn-editorial:has(> [aria-hidden='true']:last-child)) {
+    padding-right: 0.375rem;
+  }
   .btn-editorial:hover {
     background-size: 100% 100%;
-    border-color: var(--signal);
-    color: var(--paper);
-    transform: translate(-2px, -2px);
-    box-shadow: 4px 4px 0 var(--rule);
+    border-color: var(--ink);
   }
   .btn-editorial:active {
-    transform: translate(0, 0);
-    box-shadow: 0 0 0 var(--rule);
-  }
-  /* The trailing arrow glides forward on hover. */
-  .btn-editorial > [aria-hidden='true'],
-  .btn-editorial-ghost > [aria-hidden='true'] {
-    transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
-  }
-  .btn-editorial:hover > [aria-hidden='true'],
-  .btn-editorial-ghost:hover > [aria-hidden='true'] {
-    transform: translateX(4px);
+    transform: translateY(1px);
   }
   .btn-editorial:disabled {
     opacity: 0.4;
@@ -259,30 +353,45 @@
   }
   .btn-editorial:disabled:hover {
     background-size: 0% 100%;
-    border-color: var(--ink);
+    border-color: var(--signal);
     transform: none;
-    box-shadow: none;
+  }
+  /* Icon cell + arrow glide. */
+  .btn-editorial > [aria-hidden='true']:last-child {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    flex-shrink: 0;
+    background: var(--ink);
+    color: var(--paper);
+    transition: background-color 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .btn-editorial:hover > [aria-hidden='true']:last-child {
+    background: var(--signal);
+  }
+  .btn-editorial > [aria-hidden='true'],
+  .btn-editorial-ghost > [aria-hidden='true'] {
+    transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1), background-color 0.3s ease;
+  }
+  .btn-editorial-ghost:hover > [aria-hidden='true'] {
+    transform: translateX(4px);
   }
 
-  /* Ghost editorial button */
+  /* Secondary — a ruled bar; ink sweeps in on hover. */
   .btn-editorial-ghost {
     display: inline-flex;
     align-items: center;
-    gap: 0.625rem;
     background-color: transparent;
-    /* Ink fill that sweeps in from the left on hover. */
     background-image: linear-gradient(var(--ink), var(--ink));
     background-repeat: no-repeat;
     background-position: left center;
     background-size: 0% 100%;
     color: var(--ink);
     border: 1px solid var(--rule);
-    padding: 0.875rem 1.5rem;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
+    font-family: var(--font-body);
+    text-transform: none;
     transition:
       background-size 0.45s cubic-bezier(0.65, 0, 0.35, 1),
       color 0.3s ease;
@@ -414,74 +523,6 @@
     transition: transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.2s;
   }
 
-  /* Ink sweep — a translucent signal wash that sweeps in behind the hero's
-     italic display words shortly after the headline rises. A real .hl-sweep-band
-     span scaled in via transform; the word sits in .hl-sweep-text one layer up.
-     NOTE: Cypress cy.screenshot() restarts CSS animations mid-capture, so this
-     delayed one-shot sweep is usually missing from screenshots — that's a
-     capture artifact, not a rendering bug. */
-  @keyframes inksweep {
-    from { transform: scaleX(0); }
-    to   { transform: scaleX(1); }
-  }
-  .hl-sweep {
-    display: inline-block;
-    position: relative;
-  }
-  .hl-sweep-band {
-    position: absolute;
-    left: -0.03em;
-    right: -0.03em;
-    bottom: 0.16em;
-    height: 0.3em;
-    /* explicit two-layer stack (band 0, text 1) instead of a negative
-       z-index, so the band can never fall behind an ancestor background */
-    z-index: 0;
-    background: color-mix(in srgb, var(--signal) 35%, transparent);
-    transform: scaleX(0);
-    transform-origin: left;
-    animation: inksweep 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  }
-  .hl-sweep-text {
-    position: relative;
-    z-index: 1;
-  }
-  .hl-sweep-1 .hl-sweep-band { animation-delay: 0.95s; }
-  .hl-sweep-2 .hl-sweep-band { animation-delay: 1.2s; }
-
-  /* Hoverable paper card — lifts off the page, newsprint hard shadow */
-  .card-lift {
-    transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.25s cubic-bezier(0.2, 0.7, 0.2, 1);
-  }
-  .card-lift:hover {
-    transform: translate(-3px, -3px);
-    box-shadow: 6px 6px 0 var(--rule);
-  }
-
-  /* Edition stamp — tilted at rest, straightens when its card is hovered */
-  .stamp-tilt {
-    transform: rotate(3deg);
-    transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1);
-  }
-  .card-lift:hover .stamp-tilt {
-    transform: rotate(0deg) scale(1.05);
-  }
-
-  /* Beat-topic rows — nudge right, numeral turns signal */
-  .beat-row {
-    transition: transform 0.2s ease, border-color 0.2s ease;
-  }
-  .beat-row:hover {
-    transform: translateX(6px);
-    border-color: color-mix(in srgb, var(--signal) 60%, transparent);
-  }
-  .beat-row .num-tab {
-    transition: color 0.2s ease;
-  }
-  .beat-row:hover .num-tab {
-    color: var(--signal-deep);
-  }
-
   /* ── Scroll-aware nav bar (useScrollNav) ─────────────────────────────
      At the top of the page the bar melts into the paper; once it sticks it
      gains a frosted fill and a 1px hairline (ink at low alpha — a dark line
@@ -503,6 +544,11 @@
     backdrop-filter: blur(14px) saturate(1.3);
     border-bottom-color: color-mix(in srgb, var(--ink) 26%, transparent);
     box-shadow: 0 10px 30px -22px color-mix(in srgb, var(--ink) 60%, transparent);
+  }
+  /* A masthead that is itself a ruled row keeps its ink rule at all times. */
+  .nav-glass.nav-ruled,
+  .nav-glass.nav-ruled.is-scrolled {
+    border-bottom-color: var(--rule);
   }
   .nav-glass.is-hidden {
     transform: translateY(-100%);
@@ -624,22 +670,6 @@
       transform: scaleX(1);
       transition: none;
     }
-    .hl-sweep-band {
-      animation: none;
-      transform: scaleX(1);
-    }
-    .card-lift,
-    .stamp-tilt,
-    .beat-row {
-      transition: none;
-    }
-    .card-lift:hover,
-    .beat-row:hover {
-      transform: none;
-    }
-    .card-lift:hover .stamp-tilt {
-      transform: rotate(3deg);
-    }
     .nav-glass,
     .nav-progress,
     .menu-indicator.is-animated,
@@ -674,9 +704,7 @@
 
 /* ── Korean edition typography ─────────────────────────────────────────────
  * Keyed off <html lang="ko"> (set by useLocale). Unlayered on purpose so it
- * outranks the utilities layer above. Hangul has no italic — the synthesized
- * oblique looks broken — so emphasis keeps its colour and gains weight instead,
- * and the Latin-tuned negative tracking is loosened.
+ * outranks the utilities layer above. Hangul falls through to Noto Sans KR.
  * ────────────────────────────────────────────────────────────────────────── */
 /* Hangul breaks between any two syllables by default, which splits words
    ("소식" → "소" / "식"); keep-all breaks only at spaces, as Korean sites do. */
@@ -684,45 +712,28 @@
   word-break: keep-all;
   overflow-wrap: break-word;
 }
-/* Hangul fills the em box — a Noto Serif KR syllable stands ~0.97em tall where
-   Fraunces lowercase sits at ~0.44em — so at the same px size the Korean
-   edition reads a size or two larger. font-size-adjust scales every face by
-   (value ÷ that face's own x-height ratio) and works on the computed size, so
-   each clamp()/px size utility follows without per-view overrides:
-     body      0.5       → Inter Tight ×0.92, Noto Sans KR ×0.92
-     headline  0.4       → Fraunces ×0.92, Noto Serif KR ×0.78
-     serif     from-font → Fraunces ×1, Noto Serif KR ×0.85 (titles, inputs at body size)
-     mono      none      → labels are already small; only their tracking changes.
-   The value inherits, so every font-family class states its own. */
-/* Every serif input sets its placeholder in the body face (placeholder:font-body-curio). */
+/* A Noto Sans KR syllable fills the em box (~0.97em tall) where Geist's
+   lowercase sits near 0.5em, so at one px size the Korean edition reads a size
+   larger. font-size-adjust scales each face by (0.5 ÷ its own x-height ratio)
+   on the computed size, so every clamp()/px utility follows on its own.
+   Mono labels are already small — they keep their size. */
 :root:lang(ko),
-:root:lang(ko) :is(.font-body, .font-body-curio),
 :root:lang(ko) ::placeholder {
   font-size-adjust: 0.5;
 }
-:root:lang(ko) .font-display {
-  font-size-adjust: from-font;
-}
-:root:lang(ko) .display-headline,
-:root:lang(ko) .dropcap::first-letter {
-  font-size-adjust: 0.4;
-}
-:root:lang(ko) :is(.font-mono, .font-mono-curio, .kicker, .num-tab, .btn-editorial, .btn-editorial-ghost, .deco-num) {
+:root:lang(ko) :is(.font-mono, .font-mono-curio, .kicker, .num-tab, .num-outline) {
   font-size-adjust: none;
 }
-/* line-height resolves against the unadjusted size, so 1.02 already gives the
-   shrunken syllables ~1.3× leading. */
+/* The Latin display tracking (-0.055em) crushes Hangul; loosen it and give
+   the taller syllables a little more leading. */
 :root:lang(ko) .display-headline {
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+:root:lang(ko) .font-display {
   letter-spacing: -0.01em;
-  line-height: 1.02;
 }
-:root:lang(ko) .display-headline em,
-:root:lang(ko) .display-headline .italic-display,
-:root:lang(ko) .italic-display {
-  font-style: normal;
-  font-weight: 600;
-}
-/* Wide Latin small-caps tracking pulls Hangul syllables apart ("로 그 인"). */
-:root:lang(ko) :is(.font-mono, .font-mono-curio, .kicker, .btn-editorial, .btn-editorial-ghost):not(.num-tab) {
-  letter-spacing: 0.04em;
+/* Wide Latin label tracking pulls Hangul syllables apart ("로 그 인"). */
+:root:lang(ko) :is(.font-mono, .font-mono-curio, .kicker):not(.num-tab) {
+  letter-spacing: 0.02em;
 }
