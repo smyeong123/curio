@@ -1,61 +1,36 @@
 <template>
   <div class="min-h-screen bg-paper text-[color:var(--ink)]">
-    <!-- ── Top metadata strip ───────────────────────────────────────── -->
-    <div class="bg-ink text-[color:var(--paper)] py-2">
-      <div class="mx-auto flex w-full max-w-[1280px] items-center justify-between gap-6 px-6 text-[11px] uppercase tracking-[0.18em] font-mono-curio">
-        <div class="flex items-center gap-5">
-          <span class="hidden sm:inline">{{ t('home.strip.vol') }} <span class="num-tab">{{ volumeLabel }}</span></span>
-          <span class="opacity-60 hidden md:inline">·</span>
-          <span class="hidden md:inline">{{ today }}</span>
-          <span class="opacity-60 hidden lg:inline">·</span>
-          <span class="hidden lg:inline">{{ t('home.strip.issue') }}</span>
-        </div>
-        <div class="flex items-center gap-4">
-          <span class="num-tab opacity-70">{{ liveClock }}</span>
-          <span class="opacity-60">·</span>
-          <a class="opacity-80 hover:opacity-100 hover:text-[color:var(--signal)]" href="#what">{{ t('home.strip.readIt') }}</a>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Marquee: "Today on Curio" ───────────────────────────────── -->
-    <div class="border-b border-[color:var(--rule)] bg-paper-deep overflow-hidden">
-      <div class="mx-auto flex w-full max-w-[1280px] items-center gap-4 px-6 py-2">
-        <span class="flex items-center gap-2 flex-shrink-0">
-          <span class="live-dot" aria-hidden="true"></span>
-          <span class="kicker kicker-signal">{{ t('home.ticker.breaking') }}</span>
-        </span>
-        <div class="overflow-hidden flex-1 ticker-pause">
-          <div class="ticker-track text-[13px] font-body-curio">
-            <span v-for="(line, i) in tickerLines" :key="`a-${i}`">— {{ line }}</span>
-            <span v-for="(line, i) in tickerLines" :key="`b-${i}`" aria-hidden="true">— {{ line }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Masthead ─────────────────────────────────────────────────── -->
+    <!-- ── Masthead: one row of ruled cells (sticky, scroll-aware) ────── -->
     <header
       ref="navBar"
-      class="nav-glass sticky top-0 z-30"
+      class="nav-glass nav-ruled sticky top-0 z-30"
       :class="{ 'is-scrolled': navScrolled, 'is-hidden': navHidden }"
       :style="{ '--nav-progress': navProgress }"
     >
       <span class="nav-progress" aria-hidden="true"></span>
-      <div class="mx-auto flex w-full max-w-[1280px] items-center justify-between gap-3 sm:gap-6 px-4 sm:px-6 py-5">
-        <router-link to="/" class="group flex items-baseline gap-3">
-          <span class="display-headline text-[34px] leading-none">Curio</span>
-          <span class="kicker hidden sm:inline">{{ t('common.app.tagline') }}</span>
+      <div class="flex flex-wrap font-mono-curio text-[12px] uppercase tracking-[0.06em]">
+        <router-link to="/" class="flex flex-[1_1_auto] items-center gap-3 border-r border-[color:var(--hairline)] px-4 py-3 sm:flex-[1_1_160px] sm:px-6">
+          <span class="wordmark display-headline text-[24px] leading-none normal-case tracking-[-0.04em]">Curio</span>
+          <span class="kicker hidden 2xl:inline">{{ t('common.app.tagline') }}</span>
         </router-link>
-        <nav class="flex items-center gap-1 sm:gap-2">
-          <LanguageSelect class="px-1 sm:px-3 py-2 text-[13px]" />
+        <span class="hidden flex-[1_1_auto] items-center whitespace-nowrap border-r border-[color:var(--hairline)] px-6 md:flex">
+          {{ t('home.strip.vol') }}&nbsp;<span class="num-tab">{{ volumeLabel }}</span>&nbsp;—&nbsp;{{ today }}
+        </span>
+        <span class="hidden flex-[1_1_auto] items-center gap-2 whitespace-nowrap border-r border-[color:var(--hairline)] px-6 lg:flex">
+          <span class="live-dot" aria-hidden="true"></span>{{ t('home.strip.issue') }}
+        </span>
+        <nav class="flex flex-[0_1_auto] items-center justify-end gap-1 px-2 sm:flex-[1_1_300px] sm:gap-2 sm:px-4">
+          <a class="hidden whitespace-nowrap px-2 py-3 text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] xl:inline" href="#what">
+            <span class="num-tab">{{ liveClock }}</span> · {{ t('home.strip.readIt') }}
+          </a>
+          <LanguageSelect class="px-1 py-2 text-[12px] sm:px-2" />
           <router-link
             to="/login"
-            class="whitespace-nowrap px-1 sm:px-3 py-2 text-[13px] font-mono-curio uppercase tracking-[0.14em] text-[color:var(--mute)] hover:text-[color:var(--ink)] transition-colors"
+            class="whitespace-nowrap px-1 py-3 text-[color:var(--ink-soft)] transition-colors hover:text-[color:var(--ink)] sm:px-2"
           >
             {{ t('home.masthead.signIn') }}
           </router-link>
-          <router-link to="/register" class="btn-editorial">
+          <router-link to="/register" class="btn-editorial my-1.5 min-h-[40px] text-[13px]">
             {{ t('home.masthead.subscribe') }}
             <span aria-hidden="true">→</span>
           </router-link>
@@ -63,220 +38,224 @@
       </div>
     </header>
 
-    <!-- ── Lede ─────────────────────────────────────────────────────── -->
-    <section class="mx-auto w-full max-w-[1280px] px-6 pt-14 pb-20">
-      <div class="grid grid-cols-12 gap-8 items-end">
-        <!-- Left: kicker + huge serif headline -->
-        <div class="col-span-12 lg:col-span-8">
-          <div class="rise rise-d-1 flex items-center gap-3 mb-7">
-            <span class="kicker kicker-signal shrink-0 whitespace-nowrap">{{ t('home.hero.number') }}</span>
-            <span class="h-px w-10 shrink-0 bg-[color:var(--rule)]"></span>
-            <span class="kicker">{{ t('home.hero.kicker') }}</span>
+    <!-- ── Ticker row ─────────────────────────────────────────────────── -->
+    <div class="overflow-hidden border-b border-[color:var(--rule)]">
+      <div class="flex w-full items-center gap-4 px-4 py-2.5 sm:px-6">
+        <span class="flex flex-shrink-0 items-center gap-2">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span class="kicker kicker-signal">{{ t('home.ticker.breaking') }}</span>
+        </span>
+        <div class="ticker-pause flex-1 overflow-hidden border-l border-[color:var(--hairline)] pl-4">
+          <div class="ticker-track font-body-curio text-[13px]">
+            <span v-for="(line, i) in tickerLines" :key="`a-${i}`">— {{ line }}</span>
+            <span v-for="(line, i) in tickerLines" :key="`b-${i}`" aria-hidden="true">— {{ line }}</span>
           </div>
+        </div>
+      </div>
+    </div>
 
-          <i18n-t scope="global" keypath="home.hero.headline" tag="h1" class="rise-mask rise-d-2 display-headline text-[clamp(56px,9vw,148px)] mb-8">
-            <template #curated>
-              <em class="italic-display hl-sweep hl-sweep-1"><span class="hl-sweep-band" aria-hidden="true"></span><span class="hl-sweep-text">{{ t('home.hero.curated') }}</span></em>
-            </template>
-            <template #coffee>
-              <em class="italic-display hl-sweep hl-sweep-2"><span class="hl-sweep-band" aria-hidden="true"></span><span class="hl-sweep-text">{{ t('home.hero.coffee') }}</span></em>
-            </template>
+    <!-- ── Hero: two columns split by an ink rule ───────────────────────── -->
+    <section id="top" class="grid border-b border-[color:var(--rule)] lg:grid-cols-[minmax(0,1fr)_minmax(380px,34%)]">
+      <div class="flex min-w-0 flex-col justify-between gap-12 px-4 pb-10 pt-12 sm:px-6 lg:border-r lg:border-[color:var(--rule)] lg:pt-14">
+        <div class="rise rise-d-1 flex items-center gap-3">
+          <span class="kicker kicker-signal shrink-0 whitespace-nowrap">§ {{ t('home.hero.number') }}</span>
+          <span class="h-px w-10 shrink-0 bg-[color:var(--rule)]"></span>
+          <span class="kicker">{{ t('home.hero.kicker') }}</span>
+        </div>
+
+        <div class="flex flex-col gap-8">
+          <i18n-t scope="global" keypath="home.hero.headline" tag="h1" class="rise-mask rise-d-2 display-headline hero-display">
+            <template #curated><em class="italic-display">{{ t('home.hero.curated') }}</em></template>
+            <template #coffee><em class="italic-display">{{ t('home.hero.coffee') }}</em></template>
           </i18n-t>
 
-          <p class="rise rise-d-3 max-w-[58ch] font-body-curio text-[18px] leading-[1.55] text-[color:var(--ink-soft)] mb-10">
+          <p class="rise rise-d-3 max-w-[46ch] font-body-curio text-[clamp(18px,1.6vw,22px)] font-medium leading-[1.4] tracking-[-0.015em] text-[color:var(--ink-soft)]">
             {{ t('home.hero.lede') }}
           </p>
 
-          <div class="rise rise-d-4 flex flex-wrap items-center gap-4 mb-12">
-            <router-link to="/register" class="btn-editorial">
+          <div class="rise rise-d-4 flex flex-wrap items-center gap-3">
+            <router-link to="/register" class="btn-editorial min-h-[56px] text-[16px]">
               {{ t('home.hero.cta') }}
               <span aria-hidden="true">→</span>
             </router-link>
-            <router-link to="/login" class="btn-editorial-ghost">{{ t('home.hero.signIn') }}</router-link>
-            <span class="kicker pl-2">{{ t('home.hero.fineprint') }}</span>
-          </div>
-
-          <!-- Stat row -->
-          <div
-            ref="statRow"
-            class="rise rise-d-5 grid grid-cols-3 border-t border-b border-[color:var(--rule)] divide-x divide-[color:var(--rule)]"
-          >
-            <div class="px-3 py-5 sm:px-5">
-              <div class="deco-num text-[44px] leading-none">{{ statTopics }}</div>
-              <p class="kicker mt-3 tracking-[0.1em] sm:tracking-[0.16em]">{{ t('home.hero.stats.topics') }}</p>
-            </div>
-            <div class="px-3 py-5 sm:px-5">
-              <div class="deco-num text-[44px] leading-none">{{ statMinutes }}<span class="text-[color:var(--signal-deep)]">·</span>{{ t('home.hero.stats.min') }}</div>
-              <p class="kicker mt-3 tracking-[0.1em] sm:tracking-[0.16em]">{{ t('home.hero.stats.minutes') }}</p>
-            </div>
-            <div class="px-3 py-5 sm:px-5">
-              <div class="deco-num text-[44px] leading-none">{{ statQuiz }}<span class="text-[color:var(--mute)]">/</span>5</div>
-              <p class="kicker mt-3 tracking-[0.1em] sm:tracking-[0.16em]">{{ t('home.hero.stats.quiz') }}</p>
-            </div>
+            <router-link to="/login" class="btn-editorial-ghost min-h-[56px] text-[16px]">{{ t('home.hero.signIn') }}</router-link>
+            <span class="kicker pl-1">{{ t('home.hero.fineprint') }}</span>
           </div>
         </div>
 
-        <!-- Right: "tomorrow's front page" preview card -->
-        <aside ref="sampleCard" class="parallax col-span-12 lg:col-span-4 rise rise-d-3">
-          <div class="card-paper card-lift p-6 relative">
-            <!-- Edition stamp -->
-            <div class="stamp-tilt absolute -top-3 -right-3 bg-signal text-[color:var(--paper)] px-3 py-1.5 font-mono-curio text-[10px] font-bold uppercase tracking-[0.18em]">
-              {{ t('home.sample.stamp') }}
-            </div>
-
-            <p class="kicker mb-4">{{ t('home.sample.kicker', { vol: nextVolumeLabel }) }}</p>
-            <i18n-t scope="global" keypath="home.sample.headline" tag="h3" class="display-headline text-[26px] leading-[1.05] mb-2">
-              <template #asleep><em class="italic-display">{{ t('home.sample.asleep') }}</em></template>
-            </i18n-t>
-            <div class="rule mb-4 mt-3"></div>
-
-            <div class="space-y-5">
-              <article v-for="(story, idx) in sampleStories" :key="idx">
-                <div class="flex items-baseline gap-2 mb-1">
-                  <span class="num-tab text-[10px] text-[color:var(--mute)]">{{ String(idx + 1).padStart(2, '0') }}</span>
-                  <span class="kicker">{{ story.topic }}</span>
-                </div>
-                <p class="font-display text-[16px] leading-[1.25] font-medium text-[color:var(--ink)]">
-                  {{ story.title }}
-                </p>
-                <p class="font-body-curio text-[12.5px] text-[color:var(--mute)] leading-snug mt-1">{{ story.dek }}</p>
-                <div v-if="idx < sampleStories.length - 1" class="rule mt-4"></div>
-              </article>
-            </div>
-
-            <div class="mt-6 pt-4 border-t-2 border-[color:var(--rule)] flex items-baseline justify-between">
-              <span class="kicker">{{ t('home.sample.then') }}</span>
-              <span class="num-tab text-[12px] font-bold text-[color:var(--signal-deep)]">{{ t('home.sample.quizLink') }}</span>
-            </div>
+        <!-- Fact cells -->
+        <div
+          ref="statRow"
+          class="rise rise-d-5 grid grid-cols-3 border-t border-[color:var(--rule)]"
+        >
+          <div class="pr-3 pt-4">
+            <div class="deco-num text-[clamp(32px,3.4vw,48px)] leading-none">{{ statTopics }}</div>
+            <p class="kicker mt-3">{{ t('home.hero.stats.topics') }}</p>
           </div>
-        </aside>
+          <div class="border-l border-[color:var(--hairline)] px-3 pt-4 sm:px-4">
+            <div class="deco-num text-[clamp(32px,3.4vw,48px)] leading-none">{{ statMinutes }}<span class="text-[color:var(--signal)]">·</span>{{ t('home.hero.stats.min') }}</div>
+            <p class="kicker mt-3">{{ t('home.hero.stats.minutes') }}</p>
+          </div>
+          <div class="border-l border-[color:var(--hairline)] pl-3 pt-4 sm:pl-4">
+            <div class="deco-num text-[clamp(32px,3.4vw,48px)] leading-none">{{ statQuiz }}<span class="text-[color:var(--mute)]">/</span>5</div>
+            <p class="kicker mt-3">{{ t('home.hero.stats.quiz') }}</p>
+          </div>
+        </div>
       </div>
-    </section>
 
-    <!-- ── How it works (newsroom three-up) ─────────────────────────── -->
-    <section id="what" class="border-t border-[color:var(--rule)] bg-paper-deep">
-      <div class="mx-auto w-full max-w-[1280px] px-6 py-20">
-        <div class="grid grid-cols-12 gap-6 mb-12 items-end">
-          <div class="col-span-12 md:col-span-7" data-reveal>
-            <p class="kicker kicker-signal mb-3">{{ t('home.method.kicker') }}</p>
-            <i18n-t scope="global" keypath="home.method.headline" tag="h2" class="reveal-mask display-headline text-[clamp(40px,5.5vw,72px)] leading-[0.98]">
-              <template #tail><em class="italic-display">{{ t('home.method.tail') }}</em></template>
-            </i18n-t>
-            <div class="rule-strong rule-draw mt-6 max-w-[240px]"></div>
-          </div>
-          <ScrollWords
-            :text="t('home.method.body')"
-            class="col-span-12 md:col-span-5 font-body-curio text-[15px] text-[color:var(--ink-soft)] leading-relaxed"
-          />
+      <!-- Right: tomorrow's front page, on the dotted accent block -->
+      <aside class="dot-block rise rise-d-3 flex min-w-0 flex-col justify-between gap-8 overflow-hidden px-6 py-8 sm:px-8 lg:py-10">
+        <div class="flex items-start justify-between gap-4 font-mono-curio text-[12px] uppercase tracking-[0.06em]">
+          <span>{{ t('home.sample.kicker', { vol: nextVolumeLabel }) }}</span>
+          <span class="shrink-0 whitespace-nowrap bg-[color:var(--ink)] px-2 py-1 text-[color:var(--paper)]">{{ t('home.sample.stamp') }}</span>
         </div>
 
-        <ol class="grid grid-cols-1 md:grid-cols-3 gap-0 border-t-2 border-[color:var(--rule)]">
-          <li
-            v-for="(step, i) in steps"
-            :key="i"
-            :class="[
-              'p-7 border-b-2 border-[color:var(--rule)]',
-              i < 2 ? 'md:border-r border-[color:var(--rule)]' : ''
-            ]"
-            data-reveal
-            :style="{ '--reveal-delay': `${i * 0.1}s` }"
-          >
-            <div class="flex items-baseline justify-between mb-6">
-              <span class="deco-num text-[64px] leading-none text-[color:var(--signal-deep)]">{{ String(i + 1).padStart(2, '0') }}</span>
-              <span class="kicker">{{ t('home.method.chapter') }}</span>
-            </div>
-            <h3 class="font-display text-[24px] leading-tight font-semibold mb-2">{{ step.title }}</h3>
-            <p class="font-body-curio text-[14.5px] text-[color:var(--ink-soft)] leading-relaxed">{{ step.body }}</p>
-          </li>
-        </ol>
-      </div>
-    </section>
-
-    <!-- ── Topics on the beat ─────────────────────────────────────── -->
-    <section class="border-t border-[color:var(--rule)]">
-      <div class="mx-auto w-full max-w-[1280px] px-6 py-20">
-        <div class="grid grid-cols-12 gap-8 items-start">
-          <div class="col-span-12 md:col-span-4" data-reveal>
-            <p class="kicker kicker-signal mb-3">{{ t('home.beat.kicker') }}</p>
-            <i18n-t scope="global" keypath="home.beat.headline" tag="h2" class="reveal-mask display-headline text-[clamp(36px,5vw,64px)] leading-[1]">
-              <template #cover><em class="italic-display">{{ t('home.beat.cover') }}</em></template>
-            </i18n-t>
-            <div class="rule-strong rule-draw mt-4 mb-5 max-w-[160px]"></div>
-            <ScrollWords :text="t('home.beat.body')" class="font-body-curio text-[14.5px] text-[color:var(--ink-soft)] leading-relaxed mb-6" />
-            <router-link to="/register" class="ink-link font-mono-curio text-[12.5px] uppercase tracking-[0.14em]">
-              {{ t('home.beat.pickYours') }}
-            </router-link>
-          </div>
-
-          <ul class="col-span-12 md:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4">
-            <li
-              v-for="(topic, i) in beatTopics"
-              :key="topic"
-              class="beat-row flex items-baseline gap-3 border-b border-[color:var(--rule)]/30 pb-3"
-              data-reveal
-              :style="{ '--reveal-delay': `${(i % 6) * 0.05}s` }"
-            >
-              <span class="num-tab text-[11px] text-[color:var(--mute)]">{{ String(i + 1).padStart(2, '0') }}</span>
-              <span class="font-display text-[17px] leading-tight text-[color:var(--ink)]">{{ topicLabel(topic) }}</span>
+        <div ref="sampleCard" class="parallax flex flex-col gap-6">
+          <i18n-t scope="global" keypath="home.sample.headline" tag="h3" class="display-headline text-[clamp(30px,2.6vw,40px)] leading-[1] sample-headline">
+            <template #asleep><em class="italic-display">{{ t('home.sample.asleep') }}</em></template>
+          </i18n-t>
+          <ol class="border-t border-[color:var(--on-accent-rule)]">
+            <li v-for="(story, idx) in sampleStories" :key="idx" class="border-b border-[color:var(--on-accent-rule)] py-4">
+              <div class="mb-1.5 flex items-baseline gap-2 font-mono-curio text-[11px] uppercase tracking-[0.06em] opacity-85">
+                <span class="num-tab">{{ String(idx + 1).padStart(2, '0') }}</span>
+                <span>{{ story.topic }}</span>
+              </div>
+              <p class="font-display text-[17px] font-semibold leading-[1.2]">{{ story.title }}</p>
+              <p class="mt-1 font-body-curio text-[13px] leading-snug opacity-85">{{ story.dek }}</p>
             </li>
-          </ul>
+          </ol>
         </div>
-      </div>
+
+        <div class="flex min-h-[64px] items-center justify-between gap-4 bg-[color:var(--paper)] px-5 text-[color:var(--ink)]">
+          <span class="font-mono-curio text-[12px] uppercase tracking-[0.06em]">{{ t('home.sample.then') }}</span>
+          <span class="num-tab text-[13px] font-semibold text-[color:var(--signal-deep)]">{{ t('home.sample.quizLink') }}</span>
+        </div>
+      </aside>
     </section>
 
-    <!-- ── Pull quote ─────────────────────────────────────────────── -->
-    <section class="border-t-2 border-b-2 border-[color:var(--rule)] bg-ink text-[color:var(--paper)]">
-      <div class="mx-auto w-full max-w-[1100px] px-6 py-24 text-center" data-reveal>
-        <p class="kicker mb-6" style="color: var(--signal);">{{ t('home.quote.kicker') }}</p>
-        <i18n-t scope="global" keypath="home.quote.text" tag="blockquote" class="reveal-mask display-headline text-[clamp(32px,4.5vw,56px)] leading-[1.05]">
+    <!-- ── How it works: header row + three ruled chapters ──────────────── -->
+    <section id="what" class="border-b border-[color:var(--rule)]">
+      <div class="grid gap-8 px-4 pb-12 pt-16 sm:px-6 md:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] md:items-end">
+        <div data-reveal>
+          <p class="kicker kicker-signal mb-4">§ {{ t('home.method.kicker') }}</p>
+          <i18n-t scope="global" keypath="home.method.headline" tag="h2" class="reveal-mask display-headline text-[clamp(40px,5.4vw,80px)] leading-[0.95]">
+            <template #tail><em class="italic-display">{{ t('home.method.tail') }}</em></template>
+          </i18n-t>
+        </div>
+        <ScrollWords
+          :text="t('home.method.body')"
+          class="max-w-[40ch] font-body-curio text-[18px] leading-[1.45] text-[color:var(--ink-soft)]"
+        />
+      </div>
+
+      <ol class="grid border-t border-[color:var(--rule)] md:grid-cols-3">
+        <li
+          v-for="(step, i) in steps"
+          :key="i"
+          :class="[
+            'flex flex-col gap-8 px-4 py-8 sm:px-6',
+            i > 0 ? 'border-t border-[color:var(--hairline)] md:border-l md:border-t-0' : ''
+          ]"
+          data-reveal
+          :style="{ '--reveal-delay': `${i * 0.1}s` }"
+        >
+          <div class="flex items-start justify-between gap-4">
+            <span class="num-outline text-[clamp(96px,9vw,150px)]" aria-hidden="true">{{ String(i + 1).padStart(2, '0') }}</span>
+            <span class="kicker">{{ t('home.method.chapter') }} {{ String(i + 1).padStart(2, '0') }}</span>
+          </div>
+          <div>
+            <h3 class="font-display mb-3 text-[clamp(24px,2.2vw,32px)] font-bold leading-[1.05] tracking-[-0.035em]">{{ step.title }}</h3>
+            <p class="max-w-[38ch] font-body-curio text-[16px] leading-[1.5] text-[color:var(--ink-soft)]">{{ step.body }}</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ── Topics on the beat: the beats as one run of large text ───────── -->
+    <section class="border-b border-[color:var(--rule)]">
+      <div class="grid gap-8 px-4 pb-10 pt-16 sm:px-6 md:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] md:items-end" data-reveal>
+        <div>
+          <p class="kicker kicker-signal mb-4">§ {{ t('home.beat.kicker') }}</p>
+          <i18n-t scope="global" keypath="home.beat.headline" tag="h2" class="reveal-mask display-headline text-[clamp(40px,5.4vw,80px)] leading-[0.95]">
+            <template #cover><em class="italic-display">{{ t('home.beat.cover') }}</em></template>
+          </i18n-t>
+        </div>
+        <div>
+          <ScrollWords :text="t('home.beat.body')" class="mb-6 max-w-[40ch] font-body-curio text-[18px] leading-[1.45] text-[color:var(--ink-soft)]" />
+          <router-link to="/register" class="ink-link font-mono-curio text-[12px] uppercase tracking-[0.06em]">
+            {{ t('home.beat.pickYours') }}
+          </router-link>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between border-t border-[color:var(--hairline)] px-4 py-3 sm:px-6">
+        <span class="kicker">{{ t('home.hero.stats.topics') }}</span>
+        <span class="kicker num-tab">{{ beatTopics.length }}</span>
+      </div>
+      <ul class="beat-run px-4 pb-14 pt-2 sm:px-6">
+        <li
+          v-for="(topic, i) in beatTopics"
+          :key="topic"
+          class="beat-word"
+          data-reveal
+          :style="{ '--reveal-delay': `${(i % 6) * 0.04}s` }"
+        >{{ topicLabel(topic) }}</li>
+      </ul>
+    </section>
+
+    <!-- ── Pull quote: full-bleed ink ─────────────────────────────────── -->
+    <section class="bg-ink text-[color:var(--paper)]">
+      <div class="flex items-center justify-between gap-4 border-b border-[color:var(--on-ink-rule)] px-4 py-4 font-mono-curio text-[12px] uppercase tracking-[0.06em] sm:px-6">
+        <span style="color: var(--signal);">§ {{ t('home.quote.kicker') }}</span>
+        <span class="opacity-75">{{ t('home.quote.attribution') }}</span>
+      </div>
+      <div class="px-4 pb-24 pt-16 sm:px-6" data-reveal>
+        <i18n-t scope="global" keypath="home.quote.text" tag="blockquote" class="reveal-mask display-headline max-w-[18ch] text-[clamp(40px,6vw,96px)] leading-[0.96]">
           <template #br><br class="hidden md:inline" /></template>
           <template #minutes><em class="italic-display" style="color: var(--signal);">{{ t('home.quote.minutes') }}</em></template>
         </i18n-t>
-        <p class="kicker mt-7" style="color: var(--paper);">{{ t('home.quote.attribution') }}</p>
       </div>
     </section>
 
-    <!-- ── Subscribe CTA ───────────────────────────────────────────── -->
-    <section class="border-b-2 border-[color:var(--rule)]">
-      <div class="mx-auto w-full max-w-[1280px] px-6 py-24">
-        <div class="grid grid-cols-12 gap-8 items-end">
-          <div class="col-span-12 md:col-span-7" data-reveal>
-            <p class="kicker kicker-signal mb-4">{{ t('home.subscribe.kicker') }}</p>
-            <i18n-t scope="global" keypath="home.subscribe.headline" tag="h2" class="reveal-mask display-headline text-[clamp(48px,7vw,108px)] leading-[0.95]">
-              <template #edition><em class="italic-display">{{ t('home.subscribe.edition') }}</em></template>
-            </i18n-t>
-          </div>
-          <div class="col-span-12 md:col-span-5" data-reveal style="--reveal-delay: 0.15s">
-            <ScrollWords :text="t('home.subscribe.body')" class="font-body-curio text-[16px] text-[color:var(--ink-soft)] mb-6 leading-relaxed" />
-            <div class="flex flex-wrap items-center gap-3">
-              <router-link to="/register" class="btn-editorial">
-                {{ t('home.subscribe.startFree') }}
-                <span aria-hidden="true">→</span>
-              </router-link>
-              <router-link to="/login" class="btn-editorial-ghost">{{ t('home.subscribe.signIn') }}</router-link>
-            </div>
+    <!-- ── Subscribe ──────────────────────────────────────────────────── -->
+    <section class="border-b border-[color:var(--rule)]">
+      <div class="grid gap-10 px-4 py-20 sm:px-6 md:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] md:items-end">
+        <div data-reveal>
+          <p class="kicker kicker-signal mb-4">§ {{ t('home.subscribe.kicker') }}</p>
+          <i18n-t scope="global" keypath="home.subscribe.headline" tag="h2" class="reveal-mask display-headline text-[clamp(52px,7.4vw,124px)] leading-[0.9]">
+            <template #edition><em class="italic-display">{{ t('home.subscribe.edition') }}</em></template>
+          </i18n-t>
+        </div>
+        <div data-reveal style="--reveal-delay: 0.15s">
+          <ScrollWords :text="t('home.subscribe.body')" class="mb-8 max-w-[36ch] font-body-curio text-[20px] font-medium leading-[1.4] tracking-[-0.015em] text-[color:var(--ink-soft)]" />
+          <div class="flex flex-wrap items-center gap-3">
+            <router-link to="/register" class="btn-editorial min-h-[56px] text-[16px]">
+              {{ t('home.subscribe.startFree') }}
+              <span aria-hidden="true">→</span>
+            </router-link>
+            <router-link to="/login" class="btn-editorial-ghost min-h-[56px] text-[16px]">{{ t('home.subscribe.signIn') }}</router-link>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ── Colophon ────────────────────────────────────────────────── -->
-    <footer style="background-color: var(--paper)">
-      <div class="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-6 py-10 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p class="display-headline text-[34px] leading-none mb-1">Curio</p>
-          <p class="kicker">{{ t('home.footer.tagline', { vol: volumeLabel }) }}</p>
-        </div>
-        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px] font-mono-curio uppercase tracking-[0.14em] text-[color:var(--mute)]">
-          <LanguageSelect />
-          <router-link to="/login" class="hover:text-[color:var(--ink)]">{{ t('home.footer.signIn') }}</router-link>
-          <router-link to="/register" class="hover:text-[color:var(--ink)]">{{ t('home.footer.subscribe') }}</router-link>
-          <router-link to="/privacy" class="hover:text-[color:var(--ink)]">{{ t('home.footer.privacy') }}</router-link>
-          <router-link to="/terms" class="hover:text-[color:var(--ink)]">{{ t('home.footer.terms') }}</router-link>
-          <router-link to="/contact" class="hover:text-[color:var(--ink)]">{{ t('home.footer.contact') }}</router-link>
-          <a :href="`mailto:${CONTACT_EMAIL}`" class="normal-case tracking-normal hover:text-[color:var(--ink)]">{{ CONTACT_EMAIL }}</a>
-          <span>{{ t('home.footer.copyright') }}</span>
-        </div>
+    <!-- ── Colophon: ruled cells ──────────────────────────────────────── -->
+    <footer class="flex flex-wrap font-mono-curio text-[12px] uppercase tracking-[0.06em] text-[color:var(--ink-soft)]">
+      <div class="flex flex-[1_1_280px] flex-col justify-center gap-1 border-b border-[color:var(--hairline)] px-4 py-5 sm:px-6 lg:border-b-0 lg:border-r">
+        <p class="wordmark display-headline text-[24px] leading-none normal-case tracking-[-0.04em] text-[color:var(--ink)]">Curio</p>
+        <p class="kicker">{{ t('home.footer.tagline', { vol: volumeLabel }) }}</p>
+      </div>
+      <nav class="flex flex-[2_1_420px] flex-wrap items-center gap-x-6 gap-y-2 border-b border-[color:var(--hairline)] px-4 py-5 sm:px-6 lg:border-b-0 lg:border-r">
+        <LanguageSelect />
+        <router-link to="/login" class="hover:text-[color:var(--ink)]">{{ t('home.footer.signIn') }}</router-link>
+        <router-link to="/register" class="hover:text-[color:var(--ink)]">{{ t('home.footer.subscribe') }}</router-link>
+        <router-link to="/privacy" class="hover:text-[color:var(--ink)]">{{ t('home.footer.privacy') }}</router-link>
+        <router-link to="/terms" class="hover:text-[color:var(--ink)]">{{ t('home.footer.terms') }}</router-link>
+        <router-link to="/contact" class="hover:text-[color:var(--ink)]">{{ t('home.footer.contact') }}</router-link>
+      </nav>
+      <div class="flex flex-[1_1_260px] flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-5 sm:px-6">
+        <a :href="`mailto:${CONTACT_EMAIL}`" class="normal-case tracking-normal hover:text-[color:var(--ink)]">{{ CONTACT_EMAIL }}</a>
+        <span>{{ t('home.footer.copyright') }}</span>
       </div>
     </footer>
   </div>
