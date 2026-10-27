@@ -46,7 +46,7 @@
       @retry="loadDigests(page)"
     />
 
-    <section v-else-if="loading" class="border-t-2 border-[color:var(--rule)] pt-12 text-center">
+    <section v-else-if="loading" class="border-t border-[color:var(--rule)] pt-12 text-center">
       <p class="kicker">{{ t('admin.digests.loading') }}</p>
     </section>
 
@@ -68,7 +68,7 @@
         </div>
       </div>
 
-      <table class="w-full text-[13.5px] border-t-2 border-[color:var(--rule)]">
+      <table class="w-full text-[13.5px] border-t border-[color:var(--rule)]">
         <thead>
           <tr class="border-b border-[color:var(--rule)]">
             <th class="text-left py-3 kicker">{{ t('admin.digests.columns.reader') }}</th>
@@ -133,7 +133,7 @@
 
       <PagerNav
         v-if="totalPages > 1"
-        class="border-t-2 border-[color:var(--rule)] pt-6 mt-2"
+        class="border-t border-[color:var(--rule)] pt-6 mt-2"
         :page="page"
         :total-pages="totalPages"
         :newer-label="t('admin.common.pagination.earlier')"

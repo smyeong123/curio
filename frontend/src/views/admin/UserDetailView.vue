@@ -20,11 +20,11 @@
       @retry="loadUser"
     />
 
-    <section v-else-if="loading" class="border-t-2 border-[color:var(--rule)] pt-12 text-center">
+    <section v-else-if="loading" class="border-t border-[color:var(--rule)] pt-12 text-center">
       <p class="kicker">{{ t('admin.userDetail.loading') }}</p>
     </section>
 
-    <section v-else-if="!detail" class="border-t-2 border-[color:var(--rule)] pt-12 text-center">
+    <section v-else-if="!detail" class="border-t border-[color:var(--rule)] pt-12 text-center">
       <p class="kicker">{{ t('admin.userDetail.notFound') }}</p>
     </section>
 
@@ -32,7 +32,7 @@
       <!-- Profile -->
       <section>
         <p class="kicker mb-4">{{ t('admin.userDetail.sections.profile') }}</p>
-        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 border-t-2 border-b-2 border-[color:var(--rule)] py-5">
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 border-t border-b border-[color:var(--rule)] py-5">
           <div v-for="field in profileFields" :key="field.label">
             <dt class="kicker mb-1">{{ field.label }}</dt>
             <dd class="font-display text-[16px] text-[color:var(--ink)]">{{ field.value }}</dd>
@@ -43,7 +43,7 @@
       <!-- Beats -->
       <section>
         <p class="kicker mb-4">{{ t('admin.userDetail.sections.beats') }}</p>
-        <div class="border-t-2 border-b-2 border-[color:var(--rule)] py-5">
+        <div class="border-t border-b border-[color:var(--rule)] py-5">
           <div v-if="detail.topics.length === 0" class="kicker">{{ t('admin.userDetail.noBeats') }}</div>
           <div v-else class="flex flex-wrap gap-2">
             <span
@@ -60,7 +60,7 @@
       <!-- Metrics -->
       <section>
         <p class="kicker mb-4">{{ t('admin.userDetail.sections.metrics') }}</p>
-        <div class="grid grid-cols-3 border-t-2 border-b-2 border-[color:var(--rule)] divide-x divide-[color:var(--rule)]">
+        <div class="grid grid-cols-3 border-t border-b border-[color:var(--rule)] divide-x divide-[color:var(--rule)]">
           <div class="px-5 py-6">
             <div class="deco-num text-[44px] leading-none">{{ detail.metrics.digestCount }}</div>
             <p class="kicker mt-3">{{ t('admin.userDetail.metrics.digests') }}</p>
@@ -79,7 +79,7 @@
       </section>
 
       <!-- Recent activity -->
-      <section class="grid grid-cols-1 md:grid-cols-2 gap-0 border-t-2 border-b-2 border-[color:var(--rule)]">
+      <section class="grid grid-cols-1 md:grid-cols-2 gap-0 border-t border-b border-[color:var(--rule)]">
         <div class="p-6 md:border-r border-[color:var(--rule)]">
           <p class="kicker mb-4">{{ t('admin.userDetail.sections.recentDigests') }}</p>
           <ul class="space-y-2">

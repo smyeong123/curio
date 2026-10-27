@@ -1,6 +1,6 @@
 {
   "masthead": {
-    "vol": "Vol. 047",
+    "vol": "Vol. {vol}",
     "tagline": "— Daily for AI model news"
   },
   "today": "Today's edition",

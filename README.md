@@ -14,7 +14,7 @@ Curio reads first-party lab blogs (Anthropic, OpenAI, DeepMind, Meta AI, Mistral
 2. **Read the morning edition** — up to 8 stories, each a headline, a 50–80 word TL;DR, and "why it matters", on the web and by email.
 3. **Take the quiz** — five questions on today's issue, graded instantly with explanations.
 
-![Taking a quiz: answer five questions, then see the score and explanations](docs/screenshots/quiz-flow.gif)
+![Taking a quiz: answer five questions, see the score, then review each answer with its explanation](docs/screenshots/quiz-flow.gif)
 
 ## Screens
 
@@ -37,6 +37,7 @@ Curio reads first-party lab blogs (Anthropic, OpenAI, DeepMind, Meta AI, Mistral
 - **Digest Studio** — generate today's digest and send the email yourself, with live progress.
 - **Newsroom dashboard** — readers, digests, topic stats, scheduled-job status with manual triggers, audit log.
 - **Secure sign-in** — email + password with an emailed 6-digit code, or Google.
+- **Editorial reading experience** — a ruled-grid layout (Geist type, 1px rules, outlined story numbers) in light and dark, a scroll-aware top bar (hairline once you scroll, out of the way while you read down), headlines that wipe into view and copy that inks in word by word. All motion switches off under your device's reduced-motion setting.
 
 ## Tech stack
 

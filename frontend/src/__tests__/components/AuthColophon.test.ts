@@ -10,9 +10,11 @@ describe('AuthColophon', () => {
 
   it('prints the colophon, the language menu and an upper-cased date stamp', () => {
     const w = mount(AuthColophon)
-    expect(w.text()).toContain('© 2026 — set in Fraunces')
+    expect(w.text()).toContain('© 2026 — set in Geist')
     const [colophon, stamp] = w.findAll('p.kicker')
-    expect(colophon!.attributes('style')).toContain('var(--paper)')
+    // Inherits the accent aside's text colour; only dimmed, never re-coloured.
+    expect(colophon!.attributes('style')).toContain('opacity')
+    expect(colophon!.attributes('style')).not.toContain('color')
     expect(stamp!.text()).toMatch(/^[A-Z]{3} \d{2}, \d{4}$/)
     expect(w.get('span[lang]').text()).toBe('English')
   })

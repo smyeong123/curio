@@ -1,13 +1,13 @@
 <template>
   <div class="min-h-screen bg-paper text-[color:var(--ink)]">
     <!-- ── Sidebar (desktop) ──────────────────────────────────────── -->
-    <aside class="fixed inset-y-0 left-0 z-40 hidden w-[260px] flex-col border-r border-[color:var(--rule)] bg-paper md:flex">
+    <aside class="fixed inset-y-0 left-0 z-40 hidden w-[260px] flex-col border-r border-[color:var(--rule)] bg-paper md:flex overflow-y-auto">
       <!-- Masthead -->
       <div class="px-6 pt-7 pb-5 border-b border-[color:var(--rule)]">
         <router-link to="/dashboard/archive" class="block">
           <div class="flex items-baseline justify-between">
-            <span class="display-headline text-[34px] leading-none">Curio</span>
-            <span class="kicker num-tab">{{ t('layout.masthead.vol') }}</span>
+            <span class="wordmark display-headline text-[34px] leading-none">Curio</span>
+            <span class="kicker num-tab">{{ t('layout.masthead.vol', { vol: volumeLabel }) }}</span>
           </div>
           <p class="kicker mt-2.5">{{ t('layout.masthead.tagline') }}</p>
         </router-link>
@@ -28,11 +28,17 @@
     </aside>
 
     <!-- ── Mobile masthead ────────────────────────────────────────── -->
-    <header class="sticky top-0 z-30 bg-paper/95 backdrop-blur border-b border-[color:var(--rule)] px-5 py-3 md:hidden">
+    <header
+      ref="mobileBar"
+      class="nav-glass sticky top-0 z-30 px-5 py-3 md:hidden"
+      :class="{ 'is-scrolled': barScrolled, 'is-hidden': barHidden && !isMenuOpen }"
+      :style="{ '--nav-progress': barProgress }"
+    >
+      <span class="nav-progress" aria-hidden="true"></span>
       <div class="flex items-center justify-between">
         <router-link to="/dashboard/archive" class="flex items-baseline gap-2">
-          <span class="display-headline text-[28px] leading-none">Curio</span>
-          <span class="kicker">{{ t('layout.masthead.vol') }}</span>
+          <span class="wordmark display-headline text-[28px] leading-none">Curio</span>
+          <span class="kicker">{{ t('layout.masthead.vol', { vol: volumeLabel }) }}</span>
         </router-link>
         <button
           class="inline-flex h-11 w-11 items-center justify-center border border-[color:var(--rule)] bg-paper text-[color:var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--signal)]"
@@ -57,10 +63,10 @@
           role="dialog"
           aria-modal="true"
           :aria-label="t('layout.menu.main')"
-          class="absolute inset-y-0 left-0 flex w-[280px] flex-col border-r border-[color:var(--rule)] bg-paper"
+          class="absolute inset-y-0 left-0 flex w-[280px] flex-col border-r border-[color:var(--rule)] bg-paper overflow-y-auto"
         >
           <div class="flex items-center justify-between border-b border-[color:var(--rule)] px-5 py-4">
-            <span class="display-headline text-[26px] leading-none">Curio</span>
+            <span class="wordmark display-headline text-[26px] leading-none">Curio</span>
             <button
               class="inline-flex h-11 w-11 items-center justify-center border border-[color:var(--rule)] text-[color:var(--ink)]"
               :aria-label="t('layout.menu.close')"
@@ -130,6 +136,8 @@ import { useFormat } from '@/composables/useFormat'
 import { useFocusTrap } from '@/composables/useFocusTrap'
 import { focusPageHeading } from '@/composables/useFocusOnEnter'
 import { useEnsureTimezone } from '@/composables/useEnsureTimezone'
+import { useVolume } from '@/composables/useVolume'
+import { useScrollNav } from '@/composables/useScrollNav'
 import DashboardMenu from '@/components/layout/DashboardMenu.vue'
 import DashboardMenuFoot from '@/components/layout/DashboardMenuFoot.vue'
 import { CONTACT_EMAIL } from '@/data/contact'
@@ -138,6 +146,10 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const { t } = useI18n()
+const { volumeLabel } = useVolume()
+
+const mobileBar = ref<HTMLElement | null>(null)
+const { scrolled: barScrolled, hidden: barHidden, progress: barProgress } = useScrollNav(mobileBar)
 const { locale, intlLocale } = useLocale()
 const { formatDate } = useFormat()
 

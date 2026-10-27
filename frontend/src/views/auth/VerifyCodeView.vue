@@ -7,7 +7,7 @@
       <template v-if="locked">
         <header class="mb-8">
           <p class="kicker mb-3" style="color: var(--signal);">{{ t('auth.verify.locked.kicker') }}</p>
-          <i18n-t scope="global" keypath="auth.verify.locked.headline" tag="h1" class="display-headline text-[clamp(36px,5vw,52px)] leading-[0.96] mb-3">
+          <i18n-t scope="global" keypath="auth.verify.locked.headline" tag="h1" class="rise-mask display-headline text-[clamp(36px,5vw,52px)] leading-[0.96] mb-3">
             <template #reset><em class="italic-display">{{ t('auth.verify.locked.reset') }}</em></template>
           </i18n-t>
           <p class="font-body-curio text-[15px] text-[color:var(--ink-soft)] leading-relaxed">
@@ -39,7 +39,7 @@
       <template v-else-if="expired">
         <header class="mb-8">
           <p class="kicker mb-3" style="color: var(--signal);">{{ t('auth.verify.expired.kicker') }}</p>
-          <i18n-t scope="global" keypath="auth.verify.expired.headline" tag="h1" class="display-headline text-[clamp(36px,5vw,52px)] leading-[0.96] mb-3">
+          <i18n-t scope="global" keypath="auth.verify.expired.headline" tag="h1" class="rise-mask display-headline text-[clamp(36px,5vw,52px)] leading-[0.96] mb-3">
             <template #timedOut><em class="italic-display">{{ t('auth.verify.expired.timedOut') }}</em></template>
           </i18n-t>
           <p class="font-body-curio text-[15px] text-[color:var(--ink-soft)] leading-relaxed">
@@ -55,7 +55,7 @@
       <template v-else>
         <header class="mb-10">
           <p class="kicker kicker-signal mb-3">{{ t('auth.verify.kicker') }}</p>
-          <i18n-t scope="global" keypath="auth.verify.headline" tag="h1" class="display-headline text-[clamp(36px,5vw,52px)] leading-[0.96] mb-4">
+          <i18n-t scope="global" keypath="auth.verify.headline" tag="h1" class="rise-mask display-headline text-[clamp(36px,5vw,52px)] leading-[0.96] mb-4">
             <template #email><em class="italic-display">{{ t('auth.verify.email') }}</em></template>
           </i18n-t>
           <i18n-t scope="global" keypath="auth.verify.lede" tag="p" class="font-body-curio text-[15px] text-[color:var(--ink-soft)] leading-relaxed">
@@ -92,7 +92,7 @@
               :maxlength="codeLength"
               placeholder="000000"
               :class="[
-                'block w-full border-b-2 bg-transparent px-2 py-3 font-display text-[18px] text-[color:var(--ink)] placeholder:text-[color:var(--mute)] placeholder:font-body-curio placeholder:text-[15px] transition-all duration-150',
+                'block w-full border-b bg-transparent px-2 py-3 font-display text-[18px] text-[color:var(--ink)] placeholder:text-[color:var(--mute)] placeholder:font-body-curio placeholder:text-[15px] transition-all duration-150',
                 'focus:outline-none focus:border-[color:var(--signal)]',
                 codeError
                   ? 'border-red-300 text-red-900 placeholder-red-300'

@@ -4,7 +4,7 @@
     aria-labelledby="quiz-result-heading"
   >
     <!-- Score masthead -->
-    <header class="border-t-2 border-b-2 border-[color:var(--rule)] py-10 mb-8" role="status" aria-live="polite">
+    <header class="border-t border-b border-[color:var(--rule)] py-10 mb-8" role="status" aria-live="polite">
       <p class="kicker kicker-signal mb-3">{{ t('quiz.results.kicker') }}</p>
       <div class="flex items-end justify-between flex-wrap gap-4 mb-4">
         <h2 id="quiz-result-heading" class="display-headline text-[clamp(48px,8vw,108px)] leading-[0.92]">

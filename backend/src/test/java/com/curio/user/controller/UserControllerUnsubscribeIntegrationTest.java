@@ -37,7 +37,9 @@ class UserControllerUnsubscribeIntegrationTest {
         mockMvc.perform(get("/api/v1/user/unsubscribe")
                         .param("token", "valid-token"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Unsubscribe from Curio?")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Unsubscribe from Curio?")))
+                // The wordmark goes to the site, not to this API's origin.
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"http://localhost:5173/\"")));
 
         // Mail-gateway link prefetchers follow GETs — the GET must never mutate.
         verify(userService, never()).unsubscribeByToken(anyString());

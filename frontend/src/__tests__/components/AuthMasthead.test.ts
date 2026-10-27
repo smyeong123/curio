@@ -19,21 +19,23 @@ describe('AuthMasthead', () => {
     const w = mount(AuthMasthead, { global: { plugins: [router] }, attrs: { class: 'lg:hidden' } })
     expect(w.get('a').attributes('href')).toBe('/')
     expect(w.text()).toContain('Curio')
-    expect(w.text()).toContain('Vol. 047')
+    expect(w.text()).toMatch(/Vol\. \d{3}/)
     expect(w.element.classList.contains('lg:hidden')).toBe(true)
 
     expect(w.get('span[lang]').text()).toBe('English')
     await w.get('select').setValue('ko')
     expect(i18n.global.locale.value).toBe('ko')
-    expect(w.text()).toContain('Vol. 047')
+    expect(w.text()).toMatch(/Vol\. \d{3}/)
   })
 
   it('renders the brand alone on the ink aside', () => {
     const w = mount(AuthMasthead, { props: { onInk: true }, global: { plugins: [router] } })
     expect(w.element.tagName).toBe('A')
     expect(w.find('select').exists()).toBe(false)
-    expect(w.text()).toContain('Vol. 047')
-    expect(w.get('.kicker').attributes('style')).toContain('var(--paper)')
+    expect(w.text()).toMatch(/Vol\. \d{3}/)
+    // On the accent aside the volume inherits the block's text colour, dimmed.
+    expect(w.get('.kicker').attributes('style')).toContain('opacity')
+    expect(w.get('.kicker').attributes('style')).not.toContain('color')
   })
 })
 

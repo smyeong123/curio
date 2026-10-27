@@ -3,7 +3,7 @@
     :type="type"
     :disabled="disabled || loading"
     :class="[
-      'inline-flex items-center justify-center gap-2 font-mono-curio uppercase tracking-[0.14em] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[color:var(--paper)]',
+      'inline-flex items-center justify-center gap-2 font-body-curio font-semibold tracking-[-0.01em] transition-colors duration-200',
       sizeClasses,
       variantClasses,
       disabled || loading ? 'cursor-not-allowed opacity-55' : ''
@@ -42,17 +42,18 @@ const props = withDefaults(defineProps<{
   loading: false
 })
 
+// Square bars on the grid; the focus ring is the global orange spark.
 const sizeClasses = computed(() => ({
-  sm: 'px-3.5 py-2 text-xs',
-  md: 'px-4 py-2.5 text-sm',
-  lg: 'px-5 py-3 text-sm'
+  sm: 'min-h-[40px] px-3.5 py-2 text-xs',
+  md: 'min-h-[44px] px-4 py-2.5 text-sm',
+  lg: 'min-h-[52px] px-5 py-3 text-[15px]'
 }[props.size]))
 
 const variantClasses = computed(() => ({
-  primary: 'bg-[color:var(--ink)] text-[color:var(--paper)] hover:bg-[color:var(--signal)] focus:ring-[color:var(--ink)]',
-  secondary: 'bg-[color:var(--signal)] text-[color:var(--paper)] hover:bg-[color:var(--signal-deep)] focus:ring-[color:var(--signal)]',
-  outline: 'border border-[color:var(--rule)] bg-transparent text-[color:var(--ink)] hover:bg-[color:var(--ink)] hover:text-[color:var(--paper)] focus:ring-[color:var(--ink)]',
-  ghost: 'text-[color:var(--mute)] hover:bg-[color:var(--paper-deep)] hover:text-[color:var(--ink)] focus:ring-[color:var(--mute)]',
-  danger: 'bg-red-600 text-white hover:bg-red-500 focus:ring-red-300'
+  primary: 'border border-[color:var(--signal)] bg-[color:var(--signal)] text-[color:var(--on-signal)] hover:border-[color:var(--ink)] hover:bg-[color:var(--ink)]',
+  secondary: 'border border-[color:var(--ink)] bg-[color:var(--ink)] text-[color:var(--paper)] hover:border-[color:var(--signal)] hover:bg-[color:var(--signal)] hover:text-[color:var(--on-signal)]',
+  outline: 'border border-[color:var(--rule)] bg-transparent text-[color:var(--ink)] hover:bg-[color:var(--ink)] hover:text-[color:var(--paper)]',
+  ghost: 'text-[color:var(--mute)] hover:bg-[color:var(--paper-deep)] hover:text-[color:var(--ink)]',
+  danger: 'bg-red-600 text-white hover:bg-red-500'
 }[props.variant]))
 </script>

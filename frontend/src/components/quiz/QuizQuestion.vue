@@ -1,19 +1,21 @@
 <template>
-  <article class="border-t-2 border-[color:var(--rule)] pt-6">
+  <!-- One question as a ruled block on the quiz's ink section: outlined
+       numeral, the question in display type, answers as full-width rows. -->
+  <article class="border-t border-[color:var(--on-ink-rule)] pt-8">
     <!-- Question -->
-    <div class="grid grid-cols-12 gap-4 mb-6">
-      <span class="col-span-2 sm:col-span-1 deco-num text-[40px] leading-none text-[color:var(--mute)]">
+    <div class="mb-6 flex items-start gap-5 sm:gap-8">
+      <span class="num-outline num-outline-on-ink shrink-0 text-[clamp(56px,6vw,88px)]" aria-hidden="true">
         {{ String(question.id).padStart(2, '0') }}
       </span>
-      <div class="col-span-10 sm:col-span-11">
-        <p class="kicker mb-2">{{ t('quiz.question.counter', { n: question.id, total }) }}</p>
-        <p class="display-headline text-[clamp(20px,2.4vw,28px)] leading-[1.15]">{{ question.question }}</p>
+      <div class="min-w-0">
+        <p class="kicker mb-3" style="color: var(--on-ink-2)">{{ t('quiz.question.counter', { n: question.id, total }) }}</p>
+        <p class="display-headline text-[clamp(24px,2.8vw,40px)] leading-[1.02] tracking-[-0.045em]">{{ question.question }}</p>
       </div>
     </div>
 
     <!-- Options -->
     <div
-      class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3"
+      class="border-t border-[color:var(--on-ink-rule)]"
       role="radiogroup"
       :aria-label="question.question"
     >
@@ -26,24 +28,24 @@
         :data-selected="String(selectedAnswer === key)"
         :tabindex="rovingTabindex(key as string)"
         :class="[
-          'group flex items-baseline gap-4 px-5 py-4 border text-left transition-all',
+          'group flex min-h-[60px] w-full items-baseline gap-5 border-b border-[color:var(--on-ink-rule)] px-3 py-4 text-left transition-colors sm:gap-8 sm:px-4',
           getOptionClass(key as string)
         ]"
         :disabled="submitted"
         @click="$emit('select', question.id, key)"
         @keydown="onOptionKeydown($event, key as string)"
       >
-        <span :class="['font-mono-curio text-[14px] font-bold flex-shrink-0', getKeyClass(key as string)]">{{ key }}</span>
-        <span class="font-display text-[16px] leading-snug flex-1">{{ text }}</span>
+        <span :class="['w-5 flex-shrink-0 font-mono-curio text-[13px]', getKeyClass(key as string)]">{{ key }}</span>
+        <span :class="['flex-1 font-body-curio text-[clamp(17px,1.6vw,22px)] font-medium leading-snug tracking-[-0.015em]', getTextClass(key as string)]">{{ text }}</span>
         <span
           v-if="submitted && result && key === result.correctAnswer"
           aria-hidden="true"
-          class="font-mono-curio text-[16px] text-[color:var(--leaf)]"
-        >✓</span>
+          class="font-mono-curio text-[12px] uppercase tracking-[0.06em]"
+        >✓ {{ t('quiz.question.correctTag') }}</span>
         <span
           v-else-if="submitted && key === selectedAnswer && result && !result.correct"
           aria-hidden="true"
-          class="font-mono-curio text-[16px] text-[color:var(--signal-deep)]"
+          class="font-mono-curio text-[12px] uppercase tracking-[0.06em] text-[color:var(--miss)]"
         >×</span>
         <!-- Non-color-only correctness cue for assistive tech -->
         <span v-if="submitted && result && key === result.correctAnswer" class="sr-only">{{ t('quiz.question.a11yCorrect') }}</span>
@@ -57,18 +59,14 @@
     <!-- Feedback -->
     <div
       v-if="submitted && result"
-      :class="[
-        'mt-5 grid grid-cols-12 gap-4',
-      ]"
+      class="mt-5 grid gap-x-6 gap-y-1 sm:grid-cols-[160px_minmax(0,1fr)]"
     >
-      <span class="col-span-2 sm:col-span-1 kicker pt-1" :style="result.correct ? 'color: var(--leaf)' : 'color: var(--signal-deep)'">
+      <span class="kicker pt-0.5" :style="result.correct ? 'color: var(--paper)' : 'color: var(--miss)'">
         {{ result.correct ? `✓ ${t('quiz.question.correctTag')}` : `× ${t('quiz.question.wrongTag')}` }}
       </span>
-      <div class="col-span-10 sm:col-span-11">
-        <p class="font-body-curio text-[14.5px] leading-[1.55] text-[color:var(--ink-soft)] border-l-2 border-[color:var(--signal)] pl-4">
-          {{ feedbackText }}
-        </p>
-      </div>
+      <p class="font-body-curio text-[16px] leading-[1.5] text-[color:var(--on-ink-2)]">
+        {{ feedbackText }}
+      </p>
     </div>
   </article>
 </template>
@@ -133,23 +131,29 @@ const onOptionKeydown = (event: KeyboardEvent, key: string) => {
   radios?.[nextIndex]?.focus()
 }
 
+// Rows live on the ink section: the pick is a paper row before submitting;
+// after grading the right answer fills with the accent, a wrong pick turns
+// the miss colour and is struck through, and the rest recede.
 const getOptionClass = (key: string) => {
   if (!props.submitted) {
     return props.selectedAnswer === key
-      ? 'bg-ink text-[color:var(--paper)] border-[color:var(--ink)]'
-      : 'bg-paper text-[color:var(--ink)] border-[color:var(--rule)] hover:border-[color:var(--signal)] hover:translate-x-[-2px] cursor-pointer'
+      ? 'bg-[color:var(--paper)] text-[color:var(--ink)]'
+      : 'text-[color:var(--paper)] hover:bg-[color:var(--paper)]/10 cursor-pointer'
   }
   if (props.result) {
-    if (key === props.result.correctAnswer) return 'border-[color:var(--leaf)] bg-[color:var(--leaf)]/10 text-[color:var(--ink)]'
-    if (key === props.selectedAnswer && !props.result.correct) return 'border-[color:var(--signal-deep)] bg-[color:var(--signal)]/10 text-[color:var(--ink)]'
+    if (key === props.result.correctAnswer) return 'bg-[color:var(--signal)] text-[color:var(--on-signal)]'
+    if (key === props.selectedAnswer && !props.result.correct) return 'text-[color:var(--miss)]'
   }
-  return 'border-[color:var(--rule)]/40 text-[color:var(--mute)] bg-paper-deep'
+  return 'text-[color:var(--paper)] opacity-45'
 }
 
 const getKeyClass = (key: string) => {
-  if (!props.submitted && props.selectedAnswer === key) return 'text-[color:var(--paper)]'
-  if (props.submitted && props.result?.correctAnswer === key) return 'text-[color:var(--leaf)]'
-  if (props.submitted && key === props.selectedAnswer && props.result && !props.result.correct) return 'text-[color:var(--signal-deep)]'
-  return 'text-[color:var(--mute)] group-hover:text-[color:var(--signal-deep)]'
+  if (!props.submitted && props.selectedAnswer === key) return 'text-[color:var(--ink)]'
+  if (props.submitted && props.result?.correctAnswer === key) return 'text-[color:var(--on-signal)]'
+  if (props.submitted && key === props.selectedAnswer && props.result && !props.result.correct) return 'text-[color:var(--miss)]'
+  return 'text-[color:var(--on-ink-2)] group-hover:text-[color:var(--paper)]'
 }
+
+const getTextClass = (key: string) =>
+  props.submitted && props.result && key === props.selectedAnswer && !props.result.correct ? 'line-through decoration-2' : ''
 </script>

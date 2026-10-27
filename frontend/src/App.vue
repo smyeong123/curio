@@ -9,7 +9,7 @@
       class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-paper text-[color:var(--ink)]"
       :aria-label="t('common.app.loading')"
     >
-      <span class="display-headline text-[42px] leading-none">Curio</span>
+      <span class="wordmark display-headline text-[42px] leading-none">Curio</span>
       <span class="kicker">{{ t('common.app.opening') }}</span>
     </div>
     <ErrorBoundary>

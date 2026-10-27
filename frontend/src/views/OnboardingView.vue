@@ -2,9 +2,9 @@
   <div class="relative min-h-screen bg-paper text-[color:var(--ink)]">
     <!-- ── Top strip ────────────────────────────────────────────── -->
     <div class="bg-ink text-[color:var(--paper)] py-2">
-      <div class="mx-auto flex w-full max-w-[1100px] items-center justify-between px-6 text-[11px] uppercase tracking-[0.18em] font-mono-curio">
-        <span>{{ t('onboarding.strip.title') }}</span>
-        <div class="flex items-center gap-4">
+      <div class="mx-auto flex w-full max-w-[1100px] items-center justify-between gap-4 px-6 text-[11px] uppercase tracking-[0.18em] font-mono-curio">
+        <span class="min-w-0 truncate">{{ t('onboarding.strip.title') }}</span>
+        <div class="flex shrink-0 items-center gap-4 whitespace-nowrap">
           <LanguageSelect />
           <button class="opacity-80 hover:opacity-100" @click="handleLogout">{{ t('onboarding.strip.logOut') }}</button>
         </div>
@@ -15,7 +15,7 @@
       <!-- ── Header ──────────────────────────────────────────────── -->
       <header class="mb-12">
         <p class="kicker kicker-signal mb-4">{{ t('onboarding.header.kicker') }}</p>
-        <i18n-t scope="global" keypath="onboarding.header.headline" tag="h1" class="display-headline text-[clamp(40px,6vw,84px)] leading-[0.96] mb-6">
+        <i18n-t scope="global" keypath="onboarding.header.headline" tag="h1" class="rise-mask display-headline text-[clamp(40px,6vw,84px)] leading-[0.96] mb-6">
           <template #beat><em class="italic-display">{{ t('onboarding.header.beat') }}</em></template>
         </i18n-t>
         <p class="font-body-curio text-[16px] text-[color:var(--ink-soft)] leading-relaxed max-w-[60ch]">
@@ -24,7 +24,7 @@
       </header>
 
       <!-- ── Selection counter ──────────────────────────────────── -->
-      <div class="border-t-2 border-b-2 border-[color:var(--rule)] py-5 mb-10 flex items-center justify-between flex-wrap gap-4">
+      <div class="border-t border-b border-[color:var(--rule)] py-5 mb-10 flex items-center justify-between flex-wrap gap-4">
         <div class="flex items-baseline gap-4">
           <span class="deco-num text-[64px] leading-none">{{ selectedTopics.length }}</span>
           <div>
@@ -66,7 +66,7 @@
         <article
           v-for="(domain, dIdx) in topicHierarchy"
           :key="domain.id"
-          class="border-t-2 border-[color:var(--rule)] last:border-b-2"
+          class="border-t border-[color:var(--rule)] last:border-b"
         >
           <!-- L1 -->
           <button
@@ -76,7 +76,7 @@
             @click="toggleDomain(domain.id)"
           >
             <div class="flex items-baseline gap-5 min-w-0">
-              <span class="deco-num text-[44px] leading-none text-[color:var(--mute)] flex-shrink-0">{{ String(dIdx + 1).padStart(2, '0') }}</span>
+              <span class="num-outline text-[56px] flex-shrink-0" aria-hidden="true">{{ String(dIdx + 1).padStart(2, '0') }}</span>
               <div class="min-w-0">
                 <div class="flex items-baseline gap-3 mb-1">
                   <span class="kicker">{{ t('onboarding.hierarchy.chapter') }}</span>
@@ -184,7 +184,7 @@
       </section>
 
       <!-- ── CTA ─────────────────────────────────────────────── -->
-      <div class="border-t-2 border-[color:var(--rule)] pt-8 flex flex-col items-center gap-4">
+      <div class="border-t border-[color:var(--rule)] pt-8 flex flex-col items-center gap-4">
         <button
           class="btn-editorial text-[14px] px-10 py-4"
           :disabled="selectedTopics.length < 3 || saving"

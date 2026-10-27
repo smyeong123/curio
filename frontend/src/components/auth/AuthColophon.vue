@@ -1,11 +1,11 @@
 <template>
-  <!-- Foot of the ink aside on the auth pages: colophon line, language menu
+  <!-- Foot of the accent aside on the auth pages: colophon line, language menu
        and today's date stamp. -->
   <div class="flex items-end justify-between">
-    <p class="kicker" style="color: var(--paper); opacity: 0.5;">{{ t('auth.common.colophon') }}</p>
+    <p class="kicker" style="opacity: 0.85;">{{ t('auth.common.colophon') }}</p>
     <div class="flex items-baseline gap-5">
-      <LanguageSelect class="text-[11px]" style="color: var(--paper); opacity: 0.6;" />
-      <p class="kicker" style="color: var(--paper); opacity: 0.5;">{{ todayShort }}</p>
+      <LanguageSelect class="text-[11px]" style="opacity: 0.85;" />
+      <p class="kicker" style="opacity: 0.85;">{{ todayShort }}</p>
     </div>
   </div>
 </template>

@@ -32,7 +32,7 @@
     </div>
     <button
       type="button"
-      class="w-full inline-flex items-center justify-center gap-3 border border-[color:var(--rule)] bg-transparent px-4 py-4 font-mono-curio text-[12px] uppercase tracking-[0.14em] text-[color:var(--ink)] hover:bg-[color:var(--ink)] hover:text-[color:var(--paper)] transition-colors"
+      class="w-full inline-flex items-center justify-center gap-3 border border-[color:var(--rule)] bg-transparent min-h-[52px] px-4 py-3 font-body-curio text-[15px] font-semibold tracking-[-0.01em] text-[color:var(--ink)] hover:bg-[color:var(--ink)] hover:text-[color:var(--paper)] transition-colors"
       @click="$emit('google')"
     >
       <svg class="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
