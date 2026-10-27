@@ -1,21 +1,21 @@
 <template>
   <div class="min-h-screen bg-paper text-[color:var(--ink)] lg:grid lg:grid-cols-[1.05fr_0.95fr]">
     <!-- ── Editorial aside (preview of beats) ─────────────────── -->
-    <aside class="relative hidden flex-col bg-ink p-12 text-[color:var(--paper)] lg:flex">
+    <aside class="dot-block relative hidden flex-col p-12 lg:flex">
       <AuthMasthead on-ink />
 
       <div class="my-auto max-w-[460px]">
-        <p class="kicker mb-5" style="color: var(--signal);">{{ t('auth.register.aside.kicker') }}</p>
+        <p class="kicker kicker-signal mb-5">{{ t('auth.register.aside.kicker') }}</p>
         <i18n-t scope="global" keypath="auth.register.aside.headline" tag="h2" class="rise-mask rise-d-1 display-headline text-[clamp(40px,5vw,68px)] leading-[0.96] mb-8">
           <template #daily>
-            <em class="italic-display" style="color: var(--signal);">{{ t('auth.register.aside.daily') }}</em>
+            <em class="italic-display">{{ t('auth.register.aside.daily') }}</em>
           </template>
         </i18n-t>
         <p class="font-body-curio text-[15px] opacity-80 leading-relaxed mb-10">
           {{ t('auth.register.aside.body') }}
         </p>
 
-        <ul class="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-[color:var(--paper)]/20 pt-6">
+        <ul class="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-white/30 pt-6">
           <li
             v-for="(topic, i) in sampleTopics"
             :key="topic"

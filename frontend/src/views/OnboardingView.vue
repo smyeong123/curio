@@ -24,7 +24,7 @@
       </header>
 
       <!-- ── Selection counter ──────────────────────────────────── -->
-      <div class="border-t-2 border-b-2 border-[color:var(--rule)] py-5 mb-10 flex items-center justify-between flex-wrap gap-4">
+      <div class="border-t border-b border-[color:var(--rule)] py-5 mb-10 flex items-center justify-between flex-wrap gap-4">
         <div class="flex items-baseline gap-4">
           <span class="deco-num text-[64px] leading-none">{{ selectedTopics.length }}</span>
           <div>
@@ -66,7 +66,7 @@
         <article
           v-for="(domain, dIdx) in topicHierarchy"
           :key="domain.id"
-          class="border-t-2 border-[color:var(--rule)] last:border-b-2"
+          class="border-t border-[color:var(--rule)] last:border-b"
         >
           <!-- L1 -->
           <button
@@ -76,7 +76,7 @@
             @click="toggleDomain(domain.id)"
           >
             <div class="flex items-baseline gap-5 min-w-0">
-              <span class="deco-num text-[44px] leading-none text-[color:var(--mute)] flex-shrink-0">{{ String(dIdx + 1).padStart(2, '0') }}</span>
+              <span class="num-outline text-[56px] flex-shrink-0" aria-hidden="true">{{ String(dIdx + 1).padStart(2, '0') }}</span>
               <div class="min-w-0">
                 <div class="flex items-baseline gap-3 mb-1">
                   <span class="kicker">{{ t('onboarding.hierarchy.chapter') }}</span>
@@ -184,7 +184,7 @@
       </section>
 
       <!-- ── CTA ─────────────────────────────────────────────── -->
-      <div class="border-t-2 border-[color:var(--rule)] pt-8 flex flex-col items-center gap-4">
+      <div class="border-t border-[color:var(--rule)] pt-8 flex flex-col items-center gap-4">
         <button
           class="btn-editorial text-[14px] px-10 py-4"
           :disabled="selectedTopics.length < 3 || saving"

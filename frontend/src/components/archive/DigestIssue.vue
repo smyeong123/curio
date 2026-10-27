@@ -1,7 +1,7 @@
 <template>
   <!-- One archive issue: masthead, the stories left after filtering, end mark. -->
   <article class="digest-card" :lang="digest.content?.language ?? 'en'">
-    <header class="border-t-2 border-[color:var(--rule)] pt-5 mb-7">
+    <header class="border-t border-[color:var(--rule)] pt-5 mb-7">
       <div class="flex items-end justify-between flex-wrap gap-3 mb-4">
         <div>
           <p class="kicker">{{ t('archive.issue.label', { number: issueNumber }) }} · {{ formatDate(digest.generatedAt, 'full') }}</p>
@@ -40,48 +40,42 @@
       </div>
     </header>
 
-    <!-- Stories, renumbered from 01 so a filtered view reads as its own edition -->
-    <ol class="space-y-10">
+    <!-- Stories, renumbered from 01 so a filtered view reads as its own edition.
+         Grid layout: outlined numeral | topic, headline, dek, ruled points. -->
+    <ol class="border-b border-[color:var(--hairline)]">
       <li
         v-for="(summary, i) in stories"
         :key="i"
-        class="stagger-rise grid grid-cols-12 gap-x-6 gap-y-2"
+        class="stagger-rise grid gap-x-8 gap-y-4 border-t border-[color:var(--hairline)] py-8 first:border-t-0 first:pt-2 sm:grid-cols-[minmax(96px,auto)_minmax(0,1fr)]"
         :style="{ '--i': i }"
       >
-        <!-- Story number gutter -->
-        <div class="col-span-12 sm:col-span-1">
-          <span class="deco-num text-[28px] leading-none text-[color:var(--mute)]">{{ String(i + 1).padStart(2, '0') }}</span>
-        </div>
+        <span class="num-outline text-[clamp(72px,7vw,112px)]" aria-hidden="true">{{ String(i + 1).padStart(2, '0') }}</span>
 
-        <!-- Body -->
-        <div class="col-span-12 sm:col-span-11">
-          <p class="kicker mb-2">{{ summary.topic ? topicLabel(summary.topic) : t('archive.story.fallbackKicker') }}</p>
-          <h3 class="display-headline text-[clamp(22px,2.4vw,32px)] leading-[1.05] mb-3">
+        <div class="min-w-0">
+          <p class="kicker kicker-signal mb-3">{{ summary.topic ? topicLabel(summary.topic) : t('archive.story.fallbackKicker') }}</p>
+          <h3 class="display-headline mb-4 text-[clamp(26px,3vw,44px)] leading-[1] tracking-[-0.045em]">
             {{ summary.headline }}
           </h3>
           <p
             :class="[
-              'font-body-curio text-[15.5px] leading-[1.65] text-[color:var(--ink)] mb-4',
+              'mb-6 max-w-[62ch] font-body-curio text-[17px] leading-[1.55] text-[color:var(--ink-soft)]',
               dropcap && i === 0 ? 'dropcap' : ''
             ]"
           >
             {{ summary.summary }}
           </p>
-          <p
-            v-if="summary.why_it_matters"
-            class="border-l-2 border-[color:var(--signal)] pl-4 font-display italic text-[15px] text-[color:var(--ink-soft)] leading-snug mb-4"
-          >
-            <span class="kicker kicker-signal not-italic mr-2">{{ t('archive.story.whyItMatters') }}</span>
-            {{ summary.why_it_matters }}
-          </p>
+          <dl v-if="summary.why_it_matters" class="mb-5 grid gap-x-6 gap-y-1 border-t border-[color:var(--rule)] pt-3 sm:grid-cols-[160px_minmax(0,1fr)]">
+            <dt class="kicker kicker-signal pt-0.5">{{ t('archive.story.whyItMatters') }}</dt>
+            <dd class="font-body-curio text-[16px] font-medium leading-[1.45] text-[color:var(--ink)]">{{ summary.why_it_matters }}</dd>
+          </dl>
           <a
             v-if="safeExternalUrl(summary.source_url)"
             :href="safeExternalUrl(summary.source_url) ?? undefined"
             target="_blank"
             rel="noopener noreferrer"
-            class="ink-link font-mono-curio text-[11px] uppercase tracking-[0.14em]"
+            class="ink-link font-mono-curio text-[12px] uppercase tracking-[0.06em]"
           >
-            {{ t('archive.story.source', { name: summary.source_name || t('archive.story.linkFallback') }) }} →
+            {{ t('archive.story.source', { name: summary.source_name || t('archive.story.linkFallback') }) }} ↗
           </a>
         </div>
       </li>

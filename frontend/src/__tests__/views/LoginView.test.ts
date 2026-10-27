@@ -28,7 +28,7 @@ describe('LoginView editions', () => {
     expect(w.text()).toContain('Continue your daily briefing.')
     expect(w.text()).toContain('Reset it →')
     expect(w.text()).toContain('Continue with Google')
-    expect(w.text()).toContain('© 2026 — set in Fraunces')
+    expect(w.text()).toContain('© 2026 — set in Geist')
     expect(w.get('#login-email').attributes('placeholder')).toBe('you@example.com')
     expect(w.text()).toMatch(/Vol\. \d{3}/)
   })

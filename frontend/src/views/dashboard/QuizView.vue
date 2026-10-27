@@ -1,7 +1,7 @@
 <template>
-  <div class="mx-auto max-w-[860px] px-5 py-10 sm:px-8 lg:px-12">
+  <div class="mx-auto max-w-[1000px] px-5 py-10 sm:px-8 lg:px-12">
     <!-- ── Loading ─────────────────────────────────── -->
-    <div v-if="loading" class="border-t-2 border-[color:var(--rule)] pt-24 pb-24 text-center">
+    <div v-if="loading" class="border-t border-[color:var(--rule)] pt-24 pb-24 text-center">
       <p class="kicker kicker-signal mb-4">{{ t('quiz.loading.kicker') }}</p>
       <i18n-t scope="global" keypath="quiz.loading.headline" tag="p" class="display-headline text-[36px] leading-tight">
         <template #questions><em class="italic-display">{{ t('quiz.loading.questions') }}</em></template>
@@ -67,7 +67,7 @@
             <span class="text-[color:var(--signal-deep)]">{{ t('quiz.header.filedBefore') }}</span>
             {{ t('quiz.header.previousAttempt', { score: previousAttempt.score, total: questions.length || 5 }) }}
           </p>
-          <div class="flex items-end justify-between flex-wrap gap-3 mt-6 border-t-2 border-b-2 border-[color:var(--rule)] py-4">
+          <div class="flex items-end justify-between flex-wrap gap-3 mt-6 border-t border-b border-[color:var(--rule)] py-4">
             <p class="font-body-curio text-[14px] text-[color:var(--ink-soft)] leading-snug max-w-[42ch]">
               {{ t('quiz.header.intro') }}
             </p>
@@ -80,8 +80,8 @@
           </div>
         </header>
 
-        <!-- Questions -->
-        <div class="space-y-10 mb-10">
+        <!-- Questions + submit, on a full-width ink section -->
+        <section class="bg-ink -mx-5 space-y-10 px-5 pb-10 pt-2 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12">
           <QuizQuestion
             v-for="(q, qi) in questions"
             :key="q.id"
@@ -94,10 +94,9 @@
             :result="resultMap[q.id]"
             @select="handleSelect"
           />
-        </div>
 
         <!-- Submit -->
-        <div v-if="!submitted" class="border-t-2 border-[color:var(--rule)] pt-8">
+        <div v-if="!submitted" class="border-t border-[color:var(--on-ink-rule)] pt-8">
           <button
             class="btn-editorial w-full justify-center py-4"
             :disabled="Object.keys(answers).length < questions.length || submitting"
@@ -109,11 +108,12 @@
           </button>
           <p
             v-if="Object.keys(answers).length < questions.length"
-            class="kicker text-center mt-3"
+            class="kicker text-center mt-3" style="color: var(--on-ink-2)"
           >
             {{ t('quiz.submit.hint', { count: questions.length }) }}
           </p>
         </div>
+        </section>
       </div>
     </div>
   </div>

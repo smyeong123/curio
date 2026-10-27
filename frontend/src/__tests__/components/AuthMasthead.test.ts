@@ -33,7 +33,9 @@ describe('AuthMasthead', () => {
     expect(w.element.tagName).toBe('A')
     expect(w.find('select').exists()).toBe(false)
     expect(w.text()).toMatch(/Vol\. \d{3}/)
-    expect(w.get('.kicker').attributes('style')).toContain('var(--paper)')
+    // On the accent aside the volume inherits the block's text colour, dimmed.
+    expect(w.get('.kicker').attributes('style')).toContain('opacity')
+    expect(w.get('.kicker').attributes('style')).not.toContain('color')
   })
 })
 

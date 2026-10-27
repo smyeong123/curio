@@ -1,21 +1,21 @@
 <template>
   <div class="min-h-screen bg-paper text-[color:var(--ink)] lg:grid lg:grid-cols-[1.05fr_0.95fr]">
     <!-- ── Editorial aside ─────────────────────────────────────── -->
-    <aside class="relative hidden flex-col bg-ink p-12 text-[color:var(--paper)] lg:flex">
+    <aside class="dot-block relative hidden flex-col p-12 lg:flex">
       <AuthMasthead on-ink />
 
       <div class="my-auto max-w-[420px]">
-        <p class="kicker mb-5" style="color: var(--signal);">{{ t('auth.login.aside.kicker') }}</p>
+        <p class="kicker kicker-signal mb-5">{{ t('auth.login.aside.kicker') }}</p>
         <i18n-t scope="global" keypath="auth.login.aside.headline" tag="h2" class="rise-mask rise-d-1 display-headline text-[clamp(40px,5vw,68px)] leading-[0.96] mb-8">
           <template #running>
-            <em class="italic-display" style="color: var(--signal);">{{ t('auth.login.aside.running') }}</em>
+            <em class="italic-display">{{ t('auth.login.aside.running') }}</em>
           </template>
         </i18n-t>
         <p class="font-body-curio text-[15px] opacity-80 leading-relaxed mb-10">
           {{ t('auth.login.aside.body') }}
         </p>
 
-        <div class="space-y-4 border-t border-[color:var(--paper)]/20 pt-6">
+        <div class="space-y-4 border-t border-white/30 pt-6">
           <div v-for="(item, i) in features" :key="item" class="flex items-baseline gap-4">
             <span class="num-tab text-[11px] opacity-60">{{ String(i + 1).padStart(2, '0') }}</span>
             <span class="font-display text-[15px] leading-tight">{{ item }}</span>
