@@ -542,7 +542,14 @@
     from { clip-path: inset(0 -10% 100% -10%); translate: 0 0.35em; }
     to   { clip-path: inset(-20% -10% -30% -10%); translate: 0 0; }
   }
-  .rise-mask { animation: maskrise 1s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  /* Longhands, not the `animation` shorthand: the shorthand would reset the
+     .rise-d-* delays declared above and every headline would start at once. */
+  .rise-mask {
+    animation-name: maskrise;
+    animation-duration: 1s;
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+    animation-fill-mode: both;
+  }
   .reveal-mask {
     clip-path: inset(0 -10% 100% -10%);
     translate: 0 0.35em;
@@ -634,6 +641,7 @@
       transform: rotate(3deg);
     }
     .nav-glass,
+    .nav-progress,
     .menu-indicator.is-animated,
     .btn-editorial,
     .btn-editorial-ghost,

@@ -14,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{ text: string; tag?: string }>(), { tag: 'p' })
 
@@ -25,6 +25,7 @@ const words = computed(() => props.text.split(/\s+/).filter(Boolean))
 const filled = ref(Number.MAX_SAFE_INTEGER)
 
 let frame = 0
+let active = false // false under reduced motion: the words stay fully inked
 const update = () => {
   frame = 0
   const el = root.value
@@ -44,9 +45,16 @@ const onScroll = () => {
 
 onMounted(() => {
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+  active = true
   update()
   window.addEventListener('scroll', onScroll, { passive: true })
   window.addEventListener('resize', onScroll, { passive: true })
+})
+
+// A locale switch swaps the sentence (and its word count) without any scroll,
+// so re-measure once the new words have rendered.
+watch(() => props.text, () => {
+  if (active) nextTick(update)
 })
 
 onBeforeUnmount(() => {

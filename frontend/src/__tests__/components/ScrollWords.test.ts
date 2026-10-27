@@ -18,3 +18,12 @@ describe('ScrollWords', () => {
     expect(w.element.tagName).toBe('BLOCKQUOTE')
   })
 })
+
+describe('ScrollWords after a locale switch', () => {
+  it('re-renders the new sentence word by word', async () => {
+    const w = mount(ScrollWords, { props: { text: 'One two' } })
+    await w.setProps({ text: '하나 둘 셋' })
+    expect(w.findAll('.scroll-word').map((s) => s.text())).toEqual(['하나', '둘', '셋'])
+    expect(w.get('.sr-only').text()).toBe('하나 둘 셋')
+  })
+})

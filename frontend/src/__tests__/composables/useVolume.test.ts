@@ -20,3 +20,20 @@ describe('useVolume', () => {
     expect(nextVolumeLabel.value).toBe('088')
   })
 })
+
+describe('useVolume rollover', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('moves to the next volume at UTC midnight while the page stays open', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(Date.UTC(2026, 9, 26, 23, 59, 30))
+    vi.resetModules() // fresh module clock, armed under the fake timers
+    const { useVolume: fresh } = await import('@/composables/useVolume')
+    const { volumeLabel } = fresh()
+    expect(volumeLabel.value).toBe('087')
+    vi.advanceTimersByTime(60_000)
+    expect(volumeLabel.value).toBe('088')
+  })
+})
