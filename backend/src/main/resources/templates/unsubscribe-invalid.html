@@ -1,7 +1,40 @@
-<html xmlns:th="http://www.thymeleaf.org">
+<!DOCTYPE html>
 <!-- Rendered with HTTP 400 when the unsubscribe token is malformed, expired or
      belongs to no user. Deliberately vague: it must not reveal which. -->
-<body style="font-family:Arial,sans-serif;padding:24px;">
-<h2>Invalid unsubscribe link.</h2>
-<p>Please try again from a newer email.</p>
-</body></html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Curio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;800&amp;family=Geist+Mono:wght@400&amp;display=swap" rel="stylesheet" />
+<!-- Same ruled-grid look as the website (paper, 1px ink rules, mono labels,
+     bold sans headline, square signal-red button). Keep in step with
+     frontend/src/assets/styles/main.css. -->
+<style>
+  body { margin: 0; background: #f3ede1; color: #14130f; font-family: 'Geist', 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+  .mast { display: flex; border-bottom: 1px solid #14130f; font-family: 'Geist Mono', ui-monospace, Menlo, monospace; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .mast a { padding: 14px 24px; border-right: 1px solid #d6ccb8; font-family: 'Geist', 'Helvetica Neue', Arial, sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.04em; text-transform: none; color: #14130f; text-decoration: none; }
+  .mast a span { color: #ff7a1a; }
+  .mast .cell { padding: 18px 24px; color: #3a362c; }
+  main { padding: 56px 24px 72px; max-width: 760px; }
+  .label { font-family: 'Geist Mono', ui-monospace, Menlo, monospace; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #a82c10; }
+  h1 { margin: 14px 0 16px; font-size: clamp(40px, 7vw, 72px); line-height: 0.95; letter-spacing: -0.055em; font-weight: 800; }
+  p { margin: 0 0 32px; max-width: 40ch; font-size: 19px; line-height: 1.45; color: #3a362c; }
+  button { display: inline-flex; align-items: center; gap: 16px; min-height: 56px; padding: 0 8px 0 20px; border: 1px solid #d93a1a; background: #d93a1a; color: #fff; font: 600 16px 'Geist', 'Helvetica Neue', Arial, sans-serif; cursor: pointer; }
+  button:hover { background: #14130f; border-color: #14130f; }
+  button .cell { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: #14130f; }
+  button:hover .cell { background: #d93a1a; }
+  button:focus-visible, a:focus-visible { outline: 2px solid #ff7a1a; outline-offset: 3px; }
+  .rule { border-top: 1px solid #14130f; padding-top: 14px; }
+</style>
+</head>
+<body>
+<header class="mast"><a href="/">Curio<span>.</span></a><span class="cell">Email preferences</span></header>
+<main>
+<div class="label">&sect; Link problem</div>
+<h1>Invalid unsubscribe link.</h1>
+<p class="rule">Please try again from a newer email.</p>
+</main>
+</body>
+</html>
