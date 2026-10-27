@@ -11,7 +11,7 @@ Public documentation for the Curio project. For a product overview and quick sta
 | [CODEBASE.md](CODEBASE.md) | Whole-codebase map — packages, classes, routes, migrations, tests |
 | [DEPLOY.md](DEPLOY.md) | Generic production deployment guide (Docker Compose, TLS, backups) |
 | [architecture/](architecture/) | ADR-001: the hexagonal architecture decision record |
-| [screenshots/](screenshots/) | README screenshots and the quiz GIF (captured with Cypress against stubbed APIs); `ko/` holds the Korean-edition set used by `README.ko.md` |
+| [screenshots/](screenshots/) | README screenshots and the quiz GIF (captured from the dev frontend with every API call stubbed — sample data only; refreshed 2026-10-27); `ko/` holds the Korean-edition set used by `README.ko.md` |
 
 Component-level READMEs: [backend/README.md](../backend/README.md), [frontend/README.md](../frontend/README.md).
 

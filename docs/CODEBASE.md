@@ -223,7 +223,7 @@ curio/
 │       ├── services/
 │       │   ├── api.ts               # Single Axios client + all endpoint methods
 │       │   └── sentry.ts            # Optional Sentry init (VITE_SENTRY_DSN)
-│       ├── utils/                   # apiError.ts, safeUrl.ts, timezone.ts
+│       ├── utils/                   # apiDate.ts (parseApiDate: zone-less API date-times = UTC), apiError.ts, safeUrl.ts, timezone.ts
 │       ├── composables/
 │       │   ├── useDisclosureSet.ts  # Open/closed set for accordions and filters (toggle/isOpen), shared by three pickers
 │       │   ├── useEnsureTimezone.ts # Device-timezone auto-follow (wired in DashboardLayout)
@@ -233,14 +233,16 @@ curio/
 │       │   ├── useLocale.ts         # Edition (en/ko) state: persist on explicit choice, <html lang>, document.title
 │       │   ├── usePagedAdminList.ts # load(page) + page envelope shared by the admin roster/ledger/editions tables
 │       │   ├── usePoller.ts         # Non-overlapping poll loop with attempt/failure caps (Studio + admin job status)
+│       │   ├── useScrollNav.ts      # Sticky nav state: stuck (hairline + blur), hidden while scrolling down, reading progress
 │       │   ├── useTheme.ts          # Light/dark theme toggle
 │       │   ├── useTopicLabels.ts    # Localized labels for the topic taxonomy (names stay canonical)
 │       │   ├── useTopicSelection.ts # Beat-picker state shared by onboarding and Settings
-│       │   └── useToast.ts
+│       │   ├── useToast.ts
+│       │   └── useVolume.ts         # Edition number (Vol.) counted from the 1 Aug 2026 launch, shared by every masthead
 │       ├── types/                   # user.ts, news.ts, quiz.ts, studio.ts, admin.ts, page.ts (SpringPage<T>), google-identity.d.ts
 │       ├── components/
 │       │   ├── ui/                  # BaseButton, BaseInput, BaseModal, BaseSpinner, ToastContainer, AppIcon, LanguageSelect,
-│       │   │                        # PageMasthead, ErrorState, PagerNav, SegmentedControl
+│       │   │                        # PageMasthead, ErrorState, PagerNav, SegmentedControl, ScrollWords
 │       │   ├── auth/                # LoginForm, RegisterForm, AuthMasthead, AuthColophon, MailSentPanel
 │       │   ├── layout/              # DashboardLayout, DashboardMenu, DashboardMenuFoot, LegalLayout
 │       │   ├── archive/             # ArchiveSearch, BeatFilter, DigestIssue
@@ -800,7 +802,7 @@ All 37 frontend API calls (across the `auth`, `user`, `apiKeys`, `news`, `quiz`,
 
 ### Components
 
-**UI (11):** `BaseButton`, `BaseInput`, `BaseModal`, `BaseSpinner`, `ToastContainer`, `AppIcon` (inline stroke SVG icons; 8 names, every one rendered somewhere), `LanguageSelect` (edition dropdown — a native `<select>` overlaid invisibly on a styled label; `inline` variant for mastheads/footers, shrinking to the EN / KO code below `sm`, `row` variant for the sidebar foot), `PageMasthead` (kicker + `<i18n-t>` headline with an emphasised word; `display`/`compact` sizes), `ErrorState` (kicker/headline/body + retry), `PagerNav` (newer/older pager; `counterKeypath` picks the "page X of Y" copy so admin and archive share it), `SegmentedControl` (`defineModel` radiogroup with one `label`, used by the Settings theme picker)
+**UI (12):** `BaseButton`, `BaseInput`, `BaseModal`, `BaseSpinner`, `ToastContainer`, `AppIcon` (inline stroke SVG icons; 8 names, every one rendered somewhere), `LanguageSelect` (edition dropdown — a native `<select>` overlaid invisibly on a styled label; `inline` variant for mastheads/footers, shrinking to the EN / KO code below `sm`, `row` variant for the sidebar foot), `PageMasthead` (kicker + `<i18n-t>` headline with an emphasised word; `display`/`compact` sizes), `ErrorState` (kicker/headline/body + retry), `PagerNav` (newer/older pager; `counterKeypath` picks the "page X of Y" copy so admin and archive share it), `SegmentedControl` (`defineModel` radiogroup with one `label`, used by the Settings theme picker), `ScrollWords` (paragraph whose words ink in as it scrolls through the viewport; screen readers get the sentence once; off under reduced motion)
 
 **Auth (5):** `LoginForm`, `RegisterForm`, `AuthMasthead` (shared auth-page header with the edition link), `AuthColophon` (the dated ink-aside row under the auth forms), `MailSentPanel` ("check your inbox" state for reset/verify)
 
@@ -836,6 +838,8 @@ All 37 frontend API calls (across the `auth`, `user`, `apiKeys`, `news`, `quiz`,
 | `usePoller()` | Active | `{ start, stop, active }` around an async `tick(isCurrent)`; the next tick is armed only after the previous response lands, with `maxAttempts` / `maxConsecutiveFailures` caps. Studio status and admin job status. |
 | `usePagedAdminList()` | Active | `load(page)` + `{ rows, page, totalPages, loading, error }` for the admin users/digests/audit tables; each view supplies its `fetcher`. |
 | `useTopicSelection()` | Active | Chosen leaf topics, unfolded L1 domains and per-group counts for the beat picker (onboarding + Settings). |
+| `useScrollNav(bar)` | Active | `{ scrolled, hidden, progress }` for a `.nav-glass` sticky bar: `scrolled` once stuck (frosted fill + hairline), `hidden` while scrolling down past `hideAfter` (never under reduced motion or with focus inside), `progress` 0→1 for the reading bar. Home, legal and dashboard mobile headers. |
+| `useVolume()` | Active | `{ volumeLabel, nextVolumeLabel }` — zero-padded edition number counted from the 1 Aug 2026 launch; home, auth and dashboard mastheads. |
 
 ### Internationalization (i18n)
 
@@ -1003,14 +1007,14 @@ The full variable reference (what each var is, why it's needed, prod-required vs
 
 ### Frontend Test Inventory
 
-**Unit tests (Vitest): 42 test files / 214 tests** in `src/__tests__/` (as of 2026-09-17)
-- Components: BaseButton, BaseInput, BaseModal, LoginForm, RegisterForm, QuizQuestion, QuizResults, LanguageSelect, PageMasthead, ErrorState, PagerNav, SegmentedControl, AuthMasthead, AuthColophon, DashboardLayout, DashboardMenu, ArchiveSearch, BeatFilter, DigestIssue, TaskProgress, JobCard
+**Unit tests (Vitest): 46 test files / 226 tests** in `src/__tests__/` (as of 2026-10-27; `vitest.config.ts` pins `TZ=UTC`)
+- Components: BaseButton, BaseInput, BaseModal, LoginForm, RegisterForm, QuizQuestion, QuizResults, LanguageSelect, PageMasthead, ErrorState, PagerNav, SegmentedControl, AuthMasthead, AuthColophon, DashboardLayout, DashboardMenu, ArchiveSearch, BeatFilter, DigestIssue, TaskProgress, JobCard, ScrollWords
 - Views (both editions — each mounts in English, switches to Korean, asserts translated copy and unchanged English): HomeView, LoginView, ArchiveView, SettingsView, StatsView, LegalViews, StudioView, AdminDashboardView
 - Stores: Pinia store tests (auth, user, news, quiz)
-- Composables / i18n: `useToast`, `useTopicLabels`, `useFormat`, `usePoller`, `usePagedAdminList`, `useTopicSelection`, `useDisclosureSet`, `useLocale` + catalog key-tree parity (every key in `en` exists in `ko` and vice versa)
-- Utils: `safeUrl`
+- Composables / i18n: `useToast`, `useTopicLabels`, `useFormat`, `usePoller`, `usePagedAdminList`, `useTopicSelection`, `useDisclosureSet`, `useScrollNav`, `useVolume`, `useLocale` + catalog key-tree parity (every key in `en` exists in `ko` and vice versa)
+- Utils: `safeUrl`, `apiDate`
 
-**E2E tests (Cypress): 10 spec files / 67 tests** (as of 2026-09-17; `tests/e2e/support.ts` pins the edition to English before boot)
+**E2E tests (Cypress): 10 spec files / 67 tests** (as of 2026-10-27; `tests/e2e/support.ts` pins the edition to English before boot)
 
 Session mocking is centralized in `tests/e2e/helpers.ts`: the app keeps the access token in memory and re-establishes sessions via a silent `POST /auth/refresh`, so specs seed the localStorage `user` (`withAuth()`) and stub the refresh call (`stubSession()`) — **never seed localStorage tokens**.
 

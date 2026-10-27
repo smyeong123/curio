@@ -47,7 +47,8 @@ src/
 ## Conventions
 
 - **Every user-facing string goes through i18n.** Add each key to both `locales/en` and `locales/ko` — a parity test fails otherwise.
-- **Dates and numbers** go through `useFormat`; **polling** through `usePoller`.
+- **Dates and numbers** go through `useFormat` (API timestamps are parsed by `utils/apiDate.ts` — zone-less means UTC); **polling** through `usePoller`; **sticky nav bars** through `useScrollNav`.
+- **Motion** uses the primitives in `assets/styles/main.css` (`.rise-mask`, `[data-reveal]`, `ScrollWords`, `.stagger-rise`, `.parallax`). Each has a `prefers-reduced-motion` off-switch — give anything new one too.
 - **No emoji** in the UI — use `AppIcon.vue`.
 - **E2E sessions** are mocked with `tests/e2e/helpers.ts` (`withAuth()` + `stubSession()`); never seed tokens in localStorage.
 
