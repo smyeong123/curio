@@ -8,19 +8,19 @@
       :style="{ '--nav-progress': navProgress }"
     >
       <span class="nav-progress" aria-hidden="true"></span>
-      <div class="flex flex-wrap font-mono-curio text-[12px] uppercase tracking-[0.06em]">
-        <router-link to="/" class="flex flex-[1_1_auto] items-center gap-3 border-r border-[color:var(--hairline)] px-4 py-3 sm:flex-[1_1_160px] sm:px-6">
+      <div class="flex font-mono-curio text-[12px] uppercase tracking-[0.06em] sm:flex-wrap">
+        <router-link to="/" class="flex min-w-0 flex-[1_1_auto] items-center gap-3 border-r border-[color:var(--hairline)] px-3 py-3 sm:flex-[1_1_160px] sm:px-6">
           <span class="wordmark display-headline text-[24px] leading-none normal-case tracking-[-0.04em]">Curio</span>
-          <span class="kicker hidden 2xl:inline">{{ t('common.app.tagline') }}</span>
+          <span class="kicker hidden whitespace-nowrap min-[1760px]:inline">{{ t('common.app.tagline') }}</span>
         </router-link>
-        <span class="hidden flex-[1_1_auto] items-center whitespace-nowrap border-r border-[color:var(--hairline)] px-6 md:flex">
+        <span class="hidden flex-[1_1_auto] items-center whitespace-nowrap border-r border-[color:var(--hairline)] px-6 lg:flex">
           {{ t('home.strip.vol') }}&nbsp;<span class="num-tab">{{ volumeLabel }}</span>&nbsp;—&nbsp;{{ today }}
         </span>
-        <span class="hidden flex-[1_1_auto] items-center gap-2 whitespace-nowrap border-r border-[color:var(--hairline)] px-6 lg:flex">
+        <span class="hidden flex-[1_1_auto] items-center gap-2 whitespace-nowrap border-r border-[color:var(--hairline)] px-6 xl:flex">
           <span class="live-dot" aria-hidden="true"></span>{{ t('home.strip.issue') }}
         </span>
-        <nav class="flex flex-[0_1_auto] items-center justify-end gap-1 px-2 sm:flex-[1_1_300px] sm:gap-2 sm:px-4">
-          <a class="hidden whitespace-nowrap px-2 py-3 text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] xl:inline" href="#what">
+        <nav class="flex flex-[0_0_auto] items-center justify-end gap-0.5 px-1.5 sm:flex-[1_1_300px] sm:gap-2 sm:px-4">
+          <a class="hidden whitespace-nowrap px-2 py-3 text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] 2xl:inline" href="#what">
             <span class="num-tab">{{ liveClock }}</span> · {{ t('home.strip.readIt') }}
           </a>
           <LanguageSelect class="px-1 py-2 text-[12px] sm:px-2" />
@@ -30,7 +30,7 @@
           >
             {{ t('home.masthead.signIn') }}
           </router-link>
-          <router-link to="/register" class="btn-editorial my-1.5 min-h-[40px] text-[13px]">
+          <router-link to="/register" class="btn-editorial my-1.5 min-h-[40px] gap-2 pl-3 text-[13px] sm:gap-4 sm:pl-5">
             {{ t('home.masthead.subscribe') }}
             <span aria-hidden="true">→</span>
           </router-link>
