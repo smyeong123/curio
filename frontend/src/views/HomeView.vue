@@ -206,13 +206,13 @@
     <!-- ── Pull quote: full-bleed ink ─────────────────────────────────── -->
     <section class="bg-ink text-[color:var(--paper)]">
       <div class="flex items-center justify-between gap-4 border-b border-[color:var(--on-ink-rule)] px-4 py-4 font-mono-curio text-[12px] uppercase tracking-[0.06em] sm:px-6">
-        <span style="color: var(--signal);">§ {{ t('home.quote.kicker') }}</span>
+        <span style="color: var(--signal-on-ink);">§ {{ t('home.quote.kicker') }}</span>
         <span class="opacity-75">{{ t('home.quote.attribution') }}</span>
       </div>
       <div class="px-4 pb-24 pt-16 sm:px-6" data-reveal>
         <i18n-t scope="global" keypath="home.quote.text" tag="blockquote" class="reveal-mask display-headline max-w-[18ch] text-[clamp(40px,6vw,96px)] leading-[0.96]">
           <template #br><br class="hidden md:inline" /></template>
-          <template #minutes><em class="italic-display" style="color: var(--signal);">{{ t('home.quote.minutes') }}</em></template>
+          <template #minutes><em class="italic-display" style="color: var(--signal-on-ink);">{{ t('home.quote.minutes') }}</em></template>
         </i18n-t>
       </div>
     </section>
@@ -277,8 +277,6 @@ const { t, tm, rt } = useI18n()
 const { formatDate } = useFormat()
 const { topicLabel } = useTopicLabels()
 
-const today = computed(() => formatDate(new Date(), 'full').toUpperCase())
-
 const { volumeLabel, nextVolumeLabel } = useVolume()
 
 const navBar = ref<HTMLElement | null>(null)
@@ -305,6 +303,13 @@ function formatClock() {
   return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }) + ' UTC'
 }
 let clockTimer: ReturnType<typeof setInterval> | null = null
+
+// Re-evaluated on every clock tick (30s) so a page left open past midnight
+// moves to the new date along with the volume number.
+const today = computed(() => {
+  void liveClock.value
+  return formatDate(new Date(), 'full').toUpperCase()
+})
 
 // ── Scroll reveals + stat count-up ─────────────────────────────────────
 // Elements marked [data-reveal] fade/rise in when they enter the viewport;

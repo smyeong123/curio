@@ -43,8 +43,10 @@
   --hairline: #d6ccb8;     /* light dividers between cells */
   --signal: #d93a1a;       /* accent: CTAs, active segment, correct answer */
   --signal-deep: #a82c10;  /* accent as small text on paper */
-  --spark: #ff7a1a;        /* ONLY the logo period, "now" dot, focus ring */
+  --spark: #ff7a1a;        /* ONLY the logo period and the "now" dot */
   --on-signal: #ffffff;    /* text on the accent (4.6:1; cream would be 3.9:1) */
+  --focus: #c2410c;        /* focus ring: spark family, 4.4:1 on paper (spark itself is 2.2:1) */
+  --signal-on-ink: #ff6a45; /* accent text on ink sections (6.6:1) */
   --miss: #ffb27a;         /* wrong answer on ink */
   --on-ink-2: #cfc8b8;     /* secondary text on ink */
   --leaf: #2a5d3c;
@@ -64,6 +66,8 @@
   --signal-deep: #ff8a6a;
   --spark: #ff9a4a;
   --on-signal: #14130f;
+  --focus: #ff9a4a;
+  --signal-on-ink: #a82c10;
   --miss: #b8481a;
   --on-ink-2: #4a463b;
   --leaf: #6cc18a;
@@ -83,6 +87,8 @@
     --signal-deep: #ff8a6a;
     --spark: #ff9a4a;
     --on-signal: #14130f;
+    --focus: #ff9a4a;
+    --signal-on-ink: #a82c10;
     --miss: #b8481a;
     --on-ink-2: #4a463b;
     --leaf: #6cc18a;
@@ -117,9 +123,11 @@
     color: var(--on-signal);
   }
 
-  /* One focus ring everywhere: the orange spark, offset off the element. */
+  /* One focus ring everywhere, offset off the element onto the ground. A
+     darker member of the spark family in light mode so the ring clears the
+     3:1 non-text contrast minimum. */
   :focus-visible {
-    outline: 2px solid var(--spark);
+    outline: 2px solid var(--focus);
     outline-offset: 3px;
   }
 }

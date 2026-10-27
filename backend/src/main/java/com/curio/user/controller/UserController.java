@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +30,10 @@ public class UserController {
     private final UserUseCase userService;
     /** Renders the server-side unsubscribe pages (templates/unsubscribe-*.html). */
     private final TemplateEngine templateEngine;
+
+    /** Where the pages' "Curio." wordmark links: the site, not this API origin. */
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     @GetMapping("/me")
     @Operation(summary = "Get current user profile")
@@ -111,6 +116,7 @@ public class UserController {
     }
 
     private ResponseEntity<String> htmlPage(HttpStatus status, String template, Context context) {
+        context.setVariable("frontendUrl", frontendUrl);
         return ResponseEntity.status(status)
                 .header(HttpHeaders.CONTENT_TYPE, "text/html; charset=UTF-8")
                 .body(templateEngine.process(template, context));
