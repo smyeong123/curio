@@ -9,6 +9,7 @@ import { persistencePlugin } from './stores/persistence'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { i18n } from './i18n'
 import { syncDocumentLocale } from './composables/useLocale'
+import { installGlassLight } from './utils/glassLight'
 
 // Honor a stored theme preference before the first paint so logged-out pages
 // (e.g. Home) match the dashboard theme the user picked previously. Without
@@ -29,6 +30,9 @@ import { syncDocumentLocale } from './composables/useLocale'
 // Same idea for the edition: stamp <html lang> and the title with the detected
 // (or previously chosen) locale before anything renders.
 syncDocumentLocale()
+
+// The pointer-following glint on Liquid Glass buttons.
+installGlassLight()
 
 const app = createApp(App)
 const pinia = createPinia()
