@@ -440,6 +440,15 @@
   :where(.btn-editorial:has(> [aria-hidden='true']:last-child)) {
     padding-right: 0.375rem;
   }
+  /* Small glass capsule for filter chips; keeps the mono kicker label. */
+  .chip-glass {
+    align-items: baseline;
+    padding: 0.375rem 0.875rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+  }
 
   /* Pointer glint. */
   :is(.btn-editorial, .btn-editorial-ghost, .btn-glass, .btn-glass-clear)::after {
