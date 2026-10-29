@@ -112,10 +112,3 @@ const { formatDate, formatTime } = useFormat()
 // Topic names are canonical ids (backend-stored); label them per edition at render time.
 const { topicLabel } = useTopicLabels()
 </script>
-
-<style scoped>
-.digest-card {
-  content-visibility: auto;
-  contain-intrinsic-size: 1px 800px;
-}
-</style>
