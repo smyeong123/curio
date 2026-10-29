@@ -50,7 +50,7 @@ describe('BaseButton', () => {
 
   it('applies variant classes for danger', () => {
     const wrapper = mount(BaseButton, { props: { variant: 'danger' } })
-    expect(wrapper.find('button').classes()).toContain('bg-red-600')
+    expect(wrapper.find('button').classes()).toContain('btn-glass-danger')
   })
 
   it('emits click event', async () => {

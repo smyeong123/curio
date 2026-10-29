@@ -5,7 +5,8 @@
  * Warm paper, ink, signal red as the accent, a spark of orange for the logo
  * period / "now" dot / focus ring. One family, Geist, for display and body;
  * Geist Mono for labels. Structure comes from 1px rules and flat blocks —
- * no rounded cards, shadows or gradients.
+ * no rounded cards, shadows or gradients. Buttons are the one exception:
+ * Liquid Glass capsules (see the button section).
  * ────────────────────────────────────────────────────────────────────────── */
 
 /* `inline` makes the generated utilities (bg-paper, text-ink, …) emit
@@ -50,6 +51,16 @@
   --miss: #ffb27a;         /* wrong answer on ink */
   --on-ink-2: #cfc8b8;     /* secondary text on ink */
   --leaf: #2a5d3c;
+  /* Liquid Glass buttons */
+  --glass-tint: #d93a1a;                     /* the theme signal */
+  --glass-tint-alpha: 28%;                   /* colour held in the body of tinted glass */
+  --glass-tint-fg: #14130f;                  /* ink: the body is too thin for white */
+  --glass-caustic-tint: rgba(255, 255, 255, 0.22);
+  --glass-caustic: rgba(255, 255, 255, 0.28); /* light gathered under the top edge */
+  --glass-glint: rgba(255, 255, 255, 0.22);
+  --glass-body: rgba(255, 255, 255, 0.04);   /* clear glass fill */
+  --glass-shade: rgba(20, 19, 15, 0.14);
+  --glass-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 :root[data-theme='dark'],
@@ -71,6 +82,14 @@
   --miss: #b8481a;
   --on-ink-2: #4a463b;
   --leaf: #6cc18a;
+  --glass-tint: #d93a1a;
+  --glass-tint-alpha: 32%;
+  --glass-tint-fg: #f3ede1;
+  --glass-caustic-tint: rgba(255, 255, 255, 0.08);
+  --glass-caustic: rgba(255, 255, 255, 0.08);
+  --glass-glint: rgba(255, 255, 255, 0.12);
+  --glass-body: rgba(255, 255, 255, 0.03);
+  --glass-shade: rgba(0, 0, 0, 0.55);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -92,6 +111,14 @@
     --miss: #b8481a;
     --on-ink-2: #4a463b;
     --leaf: #6cc18a;
+    --glass-tint: #d93a1a;
+    --glass-tint-alpha: 32%;
+    --glass-tint-fg: #f3ede1;
+    --glass-caustic-tint: rgba(255, 255, 255, 0.08);
+    --glass-caustic: rgba(255, 255, 255, 0.08);
+    --glass-glint: rgba(255, 255, 255, 0.12);
+    --glass-body: rgba(255, 255, 255, 0.03);
+    --glass-shade: rgba(0, 0, 0, 0.55);
   }
 }
 
@@ -321,32 +348,89 @@
     letter-spacing: 0;
   }
 
-  /* Primary CTA — a square accent bar. A trailing aria-hidden glyph (the
-     arrow every CTA already carries) becomes the ink "icon cell" on the
-     right, as in the grid design. Ink sweeps in from the left on hover. */
-  .btn-editorial {
+  /* Buttons — Liquid Glass, the one place the flat grid takes a curve and a
+     shadow. A borderless capsule of nearly clear glass: a thin body of
+     colour, light gathered under the top edge and colour pooling along the
+     bottom like a lens, and a glint that follows the pointer (::after). It moves like liquid — it drifts toward the pointer
+     and swells (--lx/--ly from utils/glassLight.ts), squashes on press and
+     springs back with an overshoot.
+     --tint picks the colour: signal on .btn-editorial / .btn-glass, ink on
+     .btn-glass-ink, red on .btn-glass-danger, none on the clear
+     .btn-editorial-ghost / .btn-glass-clear. Labels are ink (paper on .bg-ink
+     sections) — the body is too thin for white text. Highlights stay soft
+     so the glass reads as glass, not glare. A trailing aria-hidden
+     glyph on a tinted CTA (the arrow every CTA carries) becomes an ink drop. */
+  .btn-editorial,
+  .btn-editorial-ghost,
+  .btn-glass,
+  .btn-glass-clear {
+    --tint: var(--glass-tint);
+    --tint-alpha: var(--glass-tint-alpha);
+    --tint-pool: 90%;
+    --caustic: var(--glass-caustic-tint);
+    --glint: var(--glass-glint);
+    --sx: 1;
+    --sy: 1;
+    position: relative;
+    isolation: isolate;
     display: inline-flex;
     align-items: center;
     white-space: nowrap;
-    background-color: var(--signal);
-    background-image: linear-gradient(var(--ink), var(--ink));
-    background-repeat: no-repeat;
-    background-position: left center;
-    background-size: 0% 100%;
-    color: var(--on-signal);
-    border: 1px solid var(--signal);
+    color: var(--glass-tint-fg);
+    background-color: color-mix(in srgb, var(--tint) var(--tint-alpha), var(--glass-body));
+    background-image:
+      radial-gradient(120% 90% at 50% -30%, var(--caustic), transparent 60%),
+      radial-gradient(90% 70% at 50% 135%, color-mix(in srgb, var(--tint) var(--tint-pool), transparent), transparent 70%);
+    border: 0;
+    -webkit-backdrop-filter: blur(6px) saturate(180%);
+    backdrop-filter: blur(6px) saturate(180%);
+    box-shadow:
+      inset 0 -6px 14px -8px color-mix(in srgb, var(--tint) var(--tint-pool), transparent),
+      0 2px 6px var(--glass-shade),
+      0 12px 28px -14px color-mix(in srgb, var(--tint) 60%, var(--glass-shade));
     font-family: var(--font-body);
     text-transform: none;
+    transform: translate(var(--lx, 0px), var(--ly, 0px)) scale(var(--sx), var(--sy));
     transition:
-      background-size 0.45s cubic-bezier(0.65, 0, 0.35, 1),
-      border-color 0.3s ease,
-      color 0.18s ease;
+      transform 0.7s var(--glass-spring),
+      box-shadow 0.3s ease,
+      background-color 0.3s ease;
+    transition:
+      transform 0.7s linear(0, 0.009, 0.035 2.1%, 0.141, 0.281 6.7%, 0.723 12.9%, 0.938 16.7%, 1.017, 1.077, 1.121, 1.149 24.3%, 1.159, 1.163, 1.161, 1.154 29.9%, 1.129 32.8%, 1.051 39.6%, 1.017 43.1%, 0.991, 0.977 51%, 0.974 53.8%, 0.975 57.1%, 0.997 69.8%, 1.003 76.9%, 1),
+      box-shadow 0.3s ease,
+      background-color 0.3s ease;
+  }
+  .btn-editorial-ghost,
+  .btn-glass-clear {
+    --tint: var(--ink);
+    --tint-alpha: 0%;
+    --tint-pool: 10%;
+    --caustic: var(--glass-caustic);
+    color: var(--ink);
+  }
+  .btn-glass-ink {
+    --tint: var(--ink);
+    --tint-alpha: 78%;
+    --tint-pool: 90%;
+    color: var(--paper);
+  }
+  .btn-glass-danger {
+    --tint: #dc2626;
+  }
+  .bg-ink :is(.btn-editorial, .btn-editorial-ghost, .btn-glass, .btn-glass-clear) {
+    color: var(--paper);
+  }
+  .bg-ink :is(.btn-editorial-ghost, .btn-glass-clear) {
+    --tint: var(--paper);
+  }
+  :where(.btn-editorial, .btn-editorial-ghost, .btn-glass, .btn-glass-clear) {
+    border-radius: 9999px;
   }
   :where(.btn-editorial),
   :where(.btn-editorial-ghost) {
     gap: 1rem;
     min-height: 3rem;
-    padding: 0.5rem 1.25rem;
+    padding: 0.5rem 1.375rem;
     font-size: 0.9375rem;
     font-weight: 600;
     letter-spacing: -0.01em;
@@ -356,23 +440,56 @@
   :where(.btn-editorial:has(> [aria-hidden='true']:last-child)) {
     padding-right: 0.375rem;
   }
-  .btn-editorial:hover {
-    background-size: 100% 100%;
-    border-color: var(--ink);
+  /* Small glass capsule for filter chips; keeps the mono kicker label. */
+  .chip-glass {
+    align-items: baseline;
+    padding: 0.375rem 0.875rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
   }
-  .btn-editorial:active {
-    transform: translateY(1px);
+
+  /* Pointer glint. */
+  :is(.btn-editorial, .btn-editorial-ghost, .btn-glass, .btn-glass-clear)::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(7rem circle at var(--gx, 50%) var(--gy, 0%), var(--glint), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    z-index: -1;
   }
-  .btn-editorial:disabled {
-    opacity: 0.4;
+  :is(.btn-editorial, .btn-editorial-ghost, .btn-glass, .btn-glass-clear):hover {
+    --sx: 1.035;
+    --sy: 1.035;
+    box-shadow:
+      inset 0 -8px 16px -8px color-mix(in srgb, var(--tint) var(--tint-pool), transparent),
+      0 4px 10px var(--glass-shade),
+      0 18px 36px -14px color-mix(in srgb, var(--tint) 70%, var(--glass-shade));
+  }
+  :is(.btn-editorial, .btn-editorial-ghost, .btn-glass, .btn-glass-clear):hover::after {
+    opacity: 1;
+  }
+  /* Press squashes the drop; release springs it back past round. */
+  :is(.btn-editorial, .btn-editorial-ghost, .btn-glass, .btn-glass-clear):active {
+    --sx: 1.07;
+    --sy: 0.9;
+    transition-duration: 0.14s, 0.3s, 0.3s;
+    transition-timing-function: ease-out, ease, ease;
+  }
+  :is(.btn-editorial, .btn-editorial-ghost, .btn-glass, .btn-glass-clear):disabled {
+    opacity: 0.45;
     cursor: not-allowed;
-  }
-  .btn-editorial:disabled:hover {
-    background-size: 0% 100%;
-    border-color: var(--signal);
     transform: none;
   }
-  /* Icon cell + arrow glide. */
+  :is(.btn-editorial, .btn-editorial-ghost, .btn-glass, .btn-glass-clear):disabled::after {
+    opacity: 0;
+  }
+
+  /* Ink drop + arrow glide. */
   .btn-editorial > [aria-hidden='true']:last-child {
     display: inline-flex;
     align-items: center;
@@ -380,41 +497,130 @@
     width: 2.25rem;
     height: 2.25rem;
     flex-shrink: 0;
-    background: var(--ink);
+    border-radius: 9999px;
+    background:
+      radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, var(--paper) 35%, transparent), transparent 70%),
+      color-mix(in srgb, var(--ink) 80%, transparent);
     color: var(--paper);
-    transition: background-color 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
-  }
-  .btn-editorial:hover > [aria-hidden='true']:last-child {
-    background: var(--signal);
+    box-shadow: 0 2px 6px var(--glass-shade);
   }
   .btn-editorial > [aria-hidden='true'],
   .btn-editorial-ghost > [aria-hidden='true'] {
-    transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1), background-color 0.3s ease;
+    transition: transform 0.45s var(--glass-spring);
   }
+  .btn-editorial:hover > [aria-hidden='true']:last-child,
   .btn-editorial-ghost:hover > [aria-hidden='true'] {
-    transform: translateX(4px);
+    transform: translateX(3px);
   }
 
-  /* Secondary — a ruled bar; ink sweeps in on hover. */
-  .btn-editorial-ghost {
-    display: inline-flex;
-    align-items: center;
-    background-color: transparent;
-    background-image: linear-gradient(var(--ink), var(--ink));
-    background-repeat: no-repeat;
-    background-position: left center;
-    background-size: 0% 100%;
+  /* Glass select: a clear glass capsule with a ▾ drawn in currentColor.
+     .select-glass goes on a <select>, or on the wrapper of a styled label
+     with a .select-glass-overlay <select> stretched over it (LanguageSelect).
+     No swell or drift — selects can be full-width, where a scale reads as a
+     jump. Where the customizable select exists (appearance: base-select,
+     Chromium), the option list opens as a frosted glass panel too; elsewhere
+     it stays the platform's own menu. */
+  .select-glass {
+    --tint: var(--ink);
+    --caustic: var(--glass-caustic);
+    appearance: none;
+    border: 0;
+    border-radius: 9999px;
     color: var(--ink);
-    border: 1px solid var(--rule);
-    font-family: var(--font-body);
-    text-transform: none;
-    transition:
-      background-size 0.45s cubic-bezier(0.65, 0, 0.35, 1),
-      color 0.3s ease;
+    background-color: var(--glass-body);
+    background-image:
+      linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(135deg, currentColor 50%, transparent 50%),
+      radial-gradient(120% 90% at 50% -30%, var(--caustic), transparent 60%),
+      radial-gradient(90% 70% at 50% 135%, color-mix(in srgb, var(--tint) 10%, transparent), transparent 70%);
+    background-position: calc(100% - 1.25rem) 52%, calc(100% - 1rem) 52%, 0 0, 0 0;
+    background-size: 0.25rem 0.25rem, 0.25rem 0.25rem, auto, auto;
+    background-repeat: no-repeat;
+    -webkit-backdrop-filter: blur(6px) saturate(180%);
+    backdrop-filter: blur(6px) saturate(180%);
+    box-shadow:
+      inset 0 -6px 14px -8px color-mix(in srgb, var(--tint) 10%, transparent),
+      0 2px 6px var(--glass-shade);
+    transition: box-shadow 0.3s ease, opacity 0.2s ease;
   }
-  .btn-editorial-ghost:hover {
-    background-size: 100% 100%;
+  :where(.select-glass) {
+    padding: 0.5rem 2.25rem 0.5rem 1rem;
+  }
+  .select-glass:hover {
+    box-shadow:
+      inset 0 -8px 16px -8px color-mix(in srgb, var(--tint) 10%, transparent),
+      0 4px 10px var(--glass-shade),
+      0 14px 28px -14px var(--glass-shade);
+  }
+  .select-glass:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .bg-ink .select-glass {
+    --tint: var(--paper);
     color: var(--paper);
+  }
+  .select-glass-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    appearance: none;
+  }
+  @supports (appearance: base-select) {
+    select.select-glass,
+    .select-glass-overlay,
+    :is(select.select-glass, .select-glass-overlay)::picker(select) {
+      appearance: base-select;
+    }
+    /* The overlay stays clickable but shows nothing; the label underneath does. */
+    .select-glass-overlay {
+      opacity: 1;
+      border: 0;
+      background: transparent;
+      color: transparent;
+    }
+    :is(select.select-glass, .select-glass-overlay)::picker-icon {
+      display: none;
+    }
+    :is(select.select-glass, .select-glass-overlay)::picker(select) {
+      margin-block: 0.5rem;
+      padding: 0.375rem;
+      min-width: anchor-size(width);
+      max-height: 20rem;
+      border: 0;
+      border-radius: 1.25rem;
+      color: var(--ink);
+      background:
+        radial-gradient(120% 50% at 50% -10%, var(--glass-caustic), transparent 60%),
+        color-mix(in srgb, var(--paper) 88%, transparent);
+      -webkit-backdrop-filter: blur(18px) saturate(180%);
+      backdrop-filter: blur(18px) saturate(180%);
+      box-shadow: 0 2px 6px var(--glass-shade), 0 24px 48px -16px var(--glass-shade);
+    }
+    :is(select.select-glass, .select-glass-overlay) option {
+      padding: 0.5rem 0.875rem;
+      border-radius: 9999px;
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: 14px;
+      letter-spacing: normal;
+      text-transform: none;
+      white-space: nowrap;
+    }
+    :is(select.select-glass, .select-glass-overlay) option::checkmark {
+      display: none;
+    }
+    :is(select.select-glass, .select-glass-overlay) option:is(:hover, :focus-visible) {
+      outline: none;
+      background: color-mix(in srgb, var(--ink) 8%, transparent);
+    }
+    :is(select.select-glass, .select-glass-overlay) option:checked {
+      font-weight: 600;
+      background: color-mix(in srgb, var(--glass-tint) var(--glass-tint-alpha), transparent);
+    }
   }
 
   /* Animated underline — for inline links */
@@ -691,9 +897,19 @@
     .menu-indicator.is-animated,
     .btn-editorial,
     .btn-editorial-ghost,
+    .btn-glass,
+    .btn-glass-clear,
+    .select-glass,
     .btn-editorial > [aria-hidden='true'],
     .btn-editorial-ghost > [aria-hidden='true'] {
       transition: none;
+    }
+    :is(.btn-editorial, .btn-editorial-ghost, .btn-glass, .btn-glass-clear):is(:hover, :active),
+    :is(.btn-editorial, .btn-editorial-ghost):hover > [aria-hidden='true'] {
+      transform: none;
+    }
+    :is(.btn-editorial, .btn-editorial-ghost, .btn-glass, .btn-glass-clear)::after {
+      display: none;
     }
     .nav-glass.is-hidden {
       transform: none;

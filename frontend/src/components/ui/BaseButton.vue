@@ -3,7 +3,7 @@
     :type="type"
     :disabled="disabled || loading"
     :class="[
-      'inline-flex items-center justify-center gap-2 font-body-curio font-semibold tracking-[-0.01em] transition-colors duration-200',
+      'inline-flex items-center justify-center gap-2 font-body-curio font-semibold tracking-[-0.01em]',
       sizeClasses,
       variantClasses,
       disabled || loading ? 'cursor-not-allowed opacity-55' : ''
@@ -42,18 +42,18 @@ const props = withDefaults(defineProps<{
   loading: false
 })
 
-// Square bars on the grid; the focus ring is the global orange spark.
+// Liquid Glass capsules (main.css); the focus ring is the global orange spark.
 const sizeClasses = computed(() => ({
-  sm: 'min-h-[40px] px-3.5 py-2 text-xs',
-  md: 'min-h-[44px] px-4 py-2.5 text-sm',
-  lg: 'min-h-[52px] px-5 py-3 text-[15px]'
+  sm: 'min-h-[40px] px-4 py-2 text-xs',
+  md: 'min-h-[44px] px-5 py-2.5 text-sm',
+  lg: 'min-h-[52px] px-6 py-3 text-[15px]'
 }[props.size]))
 
 const variantClasses = computed(() => ({
-  primary: 'border border-[color:var(--signal)] bg-[color:var(--signal)] text-[color:var(--on-signal)] hover:border-[color:var(--ink)] hover:bg-[color:var(--ink)]',
-  secondary: 'border border-[color:var(--ink)] bg-[color:var(--ink)] text-[color:var(--paper)] hover:border-[color:var(--signal)] hover:bg-[color:var(--signal)] hover:text-[color:var(--on-signal)]',
-  outline: 'border border-[color:var(--rule)] bg-transparent text-[color:var(--ink)] hover:bg-[color:var(--ink)] hover:text-[color:var(--paper)]',
-  ghost: 'text-[color:var(--mute)] hover:bg-[color:var(--paper-deep)] hover:text-[color:var(--ink)]',
-  danger: 'bg-red-600 text-white hover:bg-red-500'
+  primary: 'btn-glass',
+  secondary: 'btn-glass btn-glass-ink',
+  outline: 'btn-glass-clear',
+  ghost: 'rounded-full text-[color:var(--mute)] transition-colors duration-200 hover:bg-ink/6 hover:text-[color:var(--ink)]',
+  danger: 'btn-glass btn-glass-danger'
 }[props.variant]))
 </script>

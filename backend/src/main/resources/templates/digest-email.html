@@ -46,11 +46,12 @@
                                 Good morning, reader. Here's what moved in AI today.
                             </h1>
                             <div style="margin-top:8px; font-family:'Geist Mono', 'SF Mono', Menlo, Consolas, 'Courier New', monospace; font-size:11px; letter-spacing:0.6px; text-transform:uppercase; color:#635d4f;" th:text="#{digest.email.tagline}">&mdash; A daily for AI model news</div>
-                            <!-- Square accent bar with the ink arrow cell, as on the site -->
+                            <!-- Liquid Glass capsule, flattened for email: the site's tint and
+                                 shading as a gradient over a solid fallback (Outlook shows it square). -->
                             <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:22px;">
                                 <tr>
-                                    <td style="background-color:#d93a1a; border:1px solid #d93a1a;">
-                                        <a th:href="${frontendUrl + '/dashboard'}" style="display:inline-block; padding:13px 18px; font-family:'Geist', 'Helvetica Neue', Helvetica, Arial, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none;" th:text="#{digest.email.open}">Open today's digest in Curio &rarr;</a>
+                                    <td bgcolor="#ecbbaa" style="background-color:#ecbbaa; background-image:linear-gradient(180deg,#efc4b5 0%,#ecbbaa 55%,#e6957f 100%); border-radius:9999px; box-shadow:0 2px 6px rgba(20,19,15,0.14), 0 12px 28px -14px rgba(217,58,26,0.6);">
+                                        <a th:href="${frontendUrl + '/dashboard'}" style="display:inline-block; padding:14px 22px; border-radius:9999px; font-family:'Geist', 'Helvetica Neue', Helvetica, Arial, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; font-size:15px; font-weight:600; color:#14130f; text-decoration:none;" th:text="#{digest.email.open}">Open today's digest in Curio &rarr;</a>
                                     </td>
                                 </tr>
                             </table>
@@ -112,9 +113,9 @@
                             <p style="word-break:keep-all; margin:0 0 22px 0; font-family:'Geist', 'Helvetica Neue', Helvetica, Arial, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; font-size:26px; line-height:1.08; font-weight:800; letter-spacing:-0.8px; color:#f3ede1;"><span th:text="#{digest.email.quiz.line1}">Five questions. Two minutes.</span><br/><span style="color:#cfc8b8; font-weight:600;" th:text="#{digest.email.quiz.line2}">Lock in what you just read.</span></p>
                             <table role="presentation" cellpadding="0" cellspacing="0">
                                 <tr>
-                                    <td style="background-color:#d93a1a;">
+                                    <td bgcolor="#592619" style="background-color:#592619; background-image:linear-gradient(180deg,#613024 0%,#592619 55%,#862d19 100%); border-radius:9999px; box-shadow:0 2px 6px rgba(0,0,0,0.55), 0 12px 28px -14px rgba(217,58,26,0.6);">
                                         <a th:href="${frontendUrl + '/dashboard/quiz/' + digestId}"
-                                           style="display:inline-block; padding:13px 20px; font-family:'Geist', 'Helvetica Neue', Helvetica, Arial, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none;" th:text="#{digest.email.quiz.cta}">Take the quiz &rarr;</a>
+                                           style="display:inline-block; padding:14px 22px; border-radius:9999px; font-family:'Geist', 'Helvetica Neue', Helvetica, Arial, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; font-size:15px; font-weight:600; color:#f3ede1; text-decoration:none;" th:text="#{digest.email.quiz.cta}">Take the quiz &rarr;</a>
                                     </td>
                                 </tr>
                             </table>

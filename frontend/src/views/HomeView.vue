@@ -23,7 +23,7 @@
           <a class="hidden whitespace-nowrap px-2 py-3 text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] 2xl:inline" href="#what">
             <span class="num-tab">{{ liveClock }}</span> · {{ t('home.strip.readIt') }}
           </a>
-          <LanguageSelect class="px-1 py-2 text-[12px] sm:px-2" />
+          <LanguageSelect class="text-[12px]" />
           <router-link
             to="/login"
             class="whitespace-nowrap px-1 py-3 text-[color:var(--ink-soft)] transition-colors hover:text-[color:var(--ink)] sm:px-2"

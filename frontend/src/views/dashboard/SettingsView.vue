@@ -64,7 +64,7 @@
                 <select
                   id="settings-delivery-hour"
                   v-model.number="deliveryHour"
-                  class="w-full bg-paper border border-[color:var(--rule)] px-3 py-2.5 font-body-curio text-[14px] text-[color:var(--ink)] focus:outline-none focus:ring-2 focus:ring-[color:var(--signal)]"
+                  class="select-glass w-full py-2.5 pl-4 pr-10 font-body-curio text-[14px]"
                 >
                   <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ formatHour(h - 1) }}</option>
                 </select>
@@ -75,7 +75,7 @@
                   id="settings-timezone"
                   v-model="timezone"
                   :disabled="autoTimezone"
-                  class="w-full bg-paper border border-[color:var(--rule)] px-3 py-2.5 font-body-curio text-[14px] text-[color:var(--ink)] focus:outline-none focus:ring-2 focus:ring-[color:var(--signal)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="select-glass w-full py-2.5 pl-4 pr-10 font-body-curio text-[14px]"
                 >
                   <option v-for="tz in timezones" :key="tz" :value="tz">{{ tz }}</option>
                 </select>
@@ -116,7 +116,7 @@
         <select
           id="settings-edition"
           :value="edition"
-          class="w-full sm:w-1/2 bg-paper border border-[color:var(--rule)] px-3 py-2.5 font-body-curio text-[14px] text-[color:var(--ink)] focus:outline-none focus:ring-2 focus:ring-[color:var(--signal)]"
+          class="select-glass w-full sm:w-1/2 py-2.5 pl-4 pr-10 font-body-curio text-[14px]"
           @change="onEditionChange"
         >
           <option v-for="option in localeOptions" :key="option.value" :value="option.value" :lang="option.lang">

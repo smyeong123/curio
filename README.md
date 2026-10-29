@@ -37,7 +37,7 @@ Curio reads first-party lab blogs (Anthropic, OpenAI, DeepMind, Meta AI, Mistral
 - **Digest Studio** — generate today's digest and send the email yourself, with live progress.
 - **Newsroom dashboard** — readers, digests, topic stats, scheduled-job status with manual triggers, audit log.
 - **Secure sign-in** — email + password with an emailed 6-digit code, or Google.
-- **Editorial reading experience** — a ruled-grid layout (Geist type, 1px rules, outlined story numbers) in light and dark, a scroll-aware top bar (hairline once you scroll, out of the way while you read down), headlines that wipe into view and copy that inks in word by word. All motion switches off under your device's reduced-motion setting.
+- **Editorial reading experience** — a ruled-grid layout (Geist type, 1px rules, outlined story numbers) in light and dark, Liquid Glass buttons that drift toward the pointer and spring back when pressed, a scroll-aware top bar (hairline once you scroll, out of the way while you read down), headlines that wipe into view and copy that inks in word by word. All motion switches off under your device's reduced-motion setting.
 
 ## Tech stack
 

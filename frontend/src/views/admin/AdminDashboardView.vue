@@ -55,7 +55,7 @@
             <template #controls>
               <select
                 v-model="digestTopicFilter"
-                class="bg-transparent border-b border-[color:var(--rule)] py-1 font-mono-curio text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--signal)]"
+                class="select-glass py-1.5 pl-3 pr-8 font-mono-curio text-[12px]"
               >
                 <option value="">{{ t('admin.common.allBeats') }}</option>
                 <option v-for="topic in allTopics" :key="topic" :value="topic">{{ topicLabel(topic) }}</option>

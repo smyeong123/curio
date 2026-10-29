@@ -15,10 +15,8 @@
       <span class="flex items-baseline gap-3 min-w-0">
         <span class="kicker flex-shrink-0">{{ t('archive.filter.label') }}</span>
         <span
-          class="inline-flex items-center px-3 py-1 text-[11px] font-mono-curio uppercase tracking-[0.14em] border max-w-full truncate"
-          :class="activeTopic
-            ? 'bg-signal text-[color:var(--on-signal)] border-[color:var(--signal)]'
-            : 'bg-ink text-[color:var(--paper)] border-[color:var(--ink)]'"
+          class="btn-glass chip-glass max-w-full overflow-hidden text-ellipsis"
+          :class="activeTopic ? '' : 'btn-glass-ink'"
         >{{ activeTopic ? topicLabel(activeTopic) : t('archive.filter.all') }}</span>
         <span v-if="!activeTopic" class="kicker text-[color:var(--mute)] flex-shrink-0 hidden sm:inline">· {{ t('archive.filter.beatCount', { count: totalActive }) }}</span>
       </span>
@@ -35,18 +33,15 @@
       class="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
       :class="filterOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
     >
-      <div class="overflow-hidden" :inert="!filterOpen">
-        <div class="pt-4 space-y-3">
+      <!-- The clip box reaches past the chips (-mx/px, pb) so their glass
+           shadows aren't cut off while open. -->
+      <div class="overflow-hidden -mx-3" :inert="!filterOpen">
+        <div class="px-3 pt-4 pb-3 space-y-3">
           <div class="flex items-center gap-2">
             <button
               type="button"
               :aria-pressed="!activeTopic"
-              :class="[
-                'px-3 py-1 text-[11px] font-mono-curio uppercase tracking-[0.14em] border transition-colors',
-                !activeTopic
-                  ? 'bg-ink text-[color:var(--paper)] border-[color:var(--ink)]'
-                  : 'bg-transparent text-[color:var(--mute)] border-[color:var(--rule)] hover:text-[color:var(--ink)]'
-              ]"
+              :class="['chip-glass', !activeTopic ? 'btn-glass btn-glass-ink' : 'btn-glass-clear']"
               @click="emit('select', '')"
             >
               {{ t('archive.filter.all') }}
@@ -84,22 +79,15 @@
               class="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
               :class="isGroupOpen(group.id) ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
             >
-              <div class="overflow-hidden" :inert="!isGroupOpen(group.id)">
-                <div class="flex flex-wrap gap-2 pl-0.5 pt-3">
+              <div class="overflow-hidden -mx-3" :inert="!isGroupOpen(group.id)">
+                <div class="flex flex-wrap gap-2 px-3 pt-3 pb-3">
                   <button
                     v-for="item in group.topics"
                     :key="item.name"
                     type="button"
                     :disabled="item.count === 0"
                     :aria-pressed="item.count > 0 ? activeTopic === item.name : undefined"
-                    :class="[
-                      'inline-flex items-baseline gap-1.5 px-3 py-1 text-[11px] font-mono-curio uppercase tracking-[0.14em] border transition-colors',
-                      item.count === 0
-                        ? 'bg-transparent text-[color:var(--mute)] border-[color:var(--rule)] opacity-40 cursor-not-allowed'
-                        : activeTopic === item.name
-                          ? 'bg-signal text-[color:var(--on-signal)] border-[color:var(--signal)]'
-                          : 'bg-transparent text-[color:var(--mute)] border-[color:var(--rule)] hover:text-[color:var(--ink)]'
-                    ]"
+                    :class="['chip-glass gap-1.5', activeTopic === item.name ? 'btn-glass' : 'btn-glass-clear']"
                     @click="item.count > 0 && emit('select', activeTopic === item.name ? '' : item.name)"
                   >
                     {{ topicLabel(item.name) }}
