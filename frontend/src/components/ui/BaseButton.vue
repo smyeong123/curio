@@ -53,7 +53,7 @@ const variantClasses = computed(() => ({
   primary: 'btn-glass',
   secondary: 'btn-glass btn-glass-ink',
   outline: 'btn-glass-clear',
-  ghost: 'rounded-full text-[color:var(--mute)] transition-colors duration-200 hover:bg-[color:var(--glass-clear)] hover:text-[color:var(--ink)]',
+  ghost: 'rounded-full text-[color:var(--mute)] transition-colors duration-200 hover:bg-ink/6 hover:text-[color:var(--ink)]',
   danger: 'btn-glass btn-glass-danger'
 }[props.variant]))
 </script>
