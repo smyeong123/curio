@@ -2,7 +2,7 @@
   <div class="border-t border-[color:var(--rule)] p-4 space-y-2">
     <LanguageSelect variant="row" />
     <button
-      class="w-full flex items-center justify-between px-3 py-2 border border-[color:var(--rule)] hover:bg-paper-deep transition-colors"
+      class="btn-glass-clear w-full flex items-center justify-between py-2 px-4"
       :aria-pressed="isDark"
       :aria-label="t('layout.theme.toggle')"
       @click="emit('toggle-theme')"

@@ -14,7 +14,7 @@
         <select
           id="filter-topic"
           v-model="filters.topic"
-          class="w-full bg-transparent border-b border-[color:var(--rule)] py-1.5 font-display text-[15px] focus:outline-none focus:border-[color:var(--signal)]"
+          class="select-glass w-full py-2 pl-4 pr-9 font-display text-[15px]"
           @change="loadDigests(0)"
         >
           <option value="">{{ t('admin.common.allBeats') }}</option>
@@ -58,7 +58,7 @@
           <select
             id="page-size"
             v-model.number="pageSize"
-            class="bg-transparent border-b border-[color:var(--rule)] font-mono-curio text-[12px] uppercase tracking-[0.14em] focus:outline-none"
+            class="select-glass py-1.5 pl-3 pr-8 font-mono-curio text-[12px] uppercase tracking-[0.14em]"
             @change="loadDigests(0)"
           >
             <option :value="10">10</option>
