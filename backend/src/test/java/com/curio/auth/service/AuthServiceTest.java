@@ -63,10 +63,11 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        challengeService = new EmailVerificationChallengeService(emailVerificationCodePort, emailService);
+        challengeService = new EmailVerificationChallengeService(emailVerificationCodePort, emailService, userPort);
         // @Value fields aren't injected in a plain Mockito unit test — set them by hand.
         ReflectionTestUtils.setField(challengeService, "enabled", true);
         ReflectionTestUtils.setField(challengeService, "maxAttempts", 5);
+        ReflectionTestUtils.setField(challengeService, "maxAccountFailures", 10);
         ReflectionTestUtils.setField(challengeService, "codeLength", 6);
         ReflectionTestUtils.setField(challengeService, "codeTtlMinutes", 10L);
 
@@ -548,7 +549,7 @@ class AuthServiceTest {
 
     @Test
     void resetPassword_updatesPasswordHash_andMarksTokenUsed() {
-        User user = User.builder().id(UUID.randomUUID()).email("r@e.com").emailVerified(false).build();
+        User user = User.builder().id(UUID.randomUUID()).email("r@e.com").emailVerified(false).loginCodeFailures(10).build();
         PasswordResetToken token = PasswordResetToken.builder()
                 .user(user)
                 .expiresAt(LocalDateTime.now().plusHours(1))
@@ -559,6 +560,8 @@ class AuthServiceTest {
         authService.resetPassword("ok", "Newpass123!");
 
         assertThat(user.getPasswordHash()).isEqualTo("NEW_HASH");
+        // A password reset is the recovery path out of a 2FA lockout.
+        verify(userPort).resetLoginCodeFailures(user.getId());
         assertThat(user.getEmailVerified()).isTrue();
         assertThat(token.getUsedAt()).isNotNull();
         verify(userPort).save(user);

@@ -103,7 +103,11 @@
     "delete": "계정 삭제",
     "modalTitle": "계정을 삭제할까요?",
     "confirm": "다이제스트와 퀴즈 기록, 설정이 모두 지워지고 되돌릴 수 없어요.",
-    "deleting": "삭제 중…"
+    "deleting": "삭제 중…",
+    "passwordLabel": "확인을 위해 비밀번호를 입력해 주세요",
+    "googleHint": "Google로 가입한 계정이에요. Google 계정으로 확인하면 삭제돼요.",
+    "confirmGoogle": "Google로 확인하고 삭제",
+    "googleDismissed": "Google 확인 창이 닫혔거나 지금은 열 수 없어요. 잠시 후 다시 시도해 주세요."
   },
   "toasts": {
     "loadFailed": "설정을 불러오지 못했어요",

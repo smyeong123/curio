@@ -1,5 +1,6 @@
 package com.curio.auth.service;
 
+import com.curio.auth.port.in.GoogleReauthUseCase;
 import com.curio.shared.exception.UnauthorizedException;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,7 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class GoogleIdTokenVerifier {
+public class GoogleIdTokenVerifier implements GoogleReauthUseCase {
 
     private static final String TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 
@@ -60,6 +61,18 @@ public class GoogleIdTokenVerifier {
         return new GoogleIdentity(sub, email, asString(claims.get("name")), emailVerified);
     }
 
+    @Override
+    public boolean confirmsAccount(String idToken, String expectedGoogleSub) {
+        if (idToken == null || idToken.isBlank() || expectedGoogleSub == null) {
+            return false;
+        }
+        try {
+            return expectedGoogleSub.equals(verify(idToken).sub());
+        } catch (UnauthorizedException e) {
+            return false;
+        }
+    }
+
     private Map<String, Object> fetchTokenInfo(String idToken) {
         String url = UriComponentsBuilder
                 .fromHttpUrl(TOKENINFO_URL)
@@ -73,7 +86,10 @@ public class GoogleIdTokenVerifier {
             }
             return response;
         } catch (RestClientException ex) {
-            log.warn("Google token verification failed", ex);
+            // Never log the exception itself: its message embeds the request URL,
+            // i.e. the raw ID token. On a timeout/5xx that token is still valid and
+            // would let anyone with log or Sentry access sign in as the user.
+            log.warn("Google token verification failed: {}", ex.getClass().getSimpleName());
             throw new UnauthorizedException("Invalid Google token");
         }
     }

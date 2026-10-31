@@ -1,5 +1,6 @@
 package com.curio.user.service;
 
+import com.curio.auth.port.in.GoogleReauthUseCase;
 import com.curio.auth.port.out.RefreshTokenPort;
 import com.curio.shared.security.UnsubscribeTokenService;
 import com.curio.shared.config.TopicConstants;
@@ -31,6 +32,7 @@ public class UserService implements UserUseCase {
     private final UnsubscribeTokenService unsubscribeTokenService;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenPort refreshTokenPort;
+    private final GoogleReauthUseCase googleReauth;
 
     @Transactional(readOnly = true)
     public UserResponse getProfile(UUID userId) {
@@ -137,9 +139,19 @@ public class UserService implements UserUseCase {
     }
 
     @Transactional
-    public void deleteAccount(UUID userId) {
+    public void deleteAccount(UUID userId, String currentPassword, String googleIdToken) {
         User user = userPort.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        // Deletion is irreversible: a bearer token alone (15 min, e.g. lifted by an
+        // XSS or a shared machine) must not be enough. Prove the account again.
+        if (user.getPasswordHash() != null) {
+            if (currentPassword == null
+                    || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+                throw new UnauthorizedException("Current password is incorrect");
+            }
+        } else if (!googleReauth.confirmsAccount(googleIdToken, user.getGoogleId())) {
+            throw new UnauthorizedException("Please confirm with Google to delete your account");
+        }
         userPort.delete(user);
     }
 

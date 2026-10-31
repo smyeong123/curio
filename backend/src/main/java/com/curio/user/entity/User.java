@@ -47,6 +47,16 @@ public class User {
     @Builder.Default
     private Boolean emailVerified = false;
 
+    /**
+     * Wrong email-2FA codes since the last successful verification or password
+     * reset, across ALL login challenges. Mutated only through atomic UPDATEs
+     * in {@code UserRepository} (see V30) — read-only to entity saves, so an
+     * unrelated save of a stale User can't overwrite a concurrent increment.
+     */
+    @Column(name = "login_code_failures", nullable = false, insertable = false, updatable = false)
+    @Builder.Default
+    private Integer loginCodeFailures = 0;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

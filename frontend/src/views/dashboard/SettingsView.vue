@@ -261,21 +261,36 @@
       </section>
     </div>
 
-    <BaseModal :show="showDeleteModal" :title="t('settings.danger.modalTitle')" @close="showDeleteModal = false">
+    <BaseModal :show="showDeleteModal" :title="t('settings.danger.modalTitle')" @close="closeDeleteModal">
       <p class="font-body-curio text-[14.5px] text-[color:var(--ink-soft)] mb-6 leading-relaxed">
         {{ t('settings.danger.confirm') }}
       </p>
-      <div class="flex gap-3 justify-end">
-        <button class="btn-editorial-ghost" @click="showDeleteModal = false">{{ t('common.actions.cancel') }}</button>
-        <button
-          class="inline-flex items-center gap-3 bg-red-600 text-white px-5 py-3 font-mono-curio text-[12px] uppercase tracking-[0.14em] hover:bg-red-700 transition-colors disabled:opacity-50"
-          :disabled="deleting"
-          @click="handleDelete"
-        >
-          <span v-if="deleting">{{ t('settings.danger.deleting') }}</span>
-          <span v-else>{{ t('settings.danger.delete') }}</span>
-        </button>
-      </div>
+      <form @submit.prevent="handleDelete">
+        <!-- Deletion re-authenticates: a signed-in tab alone isn't enough. -->
+        <BaseInput
+          v-if="!isOAuthUser"
+          v-model="deletePassword"
+          type="password"
+          :label="t('settings.danger.passwordLabel')"
+          id="settings-delete-password"
+          class="mb-6"
+        />
+        <p v-else class="font-body-curio text-[13.5px] text-[color:var(--ink-soft)] mb-6 leading-relaxed">
+          {{ t('settings.danger.googleHint') }}
+        </p>
+        <div class="flex gap-3 justify-end">
+          <button type="button" class="btn-editorial-ghost" @click="closeDeleteModal">{{ t('common.actions.cancel') }}</button>
+          <button
+            type="submit"
+            class="inline-flex items-center gap-3 bg-red-600 text-white px-5 py-3 font-mono-curio text-[12px] uppercase tracking-[0.14em] hover:bg-red-700 transition-colors disabled:opacity-50"
+            :disabled="deleting || (!isOAuthUser && !deletePassword)"
+          >
+            <span v-if="deleting">{{ t('settings.danger.deleting') }}</span>
+            <span v-else-if="isOAuthUser">{{ t('settings.danger.confirmGoogle') }}</span>
+            <span v-else>{{ t('settings.danger.delete') }}</span>
+          </button>
+        </div>
+      </form>
     </BaseModal>
   </div>
 </template>
@@ -302,6 +317,7 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import { TOPIC_HIERARCHY } from '@/data/topics'
 import { detectBrowserTimezone } from '@/utils/timezone'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { requestGoogleCredential, GoogleCredentialError } from '@/utils/googleCredential'
 
 const userStore = useUserStore()
 const authStore = useAuthStore()
@@ -404,6 +420,7 @@ const { selectedTopics, toggleTopic, expandedDomains, toggleDomain, domainCount 
 const savingPreferences = ref(false)
 
 const showDeleteModal = ref(false)
+const deletePassword = ref('')
 const deleting = ref(false)
 
 onMounted(async () => {
@@ -476,10 +493,32 @@ const handlePreferencesUpdate = async () => {
   }
 }
 
+const closeDeleteModal = () => {
+  showDeleteModal.value = false
+  deletePassword.value = ''
+}
+
 const handleDelete = async () => {
   deleting.value = true
   try {
-    await api.user.deleteAccount()
+    let proof: { currentPassword?: string; googleIdToken?: string }
+    if (isOAuthUser.value) {
+      try {
+        proof = { googleIdToken: await requestGoogleCredential() }
+      } catch (err: unknown) {
+        const reason = err instanceof GoogleCredentialError ? err.reason : 'no_credential'
+        if (reason === 'not_configured') error(t('auth.login.errors.googleNotConfigured'))
+        else if (reason === 'sdk_missing') error(t('auth.login.errors.googleSdk'))
+        else if (reason === 'no_credential') error(t('auth.login.errors.googleFailed'))
+        // Google cools One Tap down after a dismissal, so say why nothing happened.
+        else error(t('settings.danger.googleDismissed'))
+        return
+      }
+    } else {
+      proof = { currentPassword: deletePassword.value }
+    }
+    await api.user.deleteAccount(proof)
+    deletePassword.value = ''
     authStore.clearTokens()
     success(t('settings.toasts.accountDeleted'))
     router.push({ name: 'home' })

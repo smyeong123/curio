@@ -103,7 +103,11 @@
     "delete": "Delete my account",
     "modalTitle": "Delete account",
     "confirm": "Are you sure you want to delete your account? All your editions, quiz history, and preferences will be permanently removed.",
-    "deleting": "Deleting…"
+    "deleting": "Deleting…",
+    "passwordLabel": "Enter your password to confirm",
+    "googleHint": "You signed up with Google. Confirm with your Google account to delete.",
+    "confirmGoogle": "Confirm with Google and delete",
+    "googleDismissed": "Google confirmation was closed or is unavailable. Try again in a moment."
   },
   "toasts": {
     "loadFailed": "Failed to load settings",

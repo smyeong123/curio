@@ -256,6 +256,8 @@ public class AuthService implements AuthUseCase {
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setEmailVerified(true);
         userPort.save(user);
+        // Owning the inbox is the recovery path out of a 2FA lockout.
+        userPort.resetLoginCodeFailures(user.getId());
 
         // Revoke all sessions so a stolen refresh token can't survive account recovery
         refreshTokenPort.deleteByUserId(user.getId());

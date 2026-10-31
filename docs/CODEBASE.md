@@ -46,7 +46,7 @@ Curio is an AI-powered personalized news service. Each day it fetches news artic
 | Java | 21 | Runtime |
 | Spring Boot | 3.5 | Framework (Web, Data JPA, Security, Validation, Actuator) |
 | jjwt | 0.12.6 | JWT access tokens |
-| PostgreSQL | 16 | Primary DB, Flyway migrations (V1–V29) |
+| PostgreSQL | 16 | Primary DB, Flyway migrations (V1–V30) |
 | Redis | 7 | AI summary cache (12 h TTL) + job-status registry |
 | Resilience4j | 2.2 | Circuit breaker + bulkhead around AI calls |
 | ShedLock | 5.10 | Distributed scheduler locking |
@@ -170,7 +170,7 @@ curio/
 │       │       ├── application-dev.yml
 │       │       ├── application-prod.yml
 │       │       ├── application-test.yml
-│       │       ├── db/migration/    # V1-V29 Flyway SQL scripts
+│       │       ├── db/migration/    # V1-V30 Flyway SQL scripts
 │       │       ├── messages.properties      # email chrome, English (digest + auth mails: subject, labels, date patterns)
 │       │       ├── messages_ko.properties   # same keys, Korean edition
 │       │       └── templates/
@@ -314,7 +314,7 @@ Base URL: `/api/v1`
 | PUT | `/me` | JWT | `{ fullName?, deliveryEnabled? }` | `UserResponse` |
 | GET | `/preferences` | JWT | - | `{ topics: string[], timezone, deliveryHour, timezoneAuto, language }` |
 | PUT | `/preferences` | JWT | `PreferencesRequest { topics }` | `{ topics }` |
-| DELETE | `/me` | JWT | - | 200 empty |
+| DELETE | `/me` | JWT | `{ currentPassword }` (password accounts) or `{ googleIdToken }` (Google-only: fresh One Tap token for the same Google account) | 200 empty; 401 on failed re-auth; 429 after 5 tries / 5 min per user (bucket shared with `PUT /me/password`) |
 | GET | `/unsubscribe?token=` | Public | - | HTML string |
 
 #### NewsController (`/api/v1/news`)
@@ -397,6 +397,7 @@ This is a BYOK (Bring Your Own Key) store — users supply their own LLM provide
 | `is_admin` | BOOLEAN | DEFAULT false | No `role` column -- admin status is a boolean |
 | `delivery_enabled` | BOOLEAN | DEFAULT true | |
 | `email_verified` | BOOLEAN | DEFAULT false | Auto-set `true` on register |
+| `login_code_failures` | INTEGER | NOT NULL DEFAULT 0 | Wrong 2FA codes across ALL login challenges (V30); at `auth.email-verification.max-account-failures` (default 10) no new code is issued until a password reset; reset to 0 on successful verify or password reset |
 | `created_at` | TIMESTAMP | @PrePersist | |
 | `updated_at` | TIMESTAMP | @PrePersist, @PreUpdate | |
 
@@ -531,6 +532,7 @@ Indexes: `idx_audit_log_actor_id` (actor_id), `idx_audit_log_action` (action), `
 | V27 | `normalize_emails_lowercase` (Folds existing emails to trimmed-lowercase and adds a `lower(email)` unique index — one account per real mailbox regardless of case; backs `EmailNormalizer`) |
 | V28 | `add_language_to_user_preferences` (Adds `language` VARCHAR(8) NOT NULL DEFAULT 'en' + CHECK ('en','ko') to user_preferences — the edition the AI writes the digest/quiz/email in) |
 | V29 | `digest_day_kst_and_default_delivery_hour` (Replaces V23's UTC-day index with `idx_digests_user_digest_day` on `curio_digest_day(generated_at)` — one digest per user per 05:00-KST digest day; dedupes any pair sharing a digest day, keeping the newest; moves every `delivery_hour = 8` to the new default 6) |
+| V30 | `add_login_code_failures_to_users` (`users.login_code_failures` — account-wide 2FA wrong-code budget, so re-logging in can't refill the per-challenge 5 attempts) |
 
 ### Service Layer
 
@@ -773,7 +775,7 @@ Single Axios instance with:
 | PUT | `api.user.updateProfile(data)` | `/user/me` |
 | GET | `api.user.getPreferences()` | `/user/preferences` |
 | PUT | `api.user.updatePreferences(topics, delivery?)` | `/user/preferences` |
-| DELETE | `api.user.deleteAccount()` | `/user/me` |
+| DELETE | `api.user.deleteAccount(proof)` | `/user/me` |
 | PUT | `api.user.changePassword(currentPassword, newPassword)` | `/user/me/password` |
 | GET | `api.apiKeys.list()` | `/user/api-keys` |
 | POST | `api.apiKeys.save(provider, apiKey, currentPassword)` | `/user/api-keys` |

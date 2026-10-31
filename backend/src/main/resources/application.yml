@@ -65,6 +65,9 @@ auth:
   email-verification:
     enabled: ${AUTH_EMAIL_VERIFICATION_ENABLED:true}
     max-attempts: ${AUTH_EMAIL_VERIFICATION_MAX_ATTEMPTS:5}
+    # Wrong-code budget per ACCOUNT across all challenges (V30); re-login does
+    # not refill it — only a successful verify or a password reset does.
+    max-account-failures: ${AUTH_EMAIL_VERIFICATION_MAX_ACCOUNT_FAILURES:10}
     code-length: ${AUTH_EMAIL_VERIFICATION_CODE_LENGTH:6}
     code-ttl-minutes: ${AUTH_EMAIL_VERIFICATION_CODE_TTL_MINUTES:10}
 

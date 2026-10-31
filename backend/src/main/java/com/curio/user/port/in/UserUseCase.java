@@ -24,7 +24,11 @@ public interface UserUseCase {
 
     void changePassword(UUID userId, String currentPassword, String newPassword);
 
-    void deleteAccount(UUID userId);
+    /**
+     * Deletes the account after re-authentication: the current password for
+     * password accounts, a fresh Google ID token for Google-only accounts.
+     */
+    void deleteAccount(UUID userId, String currentPassword, String googleIdToken);
 
     void unsubscribe(UUID userId);
 

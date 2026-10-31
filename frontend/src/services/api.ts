@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
 import type {
   User, AuthResponse, LoginResponse, VerifyCodeResponse, ResendCodeResponse, RegisterRequest,
-  UpdateProfileRequest, PreferencesResponse, DeliverySettings, ApiKeySummary
+  UpdateProfileRequest, PreferencesResponse, DeliverySettings, ApiKeySummary, DeleteAccountProof
 } from '@/types/user'
 import type { Digest } from '@/types/news'
 import type { Quiz, QuizSubmitResponse, QuizAttempt } from '@/types/quiz'
@@ -146,7 +146,8 @@ export const api = {
     getPreferences: () => apiClient.get<PreferencesResponse>('/user/preferences'),
     updatePreferences: (topics: string[], delivery?: DeliverySettings) =>
       apiClient.put<PreferencesResponse>('/user/preferences', { topics, ...(delivery ?? {}) }),
-    deleteAccount: () => apiClient.delete('/user/me'),
+    // Re-auth is required: the password, or a fresh Google ID token for Google-only accounts.
+    deleteAccount: (proof: DeleteAccountProof) => apiClient.delete('/user/me', { data: proof }),
     changePassword: (currentPassword: string, newPassword: string) =>
       apiClient.put('/user/me/password', { currentPassword, newPassword }),
   },

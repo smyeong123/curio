@@ -1,6 +1,8 @@
 package com.curio.user.controller;
 
+import com.curio.shared.security.InMemoryRateLimiter;
 import com.curio.user.dto.ChangePasswordRequest;
+import com.curio.user.dto.DeleteAccountRequest;
 import com.curio.user.dto.PreferencesRequest;
 import com.curio.user.dto.PreferencesResponse;
 import com.curio.user.dto.UpdateProfileRequest;
@@ -21,6 +23,10 @@ import org.springframework.web.bind.annotation.*;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
+import java.time.Duration;
+import java.util.Map;
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/v1/user")
 @RequiredArgsConstructor
@@ -30,6 +36,17 @@ public class UserController {
     private final UserUseCase userService;
     /** Renders the server-side unsubscribe pages (templates/unsubscribe-*.html). */
     private final TemplateEngine templateEngine;
+    private final InMemoryRateLimiter rateLimiter;
+
+    /**
+     * Password/Google re-auth on change-password and delete-account: 5 tries per
+     * 5 min per USER. RateLimitingFilter's per-IP bucket alone lets a stolen
+     * access token guess the password from many IPs (same reasoning as BYOK).
+     */
+    private static final int REAUTH_CAPACITY = 5;
+    private static final Duration REAUTH_REFILL = Duration.ofMinutes(5);
+    private static final Map<String, String> TOO_MANY_REAUTH =
+            Map.of("message", "Too many attempts — wait a few minutes and try again");
 
     /** Where the pages' "Curio." wordmark links: the site, not this API origin. */
     @Value("${app.frontend-url}")
@@ -67,17 +84,26 @@ public class UserController {
 
     @PutMapping("/me/password")
     @Operation(summary = "Change user password")
-    public ResponseEntity<Void> changePassword(
+    public ResponseEntity<?> changePassword(
             @AuthenticationPrincipal User user,
             @Valid @RequestBody ChangePasswordRequest request) {
+        if (!allowReauth(user.getId())) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(TOO_MANY_REAUTH);
+        }
         userService.changePassword(user.getId(), request.getCurrentPassword(), request.getNewPassword());
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/me")
     @Operation(summary = "Delete user account")
-    public ResponseEntity<Void> deleteAccount(@AuthenticationPrincipal User user) {
-        userService.deleteAccount(user.getId());
+    public ResponseEntity<?> deleteAccount(
+            @AuthenticationPrincipal User user,
+            @RequestBody(required = false) DeleteAccountRequest request) {
+        if (!allowReauth(user.getId())) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(TOO_MANY_REAUTH);
+        }
+        DeleteAccountRequest proof = request != null ? request : new DeleteAccountRequest();
+        userService.deleteAccount(user.getId(), proof.getCurrentPassword(), proof.getGoogleIdToken());
         return ResponseEntity.ok().build();
     }
 
@@ -109,6 +135,11 @@ public class UserController {
         } catch (IllegalArgumentException | ResourceNotFoundException ex) {
             return invalidUnsubscribeLink();
         }
+    }
+
+    /** One shared per-user bucket: both endpoints guess the same secret. */
+    private boolean allowReauth(UUID userId) {
+        return rateLimiter.tryConsume("account-reauth:" + userId, REAUTH_CAPACITY, REAUTH_REFILL);
     }
 
     private ResponseEntity<String> invalidUnsubscribeLink() {
