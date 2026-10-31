@@ -39,6 +39,15 @@ public interface UserPort {
 
     void delete(User user);
 
+    /**
+     * Atomically records one wrong email-2FA code for the account and returns
+     * the new total (across all login challenges).
+     */
+    int incrementLoginCodeFailures(UUID id);
+
+    /** Clears the account's wrong-code total (successful verification or password reset). */
+    void resetLoginCodeFailures(UUID id);
+
     /** Obtain a managed reference without issuing a SELECT; used for association assignment. */
     User getReferenceById(UUID id);
 }

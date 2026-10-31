@@ -75,6 +75,17 @@ public class UserJpaAdapter implements UserPort {
     }
 
     @Override
+    public int incrementLoginCodeFailures(UUID id) {
+        repository.incrementLoginCodeFailures(id);
+        return repository.findLoginCodeFailures(id).orElse(0);
+    }
+
+    @Override
+    public void resetLoginCodeFailures(UUID id) {
+        repository.resetLoginCodeFailures(id);
+    }
+
+    @Override
     public User getReferenceById(UUID id) {
         return repository.getReferenceById(id);
     }

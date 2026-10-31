@@ -4,8 +4,10 @@ import com.curio.auth.dto.LoginResponse;
 import com.curio.auth.dto.ResendCodeResponse;
 import com.curio.auth.entity.EmailVerificationCode;
 import com.curio.auth.port.out.EmailVerificationCodePort;
+import com.curio.shared.exception.UnauthorizedException;
 import com.curio.shared.port.in.EmailUseCase;
 import com.curio.user.entity.User;
+import com.curio.user.port.out.UserPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,13 +42,25 @@ public class EmailVerificationChallengeService {
 
     private final EmailVerificationCodePort emailVerificationCodePort;
     private final EmailUseCase emailService;
+    private final UserPort userPort;
     private final SecureRandom secureRandom = new SecureRandom();
+
+    static final String LOCKED_MESSAGE =
+            "Too many incorrect codes. For your security, reset your password to sign in.";
 
     @Value("${auth.email-verification.enabled:true}")
     private boolean enabled;
 
     @Value("${auth.email-verification.max-attempts:5}")
     private int maxAttempts;
+
+    /**
+     * Wrong codes an ACCOUNT may submit across all of its login challenges before
+     * further codes are refused until a password reset. The per-challenge budget
+     * alone is not enough: every new password login starts a fresh challenge.
+     */
+    @Value("${auth.email-verification.max-account-failures:10}")
+    private int maxAccountFailures;
 
     @Value("${auth.email-verification.code-length:6}")
     private int codeLength;
@@ -87,6 +101,12 @@ public class EmailVerificationChallengeService {
      */
     @Transactional
     public LoginResponse start(User user) {
+        if (accountLocked(user)) {
+            // Only reachable after the password already checked out, so this
+            // reveals nothing to someone without the password.
+            log.warn("Login code refused for user {}: account 2FA failure budget exhausted", user.getId());
+            throw new UnauthorizedException(LOCKED_MESSAGE);
+        }
         emailVerificationCodePort.deleteByUserId(user.getId());
 
         String challengeId = UUID.randomUUID() + "." + UUID.randomUUID();
@@ -133,6 +153,11 @@ public class EmailVerificationChallengeService {
                     "This verification code has expired. Please sign in again.", null);
         }
 
+        if (accountLocked(verification.getUser())) {
+            emailVerificationCodePort.markConsumed(verification.getId());
+            return new Verification(Verification.Status.LOCKED, 0, true, LOCKED_MESSAGE, null);
+        }
+
         // Constant-time compare so a wrong code can't be guessed via timing.
         boolean codeMatches = MessageDigest.isEqual(
                 verification.getCodeHash().getBytes(StandardCharsets.UTF_8),
@@ -141,6 +166,9 @@ public class EmailVerificationChallengeService {
         if (codeMatches) {
             User user = verification.getUser();
             emailVerificationCodePort.deleteByUserId(user.getId());
+            if (user.getLoginCodeFailures() != null && user.getLoginCodeFailures() > 0) {
+                userPort.resetLoginCodeFailures(user.getId());
+            }
             log.info("Login verification succeeded for user {}", user.getId());
             return new Verification(Verification.Status.VERIFIED, verification.getAttemptsRemaining(),
                     false, "Verified.", user);
@@ -150,12 +178,15 @@ public class EmailVerificationChallengeService {
         // read-modify-write cycle and consume more than the configured budget.
         UUID lockedUserId = verification.getUser().getId();
         int remaining = emailVerificationCodePort.decrementAttempts(verification.getId());
+        // Account-wide total, so re-logging in for a fresh challenge doesn't
+        // refill the guess budget (atomic, like the per-challenge decrement).
+        int accountFailures = userPort.incrementLoginCodeFailures(lockedUserId);
 
-        if (remaining <= 0) {
+        if (remaining <= 0 || accountFailures >= maxAccountFailures) {
             emailVerificationCodePort.markConsumed(verification.getId());
-            log.warn("Login verification locked after too many attempts for user {}", lockedUserId);
-            return new Verification(Verification.Status.LOCKED, 0, true,
-                    "Too many incorrect codes. For your security, reset your password to sign in.", null);
+            log.warn("Login verification locked for user {} (challenge attempts left {}, account failures {})",
+                    lockedUserId, Math.max(remaining, 0), accountFailures);
+            return new Verification(Verification.Status.LOCKED, 0, true, LOCKED_MESSAGE, null);
         }
 
         return new Verification(Verification.Status.INVALID_CODE, remaining, false,
@@ -210,6 +241,11 @@ public class EmailVerificationChallengeService {
             log.error("Failed to send login verification code to {} — challenge still issued",
                     user.getEmail(), e);
         }
+    }
+
+    private boolean accountLocked(User user) {
+        Integer failures = user.getLoginCodeFailures();
+        return failures != null && failures >= maxAccountFailures;
     }
 
     private String generateNumericCode() {

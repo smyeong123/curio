@@ -20,7 +20,7 @@ is, **why** it's needed, and **how** it works.
 | `REDIS_PASSWORD` | Redis | ✅ | cache auth |
 | `JWT_SECRET` / `JWT_REFRESH_SECRET` | Auth | ✅ | token signing keys |
 | `JWT_REFRESH_EXPIRATION` | Auth | optional (default `10800000` ms = 3 h) | sliding idle-timeout window for refresh tokens |
-| `AUTH_EMAIL_VERIFICATION_*` (4) | Auth | optional | login 2FA code step (default on) |
+| `AUTH_EMAIL_VERIFICATION_*` (5) | Auth | optional | login 2FA code step (default on) |
 | `GOOGLE_CLIENT_ID` | OAuth | optional | Google sign-in (ID-token flow — no secret); empty disables it |
 | `AI_PROVIDER` + `*_API_KEY` | AI | ✅ (one key) | claude \| gemini \| openai |
 | `RESEND_API_KEY` / `RESEND_WEBHOOK_SECRET` | Email | ✅ | send + verify webhooks |
@@ -97,6 +97,7 @@ never gated by this. All four variables are optional — the defaults below appl
 |---|---|---|
 | `AUTH_EMAIL_VERIFICATION_ENABLED` | `true` | Toggle the whole code step (set `false` for single-step login) |
 | `AUTH_EMAIL_VERIFICATION_MAX_ATTEMPTS` | `5` | Wrong-code budget per challenge; at 0 the challenge locks and the client offers a password reset |
+| `AUTH_EMAIL_VERIFICATION_MAX_ACCOUNT_FAILURES` | `10` | Wrong-code budget per ACCOUNT across all challenges (re-login does not refill it); once spent, login issues no code until a password reset |
 | `AUTH_EMAIL_VERIFICATION_CODE_LENGTH` | `6` | Digits in the code |
 | `AUTH_EMAIL_VERIFICATION_CODE_TTL_MINUTES` | `10` | Code lifetime |
 

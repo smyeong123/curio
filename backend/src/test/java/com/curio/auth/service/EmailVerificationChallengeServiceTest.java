@@ -5,7 +5,9 @@ import com.curio.auth.dto.ResendCodeResponse;
 import com.curio.auth.entity.EmailVerificationCode;
 import com.curio.auth.port.out.EmailVerificationCodePort;
 import com.curio.auth.service.EmailVerificationChallengeService.Verification;
+import com.curio.shared.exception.UnauthorizedException;
 import com.curio.shared.port.in.EmailUseCase;
+import com.curio.user.port.out.UserPort;
 import com.curio.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +23,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -36,15 +39,17 @@ class EmailVerificationChallengeServiceTest {
 
     @Mock private EmailVerificationCodePort emailVerificationCodePort;
     @Mock private EmailUseCase emailService;
+    @Mock private UserPort userPort;
 
     private EmailVerificationChallengeService service;
 
     @BeforeEach
     void setUp() {
-        service = new EmailVerificationChallengeService(emailVerificationCodePort, emailService);
+        service = new EmailVerificationChallengeService(emailVerificationCodePort, emailService, userPort);
         // @Value fields aren't injected in a plain Mockito unit test — set them by hand.
         ReflectionTestUtils.setField(service, "enabled", true);
         ReflectionTestUtils.setField(service, "maxAttempts", 5);
+        ReflectionTestUtils.setField(service, "maxAccountFailures", 10);
         ReflectionTestUtils.setField(service, "codeLength", 6);
         ReflectionTestUtils.setField(service, "codeTtlMinutes", 10L);
     }
@@ -279,5 +284,79 @@ class EmailVerificationChallengeServiceTest {
         assertThat(response.getStatus()).isEqualTo("EXPIRED");
         verify(emailVerificationCodePort, never()).save(any());
         verify(emailService, never()).sendLoginVerificationEmail(any(), anyString(), anyLong());
+    }
+
+    // --- account-wide failure budget (re-login must not refill the guess budget) ---
+
+    @Test
+    void verify_locksOnAccountBudget_evenWhenThisChallengeHasAttemptsLeft() {
+        // Attacker holding the password has burned 9 guesses over earlier challenges,
+        // then re-logged in for a fresh 5-attempt challenge.
+        User user = user();
+        user.setLoginCodeFailures(9);
+        EmailVerificationCode vc = challenge(user, "123456", 5);
+        when(emailVerificationCodePort.findByChallengeHash(anyString())).thenReturn(Optional.of(vc));
+        when(emailVerificationCodePort.decrementAttempts(vc.getId())).thenReturn(4);
+        when(userPort.incrementLoginCodeFailures(user.getId())).thenReturn(10);
+
+        Verification outcome = service.verify("raw-challenge", "000000");
+
+        assertThat(outcome.status()).isEqualTo(Verification.Status.LOCKED);
+        assertThat(outcome.resetAvailable()).isTrue();
+        verify(emailVerificationCodePort).markConsumed(vc.getId());
+    }
+
+    @Test
+    void verify_refusesEvenTheCorrectCode_onceAccountIsLocked() {
+        User user = user();
+        user.setLoginCodeFailures(10);
+        EmailVerificationCode vc = challenge(user, "123456", 5);
+        when(emailVerificationCodePort.findByChallengeHash(anyString())).thenReturn(Optional.of(vc));
+
+        Verification outcome = service.verify("raw-challenge", "123456");
+
+        assertThat(outcome.status()).isEqualTo(Verification.Status.LOCKED);
+        assertThat(outcome.user()).isNull();
+        verify(emailVerificationCodePort, never()).decrementAttempts(any());
+    }
+
+    @Test
+    void start_refusesNewCode_andSendsNoEmail_onceAccountIsLocked() {
+        User user = user();
+        user.setLoginCodeFailures(10);
+
+        assertThatThrownBy(() -> service.start(user))
+                .isInstanceOf(UnauthorizedException.class)
+                .hasMessageContaining("reset your password");
+
+        verify(emailVerificationCodePort, never()).save(any());
+        verify(emailService, never()).sendLoginVerificationEmail(any(), anyString(), anyLong());
+    }
+
+    @Test
+    void verify_correctCode_clearsAccountFailures() {
+        User user = user();
+        user.setLoginCodeFailures(3);
+        EmailVerificationCode vc = challenge(user, "123456", 5);
+        when(emailVerificationCodePort.findByChallengeHash(anyString())).thenReturn(Optional.of(vc));
+
+        Verification outcome = service.verify("raw-challenge", "123456");
+
+        assertThat(outcome.verified()).isTrue();
+        verify(userPort).resetLoginCodeFailures(user.getId());
+    }
+
+    @Test
+    void verify_wrongCode_alwaysCountsAgainstAccount() {
+        User user = user();
+        EmailVerificationCode vc = challenge(user, "123456", 5);
+        when(emailVerificationCodePort.findByChallengeHash(anyString())).thenReturn(Optional.of(vc));
+        when(emailVerificationCodePort.decrementAttempts(vc.getId())).thenReturn(4);
+        when(userPort.incrementLoginCodeFailures(user.getId())).thenReturn(1);
+
+        Verification outcome = service.verify("raw-challenge", "000000");
+
+        assertThat(outcome.status()).isEqualTo(Verification.Status.INVALID_CODE);
+        verify(userPort).incrementLoginCodeFailures(user.getId());
     }
 }
