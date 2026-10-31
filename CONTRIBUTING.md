@@ -106,7 +106,8 @@ server: `npx cypress run` (see `frontend/tests/e2e/`).
 
 ## Code conventions
 
-The full list lives in [`CLAUDE.md`](./CLAUDE.md) and `docs/`. The ones reviewers
+The architecture rules live in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md), and the
+file, endpoint and schema reference in [`docs/CODEBASE.md`](./docs/CODEBASE.md). The ones reviewers
 check most often:
 
 **Backend**
