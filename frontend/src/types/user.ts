@@ -9,6 +9,13 @@ export interface User {
   hasPassword: boolean
 }
 
+// Proof of identity for DELETE /user/me: password accounts send currentPassword,
+// Google-only accounts send a fresh googleIdToken.
+export interface DeleteAccountProof {
+  currentPassword?: string
+  googleIdToken?: string
+}
+
 export interface RegisterRequest {
   email: string
   password: string

@@ -22,7 +22,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, org.springframework.boot.test.system.OutputCaptureExtension.class})
 class GoogleIdTokenVerifierTest {
 
     private static final String CLIENT_ID = "my-client-id.apps.googleusercontent.com";
@@ -171,5 +171,41 @@ class GoogleIdTokenVerifierTest {
         assertThatThrownBy(() -> verifier.verify("id-token"))
                 .isInstanceOf(UnauthorizedException.class)
                 .hasMessage("Invalid Google token");
+    }
+
+    @Test
+    void verify_neverLogsTheRawToken_whenGoogleTimesOut(org.springframework.boot.test.system.CapturedOutput output) {
+        // On a timeout the token is still VALID; RestTemplate's exception message
+        // embeds the full request URL (…?id_token=<token>). Logging it would put a
+        // replayable login credential into logs and Sentry.
+        when(restTemplate.getForObject(anyString(), eq(Map.class)))
+                .thenThrow(new ResourceAccessException(
+                        "I/O error on GET request for \"https://oauth2.googleapis.com/tokeninfo?id_token=LIVE-SECRET-TOKEN\": Read timed out"));
+
+        assertThatThrownBy(() -> verifier.verify("LIVE-SECRET-TOKEN"))
+                .isInstanceOf(UnauthorizedException.class);
+        assertThat(output.getAll()).doesNotContain("LIVE-SECRET-TOKEN");
+    }
+
+    @Test
+    void confirmsAccount_trueOnlyForTheSameGoogleAccount() {
+        googleReturns(tokenInfo(CLIENT_ID, "https://accounts.google.com"));
+
+        assertThat(verifier.confirmsAccount("id-token", "google-sub-123")).isTrue();
+        assertThat(verifier.confirmsAccount("id-token", "someone-else")).isFalse();
+    }
+
+    @Test
+    void confirmsAccount_falseForMissingToken_withoutCallingGoogle() {
+        assertThat(verifier.confirmsAccount(null, "google-sub-123")).isFalse();
+        assertThat(verifier.confirmsAccount("  ", "google-sub-123")).isFalse();
+        org.mockito.Mockito.verifyNoInteractions(restTemplate);
+    }
+
+    @Test
+    void confirmsAccount_falseWhenGoogleRejectsTheToken() {
+        googleReturns(tokenInfo("another-app", "https://accounts.google.com"));
+
+        assertThat(verifier.confirmsAccount("id-token", "google-sub-123")).isFalse();
     }
 }

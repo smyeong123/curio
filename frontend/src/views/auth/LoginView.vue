@@ -73,6 +73,7 @@ import AuthColophon from '@/components/auth/AuthColophon.vue'
 import LoginForm from '@/components/auth/LoginForm.vue'
 import { safeRedirectPath } from '@/utils/safeUrl'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { requestGoogleCredential, GoogleCredentialError } from '@/utils/googleCredential'
 
 const { t, tm, rt } = useI18n()
 const authStore = useAuthStore()
@@ -107,46 +108,29 @@ const handleLogin = async (email: string, password: string) => {
   }
 }
 
-const handleGoogleLogin = () => {
+const handleGoogleLogin = async () => {
   serverError.value = ''
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-
-  if (!googleClientId || googleClientId === 'your-google-client-id') {
-    error(t('auth.login.errors.googleNotConfigured'))
+  let credential: string
+  try {
+    loading.value = true
+    credential = await requestGoogleCredential()
+  } catch (err: unknown) {
+    loading.value = false
+    const reason = err instanceof GoogleCredentialError ? err.reason : 'no_credential'
+    if (reason === 'not_configured') error(t('auth.login.errors.googleNotConfigured'))
+    else if (reason === 'sdk_missing') error(t('auth.login.errors.googleSdk'))
+    else if (reason === 'no_credential') serverError.value = t('auth.login.errors.googleFailed')
+    // 'dismissed': the user closed One Tap — nothing to report.
     return
   }
-
-  if (!window.google?.accounts?.id) {
-    error(t('auth.login.errors.googleSdk'))
-    return
+  try {
+    await authStore.googleLogin(credential)
+    success(t('auth.login.toast.welcome'))
+    router.push(safeRedirectPath(route.query.redirect) || { name: 'archive' })
+  } catch (err: unknown) {
+    serverError.value = getApiErrorMessage(err, t('auth.login.errors.googleFailed'))
+  } finally {
+    loading.value = false
   }
-
-  loading.value = true
-  window.google.accounts.id.initialize({
-    client_id: googleClientId,
-    callback: async (response: { credential?: string }) => {
-      const credential = response.credential
-      if (!credential) {
-        loading.value = false
-        serverError.value = t('auth.login.errors.googleFailed')
-        return
-      }
-      try {
-        await authStore.googleLogin(credential)
-        success(t('auth.login.toast.welcome'))
-        router.push(safeRedirectPath(route.query.redirect) || { name: 'archive' })
-      } catch (err: unknown) {
-        serverError.value = getApiErrorMessage(err, t('auth.login.errors.googleFailed'))
-      } finally {
-        loading.value = false
-      }
-    },
-  })
-  window.google.accounts.id.prompt((notification: unknown) => {
-    const n = notification as { isNotDisplayed?: () => boolean; isSkippedMoment?: () => boolean }
-    if (n?.isNotDisplayed?.() || n?.isSkippedMoment?.()) {
-      loading.value = false
-    }
-  })
 }
 </script>

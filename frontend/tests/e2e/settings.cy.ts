@@ -230,9 +230,12 @@ describe('Settings', () => {
     visitSettings()
 
     cy.contains('button', 'Delete my account').click()
+    // Re-auth: the confirm button stays disabled until the password is entered.
+    cy.get('[role="dialog"]').contains('button', 'Delete my account').should('be.disabled')
+    cy.get('#settings-delete-password').type('Testpass123!')
     cy.get('[role="dialog"]').contains('button', 'Delete my account').click()
 
-    cy.wait('@deleteAccount')
+    cy.wait('@deleteAccount').its('request.body').should('deep.equal', { currentPassword: 'Testpass123!' })
     cy.contains('Account deleted').should('be.visible')
     cy.location('pathname').should('eq', '/')
   })
