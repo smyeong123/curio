@@ -46,7 +46,21 @@ class AiPromptsTest {
                 .contains("Search the web")
                 .contains("exact URL")
                 .contains("\"source_url\"")
-                .doesNotContain("Source articles:");
+                .doesNotContain("Source articles:")
+                .doesNotContain("\"also\"");
+    }
+
+    @Test
+    void summaryPrompt_writesForReadersWhoFollowAi_andGroupsOneStoryAcrossArticles() {
+        String prompt = AiPrompts.summaryPrompt("Mistral", Language.EN, AiPrompts.SourceMode.ARTICLES, "[1] Title: one");
+        assertThat(prompt)
+                .contains("Your readers follow AI closely")
+                .contains("version numbers")
+                .contains("prices")
+                .contains("Never round, guess or add numbers")
+                .contains("Each summary covers one announcement.")
+                .contains("\"also\": [4],")
+                .doesNotContain("NON-EXPERT");
     }
 
     @Test

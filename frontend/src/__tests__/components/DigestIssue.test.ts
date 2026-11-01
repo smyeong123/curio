@@ -59,6 +59,28 @@ describe('DigestIssue', () => {
     expect(text).toContain('— End of issue —')
   })
 
+  it('shows when the source was published and which other outlets covered it, safe links only', () => {
+    const lead = story('Claude gains longer context windows', {
+      published_at: new Date(2026, 9, 30, 12, 0).toISOString(),
+      also_covered_by: [
+        { name: 'News Site', url: 'https://news.example.com/story' },
+        { name: '', url: 'https://blog.example.org/take' },
+        { name: 'Poisoned', url: 'javascript:alert(1)' }
+      ]
+    })
+    const w = mountIssue({ stories: [lead, story('No extras')] })
+    const items = w.findAll('ol > li')
+
+    expect(items[0]!.text()).toContain('Published Oct 30, 2026')
+    expect(items[0]!.text()).toContain('Also covered by')
+    const hrefs = items[0]!.findAll('a').map((a) => a.attributes('href'))
+    expect(hrefs).toEqual(['https://example.com/story', 'https://news.example.com/story', 'https://blog.example.org/take'])
+    expect(items[0]!.text()).not.toContain('Poisoned')
+
+    expect(items[1]!.text()).not.toContain('Published')
+    expect(items[1]!.text()).not.toContain('Also covered by')
+  })
+
   it('numbers the stories, drop-caps only the lead story and links only safe sources', () => {
     const w = mountIssue()
     const items = w.findAll('ol > li')

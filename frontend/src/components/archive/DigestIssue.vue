@@ -68,15 +68,37 @@
             <dt class="kicker kicker-signal pt-0.5">{{ t('archive.story.whyItMatters') }}</dt>
             <dd class="font-body-curio text-[16px] font-medium leading-[1.45] text-[color:var(--ink)]">{{ summary.why_it_matters }}</dd>
           </dl>
-          <a
-            v-if="safeExternalUrl(summary.source_url)"
-            :href="safeExternalUrl(summary.source_url) ?? undefined"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="ink-link font-mono-curio text-[12px] uppercase tracking-[0.06em]"
+          <div class="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+            <a
+              v-if="safeExternalUrl(summary.source_url)"
+              :href="safeExternalUrl(summary.source_url) ?? undefined"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="ink-link font-mono-curio text-[12px] uppercase tracking-[0.06em]"
+            >
+              {{ t('archive.story.source', { name: summary.source_name || t('archive.story.linkFallback') }) }} ↗
+            </a>
+            <span
+              v-if="summary.published_at"
+              class="font-mono-curio text-[12px] uppercase tracking-[0.06em] text-[color:var(--mute)]"
+            >
+              {{ t('archive.story.published', { date: formatDate(summary.published_at, 'short') }) }}
+            </span>
+          </div>
+          <p
+            v-if="alsoCoveredBy(summary).length > 0"
+            class="mt-2 font-mono-curio text-[12px] uppercase tracking-[0.06em] text-[color:var(--mute)]"
           >
-            {{ t('archive.story.source', { name: summary.source_name || t('archive.story.linkFallback') }) }} ↗
-          </a>
+            {{ t('archive.story.alsoCoveredBy') }}
+            <template v-for="(link, j) in alsoCoveredBy(summary)" :key="link.url">
+              <a
+                :href="link.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="ink-link"
+              >{{ link.name || t('archive.story.linkFallback') }}</a><span v-if="j < alsoCoveredBy(summary).length - 1">, </span>
+            </template>
+          </p>
         </div>
       </li>
     </ol>
@@ -93,7 +115,7 @@ import { useI18n } from 'vue-i18n'
 import { useFormat } from '@/composables/useFormat'
 import { useTopicLabels } from '@/composables/useTopicLabels'
 import { safeExternalUrl } from '@/utils/safeUrl'
-import type { Digest, NewsSummary } from '@/types/news'
+import type { Digest, NewsSummary, SourceLink } from '@/types/news'
 
 defineProps<{
   digest: Digest
@@ -111,4 +133,12 @@ const { t } = useI18n()
 const { formatDate, formatTime } = useFormat()
 // Topic names are canonical ids (backend-stored); label them per edition at render time.
 const { topicLabel } = useTopicLabels()
+
+/** "Also covered by" links that pass the http(s) allow-list (they come from feed data). */
+function alsoCoveredBy(summary: NewsSummary): SourceLink[] {
+  return (summary.also_covered_by ?? []).flatMap((link) => {
+    const url = safeExternalUrl(link?.url)
+    return url ? [{ name: link.name, url }] : []
+  })
+}
 </script>

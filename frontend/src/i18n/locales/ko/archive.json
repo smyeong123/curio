@@ -65,7 +65,9 @@
     "fallbackKicker": "소식",
     "whyItMatters": "왜 중요할까요",
     "source": "출처: {name}",
-    "linkFallback": "원문 보기"
+    "linkFallback": "원문 보기",
+    "published": "{date} 발행",
+    "alsoCoveredBy": "다른 보도"
   },
   "errors": {
     "search": "검색하지 못했어요",

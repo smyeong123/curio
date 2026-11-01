@@ -65,7 +65,9 @@
     "fallbackKicker": "Story",
     "whyItMatters": "Why it matters",
     "source": "Source: {name}",
-    "linkFallback": "link"
+    "linkFallback": "link",
+    "published": "Published {date}",
+    "alsoCoveredBy": "Also covered by"
   },
   "errors": {
     "search": "Search failed",

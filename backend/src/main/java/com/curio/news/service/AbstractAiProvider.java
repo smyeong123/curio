@@ -3,6 +3,7 @@ package com.curio.news.service;
 import com.curio.news.port.out.AiService;
 import com.curio.news.dto.NewsSummary;
 import com.curio.news.dto.QuizGenerationResult;
+import com.curio.news.dto.SourceLink;
 import com.curio.shared.concurrent.SingleFlight;
 import com.curio.shared.time.DigestDay;
 import com.curio.shared.i18n.Language;
@@ -231,6 +232,7 @@ public abstract class AbstractAiProvider implements AiService {
                       String summary,
                       @JsonProperty("why_it_matters") String whyItMatters,
                       Integer source,
+                      List<Integer> also,
                       @JsonProperty("source_url") String sourceUrl,
                       @JsonProperty("source_name") String sourceName) { }
 
@@ -242,7 +244,10 @@ public abstract class AbstractAiProvider implements AiService {
      *   <li>WEB_SEARCH: the URL must be http(s) and actually reachable (an invented URL 404s
      *       or doesn't resolve); otherwise the summary is dropped.</li>
      * </ul>
-     * Two summaries resting on the same page are the same story, so only the first is kept.
+     * In ARTICLES mode the cited article's publish date is attached, and the other article
+     * numbers the model lists under {@code also} become "also covered by" links (unknown
+     * numbers and repeats are dropped). A summary whose main page was already used, as a
+     * main source or an "also covered by" link, is the same story again and is dropped.
      * The topic is always the one requested, whatever the model wrote.
      */
     List<NewsSummary> attachSources(List<RawSummary> raw, String topic, AiPrompts.SourceMode mode,
@@ -254,6 +259,8 @@ public abstract class AbstractAiProvider implements AiService {
             if (r == null || isBlank(r.headline()) || isBlank(r.summary())) continue;
             String url;
             String name;
+            String publishedAt = null;
+            List<Map<String, String>> others = List.of();
             if (mode == AiPrompts.SourceMode.ARTICLES) {
                 Integer n = r.source();
                 if (n == null || n < 1 || n > sourceArticles.size()) {
@@ -263,6 +270,9 @@ public abstract class AbstractAiProvider implements AiService {
                 Map<String, String> article = sourceArticles.get(n - 1);
                 url = article.getOrDefault("url", "");
                 name = article.getOrDefault("sourceName", "");
+                java.time.Instant published = NewsApiClient.parsePublishedAt(article.getOrDefault("publishedAt", ""));
+                publishedAt = published == null ? null : published.toString();
+                others = alsoArticles(r.also(), n, sourceArticles);
             } else {
                 url = r.sourceUrl() == null ? "" : r.sourceUrl().trim();
                 name = r.sourceName();
@@ -273,6 +283,13 @@ public abstract class AbstractAiProvider implements AiService {
                 }
             }
             if (!usedUrls.add(NewsApiClient.normalizeUrl(url))) continue;
+            List<SourceLink> alsoCoveredBy = new java.util.ArrayList<>();
+            for (Map<String, String> other : others) {
+                String otherUrl = other.getOrDefault("url", "");
+                if (!usedUrls.add(NewsApiClient.normalizeUrl(otherUrl))) continue;
+                String otherName = other.getOrDefault("sourceName", "");
+                alsoCoveredBy.add(new SourceLink(isBlank(otherName) ? hostOf(otherUrl) : otherName, otherUrl));
+            }
             out.add(NewsSummary.builder()
                     .headline(r.headline())
                     .summary(r.summary())
@@ -280,7 +297,22 @@ public abstract class AbstractAiProvider implements AiService {
                     .sourceUrl(url)
                     .sourceName(isBlank(name) ? hostOf(url) : name)
                     .topic(topic)
+                    .publishedAt(publishedAt)
+                    .alsoCoveredBy(alsoCoveredBy)
                     .build());
+        }
+        return out;
+    }
+
+    /** The articles behind the model's {@code also} numbers: in range, not the main source, no repeats. */
+    private static List<Map<String, String>> alsoArticles(List<Integer> also, int mainSource,
+                                                          List<Map<String, String>> sourceArticles) {
+        if (also == null) return List.of();
+        List<Map<String, String>> out = new java.util.ArrayList<>();
+        java.util.Set<Integer> seen = new java.util.HashSet<>();
+        for (Integer n : also) {
+            if (n == null || n == mainSource || n < 1 || n > sourceArticles.size() || !seen.add(n)) continue;
+            out.add(sourceArticles.get(n - 1));
         }
         return out;
     }
