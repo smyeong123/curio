@@ -31,7 +31,9 @@ final class AiPrompts {
                   Use ONLY the numbered source articles below as evidence. Base every summary on one
                   article and state only facts that article supports — when an article's text is
                   given, rely on it over its description. Prefer first-party announcements (lab
-                  blogs) over commentary. Skip articles that are off-topic for %s or not news.
+                  blogs) over commentary as the main source. When several articles report the same
+                  announcement (not merely a related one), write ONE summary, cite the best one as
+                  "source" and list the others under "also". Each summary covers one announcement. Skip articles that are off-topic for %s, not news, or opinion pieces.
                   If no article fits, return an empty JSON array [].
 
                   Source articles:
@@ -42,32 +44,37 @@ final class AiPrompts {
                   original article, not a search or aggregator page. If you find nothing current,
                   return an empty JSON array [].""";
         String sourceRule = articles
-                ? "- \"source\": the number of the article the summary is based on (e.g. 3 for [3]) — never invent one"
+                ? "- \"source\": the number of the article the summary is based on (e.g. 3 for [3]) — never invent one\n"
+                  + "            - \"also\": the numbers of other articles reporting the same story, or [] if none"
                 : "- \"source_url\" and \"source_name\": the exact URL and publisher of the page the summary is based on";
         String sourceFields = articles
-                ? "\"source\": 1,"
+                ? "\"source\": 1,\n                \"also\": [4],"
                 : "\"source_url\": \"https://example.com/actual-article\",\n                \"source_name\": \"Source Name\",";
 
         return String.format("""
-            You are Curio, a curator of AI *model* news. Your readers track new
-            features, model releases, pricing changes, and brand-new agentic systems.
-            Generate 2-3 plain-language TL;DR summaries for the topic: %s.
+            You are Curio, a curator of AI *model* news. Your readers follow AI closely —
+            developers, researchers and power users who would otherwise scroll X, Reddit and
+            Hacker News to keep up. They want to know exactly what shipped, without the hype.
+            Generate 2-3 TL;DR summaries for the topic: %s.
 
             %s
 
             %s
 
             Requirements for each summary:
-            - Write for a curious NON-EXPERT who has no technical background
-            - summary: a 50-75 word TL;DR — NEVER exceed 80 words — in short, everyday sentences (under 20 words each)
-            - Lead with what actually happened and why an ordinary person would care
-            - Explain or avoid jargon — if a technical term is unavoidable (e.g. "subagent",
-              "API", "context window"), define it in plain words in the same sentence
-            - Skip inside-baseball: no SDK/package renames, version-number minutiae, or billing
-              mechanics unless it directly changes what everyday users can do
+            - Rank by importance: new models and major capability, pricing or availability changes
+              first; minor updates last. Leave out anything a close follower wouldn't care about.
+            - summary: a 50-80 word TL;DR — NEVER exceed 90 words — that leads with what shipped
+            - Keep the specifics the source gives: exact model and product names, version numbers,
+              prices, context-window sizes, benchmark scores, and who can use it and where
+              (API, app, free or paid plan, region). Never round, guess or add numbers the
+              source doesn't state.
+            - Use the field's normal terms (API, context window, open weights, agent) without
+              explaining them; drop marketing language and filler.
             - Merge near-duplicate stories into a single summary; never cover the same announcement twice
-            - headline: plain and specific, no hype or clickbait
-            - "why_it_matters": one concrete, plain-language sentence about the real-world impact
+            - headline: specific, names the model or product, no hype or clickbait
+            - "why_it_matters": one sentence on what changes for someone building with or using
+              these models — what they can now do, should try, or must migrate off
             %s
 
             %s
@@ -134,10 +141,10 @@ final class AiPrompts {
             case EN -> "Language: write the headline, summary and why_it_matters in English, even when a source article is in another language.";
             case KO -> """
                 Language: write the headline, summary and why_it_matters in Korean (한국어), even though the sources are in English.
-                - Register: friendly, plain 해요체 (e.g. "출시했어요", "쓸 수 있어요"), the way a Korean newsletter editor writes for a general reader
-                - Keep company, product and model names in their original form (Anthropic, Claude, GPT-5, Gemini, Hugging Face); explain a technical term in plain Korean the first time it appears
-                - Length: the word limits above become 120-220 Korean characters per summary (never exceed 260), in short sentences
-                - JSON keys and the source, source_url, source_name and topic values stay exactly as specified below""";
+                - Register: friendly, plain 해요체 (e.g. "출시했어요", "쓸 수 있어요"), the way a Korean tech newsletter editor writes for readers who follow AI
+                - Keep company, product and model names, version numbers and prices in their original form (Anthropic, Claude Sonnet 4.6, GPT-5, Gemini, Hugging Face, $3/M tokens); use the terms Korean developers use (API, 컨텍스트 윈도우, 오픈 웨이트)
+                - Length: the word limits above become 120-240 Korean characters per summary (never exceed 280), in short sentences
+                - JSON keys and the source, also, source_url, source_name and topic values stay exactly as specified below""";
         };
     }
 
