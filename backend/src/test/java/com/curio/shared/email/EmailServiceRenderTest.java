@@ -77,6 +77,7 @@ class EmailServiceRenderTest {
                 unsubscribeTokenService, messageSource, transport);
         ReflectionTestUtils.setField(emailService, "frontendUrl", "https://curio.test");
         ReflectionTestUtils.setField(emailService, "backendUrl", "https://api.curio.test");
+        ReflectionTestUtils.setField(emailService, "defaultDeliveryTimezone", "Asia/Seoul");
 
         lenient().when(unsubscribeTokenService.generateToken(any())).thenReturn("unsub-token");
         lenient().when(quizPort.findByDigestId(any())).thenReturn(Optional.of(Quiz.builder().id(UUID.randomUUID()).build()));
@@ -136,6 +137,76 @@ class EmailServiceRenderTest {
                 digest(Map.of("language", "ko", "summaries", List.of(STORY))));
 
         assertThat(html).doesNotContain("퀴즈 풀기").doesNotContain("오늘의 퀴즈");
+    }
+
+    // --- per-story publish date + other outlets ---
+
+    private static Map<String, Object> storyWith(String publishedAt, List<Map<String, String>> alsoCoveredBy) {
+        Map<String, Object> story = new java.util.HashMap<>(STORY);
+        story.put("published_at", publishedAt);
+        story.put("also_covered_by", alsoCoveredBy);
+        return story;
+    }
+
+    @Test
+    void showsPublishDateAndOtherOutlets_inTheReadersZone() {
+        User reader = user("Alex");
+        when(preferencesPort.findByUserId(reader.getId()))
+                .thenReturn(Optional.of(UserPreferences.builder().timezone("America/Los_Angeles").build()));
+
+        // 03:00 UTC on Oct 31 is still Oct 30 in Los Angeles.
+        String html = emailService.renderDigestEmail(reader, digest(Map.of("summaries", List.of(storyWith(
+                "2026-10-31T03:00:00Z",
+                List.of(Map.of("name", "The Verge", "url", "https://www.theverge.com/a"),
+                        Map.of("name", "Hacker News", "url", "http://news.ycombinator.com/item?id=1")))))));
+
+        assertThat(html).contains("Published Oct 30, 2026").contains("Also covered by:")
+                .contains("href=\"https://www.theverge.com/a\"").contains(">The Verge</a>")
+                .contains("href=\"http://news.ycombinator.com/item?id=1\"").contains(">Hacker News</a>");
+    }
+
+    @Test
+    void koreanEdition_formatsTheDateInKorean_andDefaultsToKst() {
+        // No stored timezone: the app default (Asia/Seoul) — 20:00 UTC Oct 30 is Oct 31 in Seoul.
+        String html = emailService.renderDigestEmail(user("Alex"), digest(Map.of("language", "ko",
+                "summaries", List.of(storyWith("2026-10-30T20:00:00Z",
+                        List.of(Map.of("name", "ZDNet Korea", "url", "https://zdnet.co.kr/x")))))));
+
+        assertThat(html).contains("2026년 10월 31일 발행").contains("다른 보도:").contains(">ZDNet Korea</a>")
+                .doesNotContain("Published").doesNotContain("Also covered by");
+    }
+
+    @Test
+    void dropsUnsafeOrBlankOutletLinks_andNeverFallsBackToTheDashboard() {
+        String html = emailService.renderDigestEmail(user("Alex"), digest(Map.of("summaries", List.of(storyWith(
+                "2026-10-30T12:00:00Z",
+                List.of(Map.of("name", "Evil", "url", "javascript:alert(1)"),
+                        Map.of("name", "Data", "url", "data:text/html,hi"),
+                        Map.of("name", "Blank", "url", " "),
+                        Map.of("name", " ", "url", "https://nameless.example"),
+                        Map.of("name", "Good", "url", "HTTPS://good.example/x")))))));
+
+        assertThat(html).contains(">Good</a>").contains("href=\"HTTPS://good.example/x\"")
+                .doesNotContain("javascript:alert").doesNotContain("data:text").doesNotContain(">Evil<")
+                .doesNotContain(">Blank<").doesNotContain("nameless.example");
+        // The only dashboard link is still the masthead CTA (no extra fallback for outlets).
+        assertThat(html.split("https://curio.test/dashboard\"", -1)).hasSize(2);
+    }
+
+    @Test
+    void omitsBothLines_whenEveryOutletIsUnsafeAndTheDateIsUnparseable() {
+        String html = emailService.renderDigestEmail(user("Alex"), digest(Map.of("summaries", List.of(storyWith(
+                "not-a-date", List.of(Map.of("name", "Evil", "url", "javascript:alert(1)")))))));
+
+        assertThat(html).doesNotContain("Published").doesNotContain("Also covered by").doesNotContain("Evil");
+    }
+
+    @Test
+    void olderDigestWithoutTheNewFields_rendersAsBefore() {
+        String html = emailService.renderDigestEmail(user("Alex"), digest(Map.of("summaries", List.of(STORY))));
+
+        assertThat(html).contains("Read full story").contains("href=\"https://example.com/story\"")
+                .doesNotContain("Published").doesNotContain("Also covered by");
     }
 
     @Test

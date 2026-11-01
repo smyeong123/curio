@@ -97,6 +97,16 @@
                                                     <span th:text="#{digest.email.readFull}">Read full story &rarr;</span> <span th:text="${summary['source_name']}" style="color:#635d4f;">Publisher</span>
                                                 </a>
                                             </p>
+
+                                            <!-- Publish date + other outlets. Both are precomputed by
+                                                 EmailService (date in the reader's zone; links already
+                                                 filtered to http(s), unsafe ones dropped) and absent on
+                                                 older digests, so those render as before. -->
+                                            <p th:if="${summary['email_published'] != null}" th:text="${summary['email_published']}" style="word-break:keep-all; margin:8px 0 0 0; font-family:'Geist Mono', 'SF Mono', Menlo, Consolas, 'Courier New', monospace; font-size:11px; letter-spacing:0.6px; text-transform:uppercase; color:#635d4f;">Published Oct 30, 2026</p>
+                                            <p th:if="${summary['email_also_links'] != null}" style="word-break:keep-all; margin:6px 0 0 0; font-family:'Geist Mono', 'SF Mono', Menlo, Consolas, 'Courier New', monospace; font-size:11px; letter-spacing:0.6px; text-transform:uppercase; color:#635d4f;">
+                                                <span th:text="#{digest.email.alsoCoveredBy}">Also covered by:</span>
+                                                <th:block th:each="link, linkStat : ${summary['email_also_links']}"><a th:href="${link['url']}" th:text="${link['name']}" style="color:#3a362c; text-decoration:underline; text-decoration-color:#d6ccb8;">Outlet</a><span th:unless="${linkStat.last}">, </span></th:block>
+                                            </p>
                                         </td>
                                     </tr>
                                 </table>

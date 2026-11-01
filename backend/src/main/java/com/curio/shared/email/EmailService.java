@@ -6,6 +6,7 @@ import com.curio.news.port.out.DigestPort;
 import com.curio.quiz.port.out.QuizPort;
 import com.curio.shared.i18n.Language;
 import com.curio.shared.port.in.EmailUseCase;
+import com.curio.shared.time.DigestDay;
 import com.curio.user.entity.User;
 import com.curio.user.port.out.UserPreferencesPort;
 import lombok.RequiredArgsConstructor;
@@ -18,8 +19,14 @@ import org.thymeleaf.context.Context;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -52,6 +59,9 @@ public class EmailService implements EmailUseCase {
 
     @Value("${app.backend-url:http://localhost:8080}")
     private String backendUrl;
+
+    @Value("${app.default-delivery-timezone:Asia/Seoul}")
+    private String defaultDeliveryTimezone;
 
     // ---- digest ------------------------------------------------------------
 
@@ -144,7 +154,8 @@ public class EmailService implements EmailUseCase {
 
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> summaries = (List<Map<String, Object>>) digest.getContent().get("summaries");
-        context.setVariable("summaries", summaries != null ? summaries : List.of());
+        context.setVariable("summaries", summaries != null
+                ? withEmailExtras(summaries, locale, readerZone(user)) : List.of());
         context.setVariable("digestId", digest.getId().toString());
         context.setVariable("unsubscribeToken", unsubscribeToken);
         // Quiz generation is best-effort and can fail independently of the digest;
@@ -153,6 +164,84 @@ public class EmailService implements EmailUseCase {
         context.setVariable("hasQuiz", quizPort.findByDigestId(digest.getId()).isPresent());
 
         return templateEngine.process("digest-email", context);
+    }
+
+    /**
+     * Copies each stored summary and adds the two template-only fields
+     * {@code email_published} ("Published Oct 30, 2026", in the reader's zone) and
+     * {@code email_also_links} (other outlets, http(s) links only). Older digests
+     * without {@code published_at} / {@code also_covered_by} get neither, so they
+     * render exactly as before. The stored maps are never mutated.
+     */
+    private List<Map<String, Object>> withEmailExtras(List<Map<String, Object>> summaries,
+                                                      Locale locale, ZoneId zone) {
+        DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern(
+                messageSource.getMessage("digest.email.publishedDatePattern", null, locale), locale);
+        List<Map<String, Object>> out = new ArrayList<>(summaries.size());
+        for (Map<String, Object> summary : summaries) {
+            Map<String, Object> view = new LinkedHashMap<>(summary);
+            Instant published = parseInstant(summary.get("published_at"));
+            if (published != null) {
+                view.put("email_published", messageSource.getMessage("digest.email.published",
+                        new Object[]{dateFormat.format(published.atZone(zone))}, locale));
+            }
+            List<Map<String, String>> alsoLinks = safeAlsoLinks(summary.get("also_covered_by"));
+            if (!alsoLinks.isEmpty()) {
+                view.put("email_also_links", alsoLinks);
+            }
+            out.add(view);
+        }
+        return out;
+    }
+
+    /** Other outlets with a non-blank name and an http(s) URL; anything else is dropped, never redirected. */
+    private static List<Map<String, String>> safeAlsoLinks(Object raw) {
+        if (!(raw instanceof List<?> list)) return List.of();
+        List<Map<String, String>> links = new ArrayList<>();
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> m
+                    && m.get("name") instanceof String name && !name.isBlank()
+                    && m.get("url") instanceof String url && isHttpUrl(url)) {
+                links.add(Map.of("name", name.strip(), "url", url.strip()));
+            }
+        }
+        return links;
+    }
+
+    /** Same allowlist the template applies to {@code source_url}: http:// or https:// only (AI/feed content is untrusted). */
+    static boolean isHttpUrl(String url) {
+        if (url == null) return false;
+        String lower = url.strip().toLowerCase(Locale.ROOT);
+        return lower.startsWith("http://") || lower.startsWith("https://");
+    }
+
+    private static Instant parseInstant(Object raw) {
+        if (!(raw instanceof String s) || s.isBlank()) return null;
+        try {
+            return Instant.parse(s);
+        } catch (DateTimeParseException e) {
+            try {
+                return OffsetDateTime.parse(s).toInstant();
+            } catch (DateTimeParseException ignored) {
+                return null;
+            }
+        }
+    }
+
+    /** The reader's zone, resolved like the delivery gate: their timezone, else the app default, else KST. */
+    private ZoneId readerZone(User user) {
+        String tz = userPreferencesPort.findByUserId(user.getId())
+                .map(prefs -> prefs.getTimezone()).orElse(null);
+        try {
+            if (tz != null && !tz.isBlank()) return ZoneId.of(tz);
+        } catch (RuntimeException ignored) {
+            // invalid stored zone: fall through to the default
+        }
+        try {
+            return ZoneId.of(defaultDeliveryTimezone);
+        } catch (RuntimeException e) {
+            return ZoneId.of(DigestDay.ZONE);
+        }
     }
 
     // ---- account emails ----------------------------------------------------
