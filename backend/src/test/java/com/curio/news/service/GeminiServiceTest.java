@@ -204,6 +204,30 @@ class GeminiServiceTest {
     }
 
     @Test
+    void generateNewsSummaries_parsesTheImportance_clampingItAndDefaultingWhenMissingOrNotANumber() throws Exception {
+        List<Map<String, String>> articles = List.of(
+                Map.of("url", "https://a.example/1", "sourceName", "A"),
+                Map.of("url", "https://a.example/2", "sourceName", "A"),
+                Map.of("url", "https://a.example/3", "sourceName", "A"),
+                Map.of("url", "https://a.example/4", "sourceName", "A"),
+                Map.of("url", "https://a.example/5", "sourceName", "A"));
+        String json = "[{\"headline\":\"Rated\",\"summary\":\"S\",\"source\":1,\"importance\":4}," +
+                "{\"headline\":\"Too high\",\"summary\":\"S\",\"source\":2,\"importance\":11}," +
+                "{\"headline\":\"Too low\",\"summary\":\"S\",\"source\":3,\"importance\":0}," +
+                "{\"headline\":\"Missing\",\"summary\":\"S\",\"source\":4}," +
+                "{\"headline\":\"Word\",\"summary\":\"S\",\"source\":5,\"importance\":\"high\"}]";
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(articles);
+        when(newsApiClient.buildSourceContext(any())).thenReturn("[1] ...");
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(geminiBody(json)));
+
+        List<NewsSummary> result = geminiService.generateNewsSummaries("science");
+
+        assertThat(result).extracting(NewsSummary::getImportance).containsExactly(4, 5, 1, 3, 3);
+    }
+
+    @Test
     void generateNewsSummaries_attachesThePublishDate_andOtherOutletsReportingTheSameStory() throws Exception {
         List<Map<String, String>> articles = List.of(
                 Map.of("url", "https://lab.example.com/post", "sourceName", "Lab Blog",

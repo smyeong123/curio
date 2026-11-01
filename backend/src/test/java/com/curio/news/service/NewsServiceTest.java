@@ -262,6 +262,105 @@ class NewsServiceTest {
         verify(digestPort, never()).save(any());
     }
 
+    // --- generate: ranking by importance across topics ---
+
+    private static NewsSummary rated(String headline, int importance) {
+        return NewsSummary.builder().headline(headline)
+                .sourceUrl("https://example.com/" + headline.replace(' ', '-')).importance(importance).build();
+    }
+
+    private void givenTopics(Map<String, List<NewsSummary>> byTopic) {
+        when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
+        when(userPreferencesPort.findByUserId(userId)).thenReturn(Optional.of(
+                UserPreferences.builder().topics(byTopic.keySet().toArray(String[]::new)).build()));
+        byTopic.forEach((topic, stories) ->
+                when(aiService.generateNewsSummaries(eq(topic), eq(Language.EN), isNull())).thenReturn(stories));
+        when(digestPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+    }
+
+    @Test
+    void generate_ordersTheDigestByImportance_acrossTopics() {
+        Map<String, List<NewsSummary>> byTopic = new LinkedHashMap<>();
+        byTopic.put("Minor", List.of(rated("Minor tweak", 2), rated("Minor fix", 1)));
+        byTopic.put("Major", List.of(rated("Big launch", 5), rated("Price cut", 4)));
+        givenTopics(byTopic);
+
+        newsService.generate(testUser, DigestProgressListener.NOOP);
+
+        assertThat(savedHeadlines()).containsExactly("Big launch", "Price cut", "Minor tweak", "Minor fix");
+    }
+
+    @Test
+    void generate_keepsOneStoryPerTopic_evenWhenAnotherTopicCouldFillTheCap() {
+        List<NewsSummary> major = new ArrayList<>();
+        for (int i = 1; i <= 9; i++) major.add(rated("Major " + i, 5));
+        Map<String, List<NewsSummary>> byTopic = new LinkedHashMap<>();
+        byTopic.put("Major", major);
+        byTopic.put("Minor", List.of(rated("Minor one", 1)));
+        givenTopics(byTopic);
+
+        newsService.generate(testUser, DigestProgressListener.NOOP);
+
+        assertThat(savedHeadlines())
+                .containsExactly("Major 1", "Major 2", "Major 3", "Major 4", "Major 5", "Major 6", "Major 7", "Minor one");
+    }
+
+    @Test
+    void generate_withMoreTopicsThanTheCap_letsTheBigStoryIn_andDropsTheLastTopicsOfEqualImportance() {
+        Map<String, List<NewsSummary>> byTopic = new LinkedHashMap<>();
+        for (int i = 1; i <= 9; i++) byTopic.put("Topic " + i, List.of(rated("Story " + i, 3)));
+        byTopic.put("Topic 10", List.of(rated("Big launch", 5)));
+        givenTopics(byTopic);
+
+        newsService.generate(testUser, DigestProgressListener.NOOP);
+
+        assertThat(savedHeadlines()).containsExactly(
+                "Big launch", "Story 1", "Story 2", "Story 3", "Story 4", "Story 5", "Story 6", "Story 7");
+    }
+
+    @Test
+    void generate_replacesASkippedRepeatWithThatTopicsNextStory_andKeepsTheMoreImportantCopyOfAStory() {
+        when(digestPort.findByUserIdAndGeneratedAtGreaterThanEqualAndGeneratedAtLessThan(eq(userId), any(), any()))
+                .thenReturn(List.of(Digest.builder().user(testUser).content(Map.of("summaries", List.of(
+                        Map.of("source_url", "https://example.com/Sent-yesterday")))).build()));
+        Map<String, List<NewsSummary>> byTopic = new LinkedHashMap<>();
+        byTopic.put("Claude", List.of(
+                rated("Sent yesterday", 5),
+                story("Launch, minor angle", "https://anthropic.com/news/launch"),
+                rated("Claude next", 2)));
+        byTopic.put("New Models", List.of(
+                NewsSummary.builder().headline("Launch").sourceUrl("https://www.anthropic.com/news/launch/")
+                        .importance(4).build()));
+        givenTopics(byTopic);
+
+        newsService.generate(testUser, DigestProgressListener.NOOP);
+
+        // "Sent yesterday" is a repeat, and the 4-rated copy of the launch beats the unrated
+        // (neutral 3) one, so Claude's slot goes to its next story.
+        assertThat(savedHeadlines()).containsExactly("Launch", "Claude next");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void generate_stampsTheNeutralImportanceOnUnratedStories_andClampsOutOfRangeOnes() {
+        Map<String, List<NewsSummary>> byTopic = new LinkedHashMap<>();
+        byTopic.put("Claude", List.of(
+                story("Unrated (old cache)", "https://a.example/1"),
+                rated("Overrated", 9),
+                rated("Underrated", -2)));
+        givenTopics(byTopic);
+
+        newsService.generate(testUser, DigestProgressListener.NOOP);
+
+        ArgumentCaptor<Digest> captor = ArgumentCaptor.forClass(Digest.class);
+        verify(digestPort).save(captor.capture());
+        List<Map<String, Object>> saved = (List<Map<String, Object>>) captor.getValue().getContent().get("summaries");
+        assertThat(saved).extracting(m -> m.get("headline"), m -> m.get("importance")).containsExactly(
+                org.assertj.core.groups.Tuple.tuple("Overrated", 5),
+                org.assertj.core.groups.Tuple.tuple("Unrated (old cache)", 3),
+                org.assertj.core.groups.Tuple.tuple("Underrated", 1));
+    }
+
     @Test
     void generate_continuesOnPartialTopicFailure() {
         when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);

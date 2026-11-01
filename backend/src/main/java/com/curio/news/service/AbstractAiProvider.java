@@ -301,7 +301,19 @@ public abstract class AbstractAiProvider implements AiService {
                       Integer source,
                       List<Integer> also,
                       @JsonProperty("source_url") String sourceUrl,
-                      @JsonProperty("source_name") String sourceName) { }
+                      @JsonProperty("source_name") String sourceName,
+                      com.fasterxml.jackson.databind.JsonNode importance) {
+        /**
+         * The model's 1-5 rating, clamped; a missing or non-numeric value (e.g. "high")
+         * counts as the neutral default instead of failing the whole response.
+         */
+        int importanceOrDefault() {
+            if (importance == null || !(importance.isNumber() || importance.isTextual())) {
+                return NewsSummary.DEFAULT_IMPORTANCE;
+            }
+            return NewsSummary.importanceOf(importance.asInt(NewsSummary.DEFAULT_IMPORTANCE));
+        }
+    }
 
     /**
      * Turns the model's summaries into reader-facing ones with exact links:
@@ -315,7 +327,8 @@ public abstract class AbstractAiProvider implements AiService {
      * numbers the model lists under {@code also} become "also covered by" links (unknown
      * numbers and repeats are dropped). A summary whose main page was already used, as a
      * main source or an "also covered by" link, is the same story again and is dropped.
-     * The topic is always the one requested, whatever the model wrote.
+     * The topic is always the one requested, whatever the model wrote, and the importance
+     * is clamped to 1-5 (missing → 3).
      */
     List<NewsSummary> attachSources(List<RawSummary> raw, String topic, AiPrompts.SourceMode mode,
                                     List<Map<String, String>> sourceArticles) {
@@ -366,6 +379,7 @@ public abstract class AbstractAiProvider implements AiService {
                     .topic(topic)
                     .publishedAt(publishedAt)
                     .alsoCoveredBy(alsoCoveredBy)
+                    .importance(r.importanceOrDefault())
                     .build());
         }
         return out;

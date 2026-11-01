@@ -72,6 +72,10 @@ final class AiPrompts {
             - Use the field's normal terms (API, context window, open weights, agent) without
               explaining them; drop marketing language and filler.
             - Merge near-duplicate stories into a single summary; never cover the same announcement twice
+            - "importance": an integer 1-5 for how much a close follower would care, rated against
+              all AI model news, not just this topic. 5 = a major new model or a big capability,
+              pricing or availability change most followers would want to know; 3 = a notable
+              feature or release; 1 = a minor update.
             - headline: specific, names the model or product, no hype or clickbait
             - "why_it_matters": one sentence on what changes for someone building with or using
               these models — what they can now do, should try, or must migrate off
@@ -85,6 +89,7 @@ final class AiPrompts {
                 "headline": "...",
                 "summary": "...",
                 "why_it_matters": "...",
+                "importance": 4,
                 %s
                 "topic": "%s"
               }

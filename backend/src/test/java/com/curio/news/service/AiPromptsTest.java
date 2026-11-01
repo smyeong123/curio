@@ -25,6 +25,17 @@ class AiPromptsTest {
     }
 
     @Test
+    void summaryPrompt_asksForAOneToFiveImportance_inBothSourceModes() {
+        for (AiPrompts.SourceMode mode : AiPrompts.SourceMode.values()) {
+            assertThat(AiPrompts.summaryPrompt("Mistral", Language.EN, mode, ""))
+                    .contains("\"importance\": an integer 1-5")
+                    .contains("5 = a major new model")
+                    .contains("1 = a minor update")
+                    .contains("\"importance\": 4,");
+        }
+    }
+
+    @Test
     void summaryPrompt_scansForBrandNewModels_onTheEmergingTopic() {
         String prompt = AiPrompts.summaryPrompt("New & Emerging Models", Language.EN, AiPrompts.SourceMode.ARTICLES, "");
 

@@ -155,8 +155,10 @@ public class NewsService implements NewsUseCase {
                     // "Claude (Anthropic)"), which makes the per-story label diverge
                     // from the digest's generatedFor beats and the archive filter.
                     // Normalising here keeps all three in lockstep for every provider.
+                    // Older cached entries have no importance; stamp the neutral default.
                     for (NewsSummary summary : summaries) {
                         summary.setTopic(topic);
+                        summary.setImportance(NewsSummary.importanceOf(summary.getImportance()));
                     }
                     perTopic.add(new ArrayList<>(summaries));
                 }
@@ -165,30 +167,8 @@ public class NewsService implements NewsUseCase {
             }
         }
 
-        // Round-robin across topics, then cap the digest so the email stays
-        // scannable no matter how many topics the user selected. The same
-        // capped list backs the web view and quiz, keeping everything consistent.
-        // A story is skipped when its article (or one of its "also covered by"
-        // articles) was already picked under another topic, or was in one of this
-        // reader's recent digests; the topic's next story takes its turn instead.
         Set<String> seen = recentlySentUrls(user, day);
-        List<NewsSummary> allSummaries = new ArrayList<>();
-        int[] next = new int[perTopic.size()];
-        while (allSummaries.size() < MAX_SUMMARIES_PER_DIGEST) {
-            boolean addedThisRound = false;
-            for (int b = 0; b < perTopic.size() && allSummaries.size() < MAX_SUMMARIES_PER_DIGEST; b++) {
-                List<NewsSummary> bucket = perTopic.get(b);
-                while (next[b] < bucket.size()) {
-                    NewsSummary candidate = bucket.get(next[b]++);
-                    if (claimStory(storyUrls(candidate), seen)) {
-                        allSummaries.add(candidate);
-                        addedThisRound = true;
-                        break;
-                    }
-                }
-            }
-            if (!addedThisRound) break;
-        }
+        List<NewsSummary> allSummaries = pickStories(perTopic, seen);
 
         if (allSummaries.isEmpty()) {
             log.warn("No summaries generated for user {}", user.getId());
@@ -218,6 +198,60 @@ public class NewsService implements NewsUseCase {
             log.info("Digest for user {} was generated concurrently, skipping", user.getId());
             return DigestGeneration.alreadyExists();
         }
+    }
+
+    /**
+     * Chooses and orders the digest's stories, capped at {@link #MAX_SUMMARIES_PER_DIGEST}.
+     * Every story is ranked by importance (high first), then by its position in its topic's
+     * list (the model's own ranking), then by topic order. Walking that ranking:
+     * <ol>
+     *   <li>fairness pass — each topic's first story in the ranking that isn't a repeat;</li>
+     *   <li>fill pass — the remaining non-repeats, in ranking order, until the cap.</li>
+     * </ol>
+     * A repeat is a story whose article (or an "also covered by" article) was already picked
+     * or was in this reader's recent digests ({@code seen}); it is skipped and the topic's next
+     * story stands in. The result is sorted by importance (stable), so equal-importance stories
+     * keep pick order: topic leads first, then the fill. With equal ratings this is
+     * round-robin across topics. The same capped list backs the email, web view and quiz.
+     */
+    static List<NewsSummary> pickStories(List<List<NewsSummary>> perTopic, Set<String> seen) {
+        record Ranked(NewsSummary story, int importance, int position, int topic) {}
+        List<Ranked> ranking = new ArrayList<>();
+        for (int t = 0; t < perTopic.size(); t++) {
+            List<NewsSummary> bucket = perTopic.get(t);
+            for (int p = 0; p < bucket.size(); p++) {
+                NewsSummary s = bucket.get(p);
+                ranking.add(new Ranked(s, NewsSummary.importanceOf(s.getImportance()), p, t));
+            }
+        }
+        ranking.sort(Comparator.comparingInt(Ranked::importance).reversed()
+                .thenComparingInt(Ranked::position)
+                .thenComparingInt(Ranked::topic));
+
+        List<Ranked> picked = new ArrayList<>();
+        Set<Integer> topicsWithAPick = new HashSet<>();
+        Set<Ranked> taken = Collections.newSetFromMap(new IdentityHashMap<>());
+        // Fairness pass: one story per topic, the highest-ranked one that isn't a repeat.
+        for (Ranked r : ranking) {
+            if (picked.size() >= MAX_SUMMARIES_PER_DIGEST) break;
+            if (topicsWithAPick.contains(r.topic())) continue;
+            if (claimStory(storyUrls(r.story()), seen)) {
+                picked.add(r);
+                taken.add(r);
+                topicsWithAPick.add(r.topic());
+            }
+        }
+        // Fill pass: everything else by rank until the cap.
+        for (Ranked r : ranking) {
+            if (picked.size() >= MAX_SUMMARIES_PER_DIGEST) break;
+            if (taken.contains(r)) continue;
+            if (claimStory(storyUrls(r.story()), seen)) {
+                picked.add(r);
+            }
+        }
+        // List.sort is stable: equal importance keeps pick order.
+        picked.sort(Comparator.comparingInt(Ranked::importance).reversed());
+        return picked.stream().map(Ranked::story).toList();
     }
 
     /** How many earlier digest days a story counts as already sent to a reader. */
