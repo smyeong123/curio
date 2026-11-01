@@ -25,7 +25,7 @@ import java.util.Map;
 
 /**
  * Fetches recent posts from first-party AI lab RSS/Atom feeds (Anthropic,
- * OpenAI, DeepMind, Meta AI, Mistral, Hugging Face). Returns the same
+ * OpenAI, DeepMind, Mistral, Hugging Face). Returns the same
  * {@code List<Map<String, String>>} shape as {@link NewsApiClient} so
  * downstream callers can treat the two sources identically.
  *

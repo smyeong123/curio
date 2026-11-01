@@ -373,7 +373,7 @@ If "Validate before saving" returns false even with a known-good key, check:
 ## Appendix A — Known caveats (won't block launch — be aware)
 
 1. **Resend test mode**: until you verify a sending domain, all subscriber sends 403. The admin UI now shows the real `failCount` honestly — don't be alarmed by it.
-2. **Lab-blog feeds rot silently**: feed URLs were last re-verified 2026-07-05 (Anthropic replaced with a Google News RSS query, Mistral moved to `/rss.xml`). If digests thin out, curl the URLs in `backend/src/main/java/com/curio/news/service/LabBlogRegistry.java` — digests still generate via NewsAPI fallback, but lab-blog signal disappears without any error.
+2. **Lab-blog feeds rot silently**: feed URLs were last re-verified 2026-11-01 (Anthropic now comes from the community-generated Olshansk/rss-feeds anthropic.com feed instead of Google News RSS; the dead Meta Research feed was dropped). If digests thin out, curl the URLs in `backend/src/main/java/com/curio/news/service/LabBlogRegistry.java` — digests still generate via NewsAPI fallback, but lab-blog signal disappears without any error.
 3. **Resend webhooks need TLS**: webhook deliveries from Resend won't accept self-signed certs. Real Let's Encrypt cert (phase 8) is mandatory before turning on webhooks.
 4. **First Anthropic call is slow**: cold cache + Claude latency means the first digest of the day takes ~15s per user. Bulkhead caps concurrency at 4 so a 50-user batch takes ~3–4 minutes. nginx and Axios timeouts are already raised to 600s for admin paths.
 
