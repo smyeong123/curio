@@ -569,6 +569,10 @@ All providers: Redis cache check first, call NewsApiClient for articles, call AI
 
 **Source links are never written by the model.** The prompt numbers the articles (`[1]`, `[2]`, …, no URLs shown) and the model returns `"source": n` per summary; `AbstractAiProvider.attachSources` copies the URL and publisher from article *n*, and drops any summary citing a number that isn't there. It also sets `published_at` (the cited article's date as an ISO instant, or null) and turns the model's `"also": [m, …]` (other articles on the same story) into `also_covered_by: [{name, url}]`. A summary whose main article was already used, as a main source or an "also covered by" link, is dropped as a repeat, and `topic` is always the requested topic. Both new fields are absent on digests made before 2026-11-01. With no articles, Claude falls back to web search and returns `source_url`/`source_name`; each URL must be http(s) and reachable (`ArticleTextFetcher.isReachable`: 2xx, or 401/403/429 bot walls), or the summary is dropped. Gemini/OpenAI have no web search, so a topic with no articles returns nothing and no AI call is made.
 
+**No story twice.** Two layers keep repeats out:
+- *Per topic (shared):* after a platform-key generation, `AbstractAiProvider.recordCovered` stores the normalized URLs the summaries used (main source + "also covered by") in the Redis set `news:covered:{topic}:{digestDay}` (15-day TTL). The next days' runs drop those articles before prompting (`previouslyCoveredUrls`, previous 14 digest days, today excluded so both editions see the same articles). If every fetched article was covered, the topic returns nothing and makes no AI call — no web-search fallback. BYOK calls read the sets but never write them. A Redis failure means no filtering.
+- *Per reader:* `NewsService.generate` skips a story whose URLs were already picked under another topic in the same digest, or appear in the reader's digests from the previous 14 digest days; that topic's next story takes its turn in the round-robin. If nothing new is left, the digest is not created (a quiet day).
+
 #### Other Services
 
 | Service | Responsibilities |
