@@ -21,6 +21,7 @@ is, **why** it's needed, and **how** it works.
 | `JWT_SECRET` / `JWT_REFRESH_SECRET` | Auth | ✅ | token signing keys |
 | `JWT_REFRESH_EXPIRATION` | Auth | optional (default `10800000` ms = 3 h) | sliding idle-timeout window for refresh tokens |
 | `AUTH_EMAIL_VERIFICATION_*` (5) | Auth | optional | login 2FA code step (default on) |
+| `AUTH_REFRESH_TOKEN_REUSE_GRACE_SECONDS` | Auth | optional (default `30`) | refresh-token reuse detection grace window |
 | `GOOGLE_CLIENT_ID` | OAuth | optional | Google sign-in (ID-token flow — no secret); empty disables it |
 | `AI_PROVIDER` + `*_API_KEY` | AI | ✅ (one key) | claude \| gemini \| openai |
 | `RESEND_API_KEY` / `RESEND_WEBHOOK_SECRET` | Email | ✅ | send + verify webhooks |
@@ -84,6 +85,16 @@ more exposed. Refresh tokens live ~3 hours as a *sliding* idle timeout (tunable 
 tokens — each refresh rotates the token and resets the window, so an active session
 survives and expires after ~3h of inactivity. Separate keys mean compromising one
 context doesn't break the other (defense-in-depth).
+
+**Reuse detection — `AUTH_REFRESH_TOKEN_REUSE_GRACE_SECONDS`** (optional, default
+`30`, property `auth.refresh-token.reuse-grace-seconds`). A rotated refresh token
+is kept (marked `rotated_at`, V31) until it expires. If it is presented again
+within this many seconds — two tabs racing the same cookie — the request gets a
+plain 401 and no other session is touched. Later than that it is treated as a
+stolen token: every refresh token of that user is revoked (all sessions log out),
+a WARN is logged (user id only, never the token) and an
+`REFRESH_TOKEN_REUSE_DETECTED` audit-log entry is written. Raising the value makes
+theft detection more lenient; `0` flags any replay after the same second.
 
 ---
 

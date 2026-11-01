@@ -1,5 +1,6 @@
 package com.curio.auth.service;
 
+import com.curio.admin.port.in.AuditLogUseCase;
 import com.curio.auth.dto.AuthResponse;
 import com.curio.auth.dto.LoginRequest;
 import com.curio.auth.dto.LoginResponse;
@@ -30,8 +31,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -55,6 +58,16 @@ public class AuthService implements AuthUseCase {
     private final EmailUseCase emailService;
     private final EmailVerificationChallengeService challengeService;
     private final GoogleIdTokenVerifier googleIdTokenVerifier;
+    private final AuditLogUseCase auditLog;
+
+    static final String AUDIT_REFRESH_TOKEN_REUSE = "REFRESH_TOKEN_REUSE_DETECTED";
+
+    /**
+     * How long a rotated refresh token may be replayed before it counts as theft.
+     * Covers two tabs racing the same cookie; past it, every session is revoked.
+     */
+    @Value("${auth.refresh-token.reuse-grace-seconds:30}")
+    private long refreshReuseGraceSeconds;
 
     /**
      * Server-enforced refresh-token lifetime. Sourced from the same property that
@@ -193,19 +206,59 @@ public class AuthService implements AuthUseCase {
         user.setEmailVerified(true);
     }
 
-    @Transactional
+    /**
+     * Rotates a refresh token, with reuse detection (OWASP / RFC 6819 5.2.2.3).
+     *
+     * <p>Rotation marks the presented row {@code rotated_at} (atomic conditional
+     * UPDATE) instead of deleting it, so a replay is recognisable until the row
+     * expires. A rotated token presented again is always a 401; past the grace
+     * window it is treated as theft and every session of the user is revoked.
+     * Inside the window it is the benign two-tabs race, so nothing else is
+     * touched. The successor is never handed out again: only its hash is stored.
+     *
+     * <p>{@code noRollbackFor}: the expired-row delete and the theft revocation
+     * must commit even though the request ends in a 401.
+     */
+    @Transactional(noRollbackFor = UnauthorizedException.class)
     public AuthResponse refreshToken(String refreshTokenValue) {
         RefreshToken refreshToken = refreshTokenPort.findByTokenHash(TokenHasher.hash(refreshTokenValue))
                 .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
 
+        // Expiry first: an expired token is dead regardless of history, not "reuse".
         if (refreshToken.isExpired()) {
             refreshTokenPort.delete(refreshToken);
             throw new UnauthorizedException("Refresh token expired");
         }
 
-        User user = refreshToken.getUser();
-        refreshTokenPort.delete(refreshToken);
-        return issueTokens(user);
+        LocalDateTime now = LocalDateTime.now();
+        if (refreshToken.isRotated()) {
+            throw rejectRotatedToken(refreshToken, now);
+        }
+
+        // Lost a race with a concurrent refresh of this same token that committed
+        // first, i.e. it was rotated an instant ago: inside the grace window.
+        if (refreshTokenPort.markRotated(refreshToken.getId(), now) == 0) {
+            throw new UnauthorizedException("Refresh token already rotated");
+        }
+
+        return issueTokens(refreshToken.getUser());
+    }
+
+    private UnauthorizedException rejectRotatedToken(RefreshToken refreshToken, LocalDateTime now) {
+        long secondsSinceRotation = Duration.between(refreshToken.getRotatedAt(), now).toSeconds();
+        if (secondsSinceRotation <= refreshReuseGraceSeconds) {
+            return new UnauthorizedException("Refresh token already rotated");
+        }
+
+        UUID userId = refreshToken.getUser().getId();
+        refreshTokenPort.deleteByUserId(userId);
+        // Never log the token or its hash: the user id and timing are enough to triage.
+        log.warn("Refresh token reuse detected for user {} ({}s after rotation) — revoked all sessions",
+                userId, secondsSinceRotation);
+        auditLog.record(AUDIT_REFRESH_TOKEN_REUSE, "USER", userId.toString(),
+                Map.of("secondsSinceRotation", secondsSinceRotation,
+                        "graceSeconds", refreshReuseGraceSeconds));
+        return new UnauthorizedException("Invalid refresh token");
     }
 
     @Transactional

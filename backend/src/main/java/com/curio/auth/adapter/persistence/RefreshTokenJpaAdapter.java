@@ -6,6 +6,7 @@ import com.curio.auth.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -33,5 +34,10 @@ public class RefreshTokenJpaAdapter implements RefreshTokenPort {
     @Override
     public void deleteByUserId(UUID userId) {
         repository.deleteByUserId(userId);
+    }
+
+    @Override
+    public int markRotated(UUID id, LocalDateTime rotatedAt) {
+        return repository.markRotated(id, rotatedAt);
     }
 }

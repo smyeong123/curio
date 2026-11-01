@@ -1,5 +1,6 @@
 package com.curio.auth.service;
 
+import com.curio.admin.port.in.AuditLogUseCase;
 import com.curio.auth.dto.AuthResponse;
 import com.curio.auth.dto.LoginRequest;
 import com.curio.auth.dto.LoginResponse;
@@ -57,6 +58,7 @@ class AuthServiceTest {
     @Mock private AuthenticationManager authenticationManager;
     @Mock private EmailService emailService;
     @Mock private GoogleIdTokenVerifier googleIdTokenVerifier;
+    @Mock private AuditLogUseCase auditLog;
 
     private EmailVerificationChallengeService challengeService;
     private AuthService authService;
@@ -73,7 +75,8 @@ class AuthServiceTest {
 
         authService = new AuthService(userPort, refreshTokenPort, passwordResetTokenPort,
                 passwordEncoder, jwtTokenProvider, authenticationManager, emailService,
-                challengeService, googleIdTokenVerifier);
+                challengeService, googleIdTokenVerifier, auditLog);
+        ReflectionTestUtils.setField(authService, "refreshReuseGraceSeconds", 30L);
     }
 
     /** Mirrors TokenHasher so tests can stage a known code hash independently of it. */
@@ -469,6 +472,7 @@ class AuthServiceTest {
                 .expiresAt(LocalDateTime.now().plusDays(1))
                 .build();
         when(refreshTokenPort.findByTokenHash(anyString())).thenReturn(Optional.of(existing));
+        when(refreshTokenPort.markRotated(eq(existing.getId()), any(LocalDateTime.class))).thenReturn(1);
         when(jwtTokenProvider.generateToken(user)).thenReturn("a2");
         when(jwtTokenProvider.generateRefreshToken(user)).thenReturn("r2");
 
@@ -476,8 +480,107 @@ class AuthServiceTest {
 
         assertThat(response.getAccessToken()).isEqualTo("a2");
         assertThat(response.getRefreshToken()).isEqualTo("r2");
-        verify(refreshTokenPort).delete(existing);
+        // The presented row is kept (stamped rotated_at) for reuse detection, not deleted.
+        verify(refreshTokenPort, never()).delete(any());
+        verify(refreshTokenPort, never()).deleteByUserId(any());
         verify(refreshTokenPort).save(any(RefreshToken.class));
+        verifyNoInteractions(auditLog);
+    }
+
+    private RefreshToken rotatedToken(User user, long secondsAgo) {
+        return RefreshToken.builder()
+                .id(UUID.randomUUID())
+                .user(user)
+                .expiresAt(LocalDateTime.now().plusHours(1))
+                .rotatedAt(LocalDateTime.now().minusSeconds(secondsAgo))
+                .build();
+    }
+
+    @Test
+    void refreshToken_reusedAfterGraceWindow_revokesEverySession_andAudits() {
+        User user = User.builder().id(UUID.randomUUID()).email("u@e.com").build();
+        RefreshToken replayed = rotatedToken(user, 120);
+        when(refreshTokenPort.findByTokenHash(anyString())).thenReturn(Optional.of(replayed));
+
+        assertThatThrownBy(() -> authService.refreshToken("stolen"))
+                .isInstanceOf(UnauthorizedException.class);
+
+        verify(refreshTokenPort).deleteByUserId(user.getId());
+        verify(auditLog).record(eq(AuthService.AUDIT_REFRESH_TOKEN_REUSE), eq("USER"),
+                eq(user.getId().toString()), anyMap());
+        verify(refreshTokenPort, never()).markRotated(any(), any());
+        verify(refreshTokenPort, never()).save(any());
+    }
+
+    @Test
+    void refreshToken_reusedWithinGraceWindow_rejectsWithoutTouchingOtherSessions() {
+        User user = User.builder().id(UUID.randomUUID()).email("u@e.com").build();
+        RefreshToken replayed = rotatedToken(user, 2);
+        when(refreshTokenPort.findByTokenHash(anyString())).thenReturn(Optional.of(replayed));
+
+        assertThatThrownBy(() -> authService.refreshToken("raced"))
+                .isInstanceOf(UnauthorizedException.class);
+
+        verify(refreshTokenPort, never()).deleteByUserId(any());
+        verify(refreshTokenPort, never()).delete(any());
+        verify(refreshTokenPort, never()).save(any());
+        verifyNoInteractions(auditLog);
+    }
+
+    @Test
+    void refreshToken_lostConcurrentRotation_rejectsWithoutTouchingOtherSessions() {
+        User user = User.builder().id(UUID.randomUUID()).email("u@e.com").build();
+        RefreshToken live = RefreshToken.builder()
+                .id(UUID.randomUUID())
+                .user(user)
+                .expiresAt(LocalDateTime.now().plusHours(1))
+                .build();
+        when(refreshTokenPort.findByTokenHash(anyString())).thenReturn(Optional.of(live));
+        // The other tab's UPDATE ... WHERE rotated_at IS NULL committed first.
+        when(refreshTokenPort.markRotated(eq(live.getId()), any(LocalDateTime.class))).thenReturn(0);
+
+        assertThatThrownBy(() -> authService.refreshToken("raced"))
+                .isInstanceOf(UnauthorizedException.class);
+
+        verify(refreshTokenPort, never()).deleteByUserId(any());
+        verify(refreshTokenPort, never()).save(any());
+        verifyNoInteractions(auditLog, jwtTokenProvider);
+    }
+
+    @Test
+    void refreshToken_expiredRotatedToken_isNotTreatedAsReuse() {
+        User user = User.builder().id(UUID.randomUUID()).email("u@e.com").build();
+        RefreshToken stale = RefreshToken.builder()
+                .id(UUID.randomUUID())
+                .user(user)
+                .expiresAt(LocalDateTime.now().minusMinutes(1))
+                .rotatedAt(LocalDateTime.now().minusHours(3))
+                .build();
+        when(refreshTokenPort.findByTokenHash(anyString())).thenReturn(Optional.of(stale));
+
+        assertThatThrownBy(() -> authService.refreshToken("old"))
+                .isInstanceOf(UnauthorizedException.class);
+
+        verify(refreshTokenPort).delete(stale);
+        verify(refreshTokenPort, never()).deleteByUserId(any());
+        verifyNoInteractions(auditLog);
+    }
+
+    @Test
+    void refreshToken_loggedOutToken_isNotTreatedAsReuse() {
+        // Logout deletes the row, so a replay of a logged-out token is simply unknown.
+        RefreshToken session = RefreshToken.builder().id(UUID.randomUUID()).build();
+        when(refreshTokenPort.findByTokenHash(anyString()))
+                .thenReturn(Optional.of(session))
+                .thenReturn(Optional.empty());
+
+        authService.logout("token");
+        assertThatThrownBy(() -> authService.refreshToken("token"))
+                .isInstanceOf(UnauthorizedException.class);
+
+        verify(refreshTokenPort).delete(session);
+        verify(refreshTokenPort, never()).deleteByUserId(any());
+        verifyNoInteractions(auditLog);
     }
 
     // --- logout ---
