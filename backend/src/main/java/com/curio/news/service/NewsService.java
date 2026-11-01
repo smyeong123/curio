@@ -167,7 +167,7 @@ public class NewsService implements NewsUseCase {
             }
         }
 
-        Set<String> seen = recentlySentUrls(user, day);
+        SeenStories seen = recentlySentStories(user, day);
         List<NewsSummary> allSummaries = pickStories(perTopic, seen);
 
         if (allSummaries.isEmpty()) {
@@ -208,13 +208,13 @@ public class NewsService implements NewsUseCase {
      *   <li>fairness pass — each topic's first story in the ranking that isn't a repeat;</li>
      *   <li>fill pass — the remaining non-repeats, in ranking order, until the cap.</li>
      * </ol>
-     * A repeat is a story whose article (or an "also covered by" article) was already picked
-     * or was in this reader's recent digests ({@code seen}); it is skipped and the topic's next
-     * story stands in. The result is sorted by importance (stable), so equal-importance stories
+     * A repeat is a story already picked or in this reader's recent digests ({@code seen}) —
+     * by article URL (its own or an "also covered by" one) or, told by another outlet, by
+     * {@link StorySimilarity}; it is skipped and the topic's next story stands in. The result is sorted by importance (stable), so equal-importance stories
      * keep pick order: topic leads first, then the fill. With equal ratings this is
      * round-robin across topics. The same capped list backs the email, web view and quiz.
      */
-    static List<NewsSummary> pickStories(List<List<NewsSummary>> perTopic, Set<String> seen) {
+    static List<NewsSummary> pickStories(List<List<NewsSummary>> perTopic, SeenStories seen) {
         record Ranked(NewsSummary story, int importance, int position, int topic) {}
         List<Ranked> ranking = new ArrayList<>();
         for (int t = 0; t < perTopic.size(); t++) {
@@ -235,7 +235,7 @@ public class NewsService implements NewsUseCase {
         for (Ranked r : ranking) {
             if (picked.size() >= MAX_SUMMARIES_PER_DIGEST) break;
             if (topicsWithAPick.contains(r.topic())) continue;
-            if (claimStory(storyUrls(r.story()), seen)) {
+            if (seen.claim(r.story())) {
                 picked.add(r);
                 taken.add(r);
                 topicsWithAPick.add(r.topic());
@@ -245,7 +245,7 @@ public class NewsService implements NewsUseCase {
         for (Ranked r : ranking) {
             if (picked.size() >= MAX_SUMMARIES_PER_DIGEST) break;
             if (taken.contains(r)) continue;
-            if (claimStory(storyUrls(r.story()), seen)) {
+            if (seen.claim(r.story())) {
                 picked.add(r);
             }
         }
@@ -258,12 +258,11 @@ public class NewsService implements NewsUseCase {
     private static final int REPEAT_LOOKBACK_DAYS = 14;
 
     /**
-     * The article URLs (normalized) behind the stories in this reader's digests from the
-     * previous {@link #REPEAT_LOOKBACK_DAYS} digest days. A lookup failure means nothing
-     * is filtered rather than no digest.
+     * The stories in this reader's digests from the previous {@link #REPEAT_LOOKBACK_DAYS}
+     * digest days. A lookup failure means nothing is filtered rather than no digest.
      */
-    private Set<String> recentlySentUrls(User user, LocalDate day) {
-        Set<String> urls = new HashSet<>();
+    private SeenStories recentlySentStories(User user, LocalDate day) {
+        SeenStories seen = new SeenStories();
         try {
             List<Digest> recent = digestPort.findByUserIdAndGeneratedAtGreaterThanEqualAndGeneratedAtLessThan(
                     user.getId(), DigestDay.startUtc(day.minusDays(REPEAT_LOOKBACK_DAYS)), DigestDay.startUtc(day));
@@ -271,13 +270,13 @@ public class NewsService implements NewsUseCase {
                 Object summaries = d.getContent() == null ? null : d.getContent().get("summaries");
                 if (!(summaries instanceof List<?> list)) continue;
                 for (Object item : list) {
-                    if (item instanceof Map<?, ?> m) urls.addAll(storyUrls(m));
+                    if (item instanceof Map<?, ?> m) seen.add(storyUrls(m), fingerprint(m));
                 }
             }
         } catch (Exception e) {
             log.warn("Could not load recent digests for user {} — not filtering repeats: {}", user.getId(), e.toString());
         }
-        return urls;
+        return seen;
     }
 
     private static Set<String> storyUrls(NewsSummary s) {
@@ -305,13 +304,50 @@ public class NewsService implements NewsUseCase {
         if (url != null && !url.isBlank()) urls.add(NewsApiClient.normalizeUrl(url));
     }
 
-    /** Adds the story's URLs to {@code seen} and returns true, unless any of them is already there. */
-    private static boolean claimStory(Set<String> urls, Set<String> seen) {
-        for (String u : urls) {
-            if (seen.contains(u)) return false;
+    /** The fingerprint of a summary stored in a digest's JSON content. */
+    private static StorySimilarity.Fingerprint fingerprint(Map<?, ?> stored) {
+        return StorySimilarity.fingerprint(
+                stored.get("headline") instanceof String h ? h : null,
+                stored.get("summary") instanceof String s ? s : null);
+    }
+
+    /**
+     * The stories a reader already got (recent digests) or that today's digest already holds.
+     * URLs catch the same article; fingerprints catch the same story told by another outlet on
+     * a later day, which a URL check alone lets through.
+     */
+    static final class SeenStories {
+        private final Set<String> urls = new HashSet<>();
+        private final List<StorySimilarity.Fingerprint> fingerprints = new ArrayList<>();
+
+        void add(Set<String> storyUrls, StorySimilarity.Fingerprint fingerprint) {
+            urls.addAll(storyUrls);
+            if (!fingerprint.isEmpty()) fingerprints.add(fingerprint);
         }
-        seen.addAll(urls);
-        return true;
+
+        /** Records the story and returns true, unless it repeats one already seen. */
+        boolean claim(NewsSummary story) {
+            Set<String> storyUrls = storyUrls(story);
+            for (String u : storyUrls) {
+                if (urls.contains(u)) return false;
+            }
+            StorySimilarity.Fingerprint fingerprint = fingerprintOf(story);
+            for (StorySimilarity.Fingerprint seen : fingerprints) {
+                if (StorySimilarity.sameStory(fingerprint, seen)) return false;
+            }
+            add(storyUrls, fingerprint);
+            return true;
+        }
+
+        /** Fail-open: text the matcher cannot handle makes the story count as new, never as a repeat. */
+        private static StorySimilarity.Fingerprint fingerprintOf(NewsSummary story) {
+            try {
+                return StorySimilarity.fingerprint(story.getHeadline(), story.getSummary());
+            } catch (RuntimeException e) {
+                log.warn("Could not fingerprint story '{}' — URL check only: {}", story.getHeadline(), e.toString());
+                return StorySimilarity.Fingerprint.EMPTY;
+            }
+        }
     }
 
     private DigestResponse toDigestResponse(Digest digest) {

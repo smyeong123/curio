@@ -245,6 +245,94 @@ class NewsServiceTest {
         assertThat(savedHeadlines()).containsExactly("New");
     }
 
+    // --- generate: the same story from another outlet (different URL); real production text ---
+
+    private static NewsSummary told(String headline, String summary, String url) {
+        return NewsSummary.builder().headline(headline).summary(summary).sourceUrl(url).build();
+    }
+
+    private static final String MISTRAL_SENT_HEADLINE =
+            "Mistral Releases 'Le Chonk' — A Massive Open-Weight AI Anyone Can Download";
+    private static final String MISTRAL_SENT_SUMMARY = "French AI lab Mistral released Mistral Large 4, nicknamed "
+            + "'Le Chonk,' as a free, open-weight model — meaning anyone can download and run it. It has 1 trillion "
+            + "parameters (think of those as the knobs that make the model smarter) and handles text and images. "
+            + "Mistral says it beats other freely available models at coding tasks and was built entirely in Europe.";
+    private static final NewsSummary MISTRAL_ELSEWHERE = told(
+            "Mistral Large 4 ships as open-weight, trillion-parameter model targeting cybersecurity",
+            "Mistral released Large 4 (ML4, 'Le Chonk') on October 29 — a ~1T-parameter MoE model with 52B active "
+                    + "parameters per token, 1M-token context window, and support for 160+ languages. Weights are on "
+                    + "Hugging Face under a modified MIT-style license; it runs on as few as four Nvidia B200/B300 GPUs. "
+                    + "API pricing is $0.70/M input and $2.10/M output tokens. Primary pitch is cybersecurity: "
+                    + "vulnerability detection, patching, and agentic coding.",
+            "https://cryptobriefing.com/mistral-ai-large-4-cybersecurity-model/");
+    private static final NewsSummary IPO = told(
+            "Anthropic Files S-1 for IPO on Nasdaq Under Ticker 'ANT'",
+            "Anthropic, PBC filed an S-1 registration statement with the SEC for a proposed IPO of Class A common "
+                    + "stock, to be listed on the Nasdaq Global Select Market under ticker 'ANT'. Share count and "
+                    + "price range have not been determined. Goldman Sachs and Morgan Stanley are underwriters.",
+            "https://www.anthropic.com/news/s1-sec");
+    private static final NewsSummary BACKDOOR_PHORION = told(
+            "Backdoor Found in Official Claude Code VS Code Extension Versions 2.1.312 and 2.1.313 on Cursor Marketplace",
+            "Phorion discovered a supply-chain compromise in the official Claude Code for VS Code extension on the "
+                    + "Cursor Marketplace. Versions 2.1.312 and 2.1.313 contained a persistent SSH backdoor targeting "
+                    + "macOS, Linux, and Windows — dropping SSH keys and persistence logic on install. Cursor has "
+                    + "removed both versions.",
+            "https://phorion.io/blog/offical-claude-code-vsx-compromise/");
+    private static final NewsSummary BACKDOOR_HACKER_NEWS = told(
+            "Fake Claude Coding Tool Installed Spy Software on Developers' Computers",
+            "A malicious version of a popular Claude coding extension appeared on the Cursor app marketplace. "
+                    + "Developers who downloaded it unknowingly installed a backdoor — a hidden program that lets "
+                    + "outsiders access their computer remotely. Anthropic was not directly hacked, but attackers "
+                    + "impersonated their official tool. The fake extension has since been removed, but any developer "
+                    + "who installed it may still be compromised.",
+            "https://thehackernews.com/2026/10/official-claude-code-extension-on.html");
+    private static final NewsSummary ENTERPRISE_REPORTS = told(
+            "Claude Enterprise Gets Smart Reports, In-App Surveys, and Pooled Group Budgets",
+            "Anthropic has made three new features generally available for Claude Enterprise: Smart Reports analyze "
+                    + "team transcripts to surface workstreams, spend per workflow, friction points, and repeatable "
+                    + "workflow recommendations; in-app surveys capture user feedback on Claude's impact; and pooled "
+                    + "group budgets let admins set one shared spending limit per team.",
+            "https://claude.com/resources/articles/smart-reports-surveys-pooled-budgets");
+    private static final NewsSummary GOV_DISCOUNT = told(
+            "Anthropic Gives Government Agencies 40% Discount on Claude Enterprise, API Across All Product Surfaces",
+            "Anthropic expanded its GSA partnership to give US federal, state, local, tribal, and territorial "
+                    + "government agencies a 40% discount on Claude Enterprise, Claude for Government, and the Claude "
+                    + "API — covering direct purchases and cloud-provider channels. No minimum spend commitment; "
+                    + "agencies pay for consumed usage.",
+            "https://www.anthropic.com/news/expanding-partnership-gsa");
+
+    @Test
+    void generate_skipsAStoryTheReaderGotYesterday_whenAnotherOutletTellsItToday() {
+        when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
+        when(userPreferencesPort.findByUserId(userId)).thenReturn(Optional.of(
+                UserPreferences.builder().topics(new String[]{"New Models"}).build()));
+        when(digestPort.findByUserIdAndGeneratedAtGreaterThanEqualAndGeneratedAtLessThan(eq(userId), any(), any()))
+                .thenReturn(List.of(Digest.builder().user(testUser).content(Map.of("summaries", List.of(
+                        Map.of("headline", MISTRAL_SENT_HEADLINE, "summary", MISTRAL_SENT_SUMMARY,
+                                "source_url", "https://mistral.ai/news/mistral-large-4-oss/")))).build()));
+        when(aiService.generateNewsSummaries(eq("New Models"), eq(Language.EN), isNull()))
+                .thenReturn(List.of(MISTRAL_ELSEWHERE, IPO));
+        when(digestPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        newsService.generate(testUser, DigestProgressListener.NOOP);
+
+        assertThat(savedHeadlines()).containsExactly(IPO.getHeadline());
+    }
+
+    @Test
+    void generate_skipsTheSameStoryFromAnotherOutletUnderAnotherTopic_butKeepsOtherStoriesAboutTheSameVendor() {
+        Map<String, List<NewsSummary>> byTopic = new LinkedHashMap<>();
+        byTopic.put("Claude", List.of(BACKDOOR_PHORION, ENTERPRISE_REPORTS));
+        byTopic.put("AI Safety", List.of(BACKDOOR_HACKER_NEWS, GOV_DISCOUNT));
+        givenTopics(byTopic);
+
+        newsService.generate(testUser, DigestProgressListener.NOOP);
+
+        // The Hacker News copy of the backdoor is the repeat; AI Safety's slot goes to its next story.
+        assertThat(savedHeadlines()).containsExactly(
+                BACKDOOR_PHORION.getHeadline(), GOV_DISCOUNT.getHeadline(), ENTERPRISE_REPORTS.getHeadline());
+    }
+
     @Test
     void generate_writesNothing_whenEveryStoryWasAlreadySent() {
         when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
