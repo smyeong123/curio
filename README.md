@@ -4,7 +4,7 @@
 
 **A daily, AI-curated brief on AI model news — with a five-question quiz so it actually sticks.**
 
-Curio reads first-party lab blogs (Anthropic, OpenAI, DeepMind, Mistral, Hugging Face) plus NewsAPI, has Claude write short, specific summaries of the topics you picked (names, versions and prices kept, each linked to its source), and emails you the issue at your local delivery hour. Then it quizzes you on what you read.
+Curio reads first-party lab blogs and changelogs (Anthropic, OpenAI, DeepMind, Mistral, xAI, Hugging Face, Cursor, Claude Code releases), the stories people are discussing on Hacker News, and NewsAPI press coverage, has Claude write short, specific summaries of the topics you picked (names, versions and prices kept, each linked to its source), and emails you the issue at your local delivery hour. Then it quizzes you on what you read.
 
 ![Curio landing page](docs/screenshots/home.png)
 
@@ -45,7 +45,7 @@ Curio reads first-party lab blogs (Anthropic, OpenAI, DeepMind, Mistral, Hugging
 |---|---|
 | **Frontend** | Vue 3 · TypeScript · Vite · Pinia · Tailwind CSS v4 · vue-i18n |
 | **Backend** | Java 21 · Spring Boot 3.5 · PostgreSQL 16 · Redis 7 · Flyway |
-| **AI & services** | Claude (default) / Gemini / OpenAI · NewsAPI · Resend |
+| **AI & services** | Claude (default) / Gemini / OpenAI · NewsAPI · Hacker News search (Algolia) · Resend |
 
 Versions and the rest of the stack: [`docs/CODEBASE.md`](docs/CODEBASE.md#technology-stack).
 

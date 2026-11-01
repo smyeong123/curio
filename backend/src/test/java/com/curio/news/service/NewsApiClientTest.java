@@ -29,6 +29,7 @@ class NewsApiClientTest {
     @Mock private RestTemplate restTemplate;
     @Mock private RestTemplateBuilder restTemplateBuilder;
     @Mock private LabBlogFetcher labBlogFetcher;
+    @Mock private HackerNewsFetcher hackerNewsFetcher;
     @Mock private ArticleTextFetcher articleTextFetcher;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -40,7 +41,7 @@ class NewsApiClientTest {
         when(restTemplateBuilder.setReadTimeout(any(Duration.class))).thenReturn(restTemplateBuilder);
         when(restTemplateBuilder.build()).thenReturn(restTemplate);
 
-        newsApiClient = new NewsApiClient(objectMapper, restTemplateBuilder, labBlogFetcher, articleTextFetcher);
+        newsApiClient = new NewsApiClient(objectMapper, restTemplateBuilder, labBlogFetcher, hackerNewsFetcher, articleTextFetcher);
         // Pinned "now" two days after the fixture articles' 2026-03-03 publish date.
         newsApiClient.clock = Clock.fixed(Instant.parse("2026-03-05T00:00:00Z"), ZoneOffset.UTC);
         lenient().when(articleTextFetcher.enrich(anyList())).thenAnswer(inv -> inv.getArgument(0));
@@ -84,7 +85,7 @@ class NewsApiClientTest {
                         )
                 )
         ));
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(), eq(String.class)))
+        when(restTemplate.exchange(any(java.net.URI.class), eq(HttpMethod.GET), any(), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(responseBody));
 
         List<Map<String, String>> result = newsApiClient.fetchNewsArticles("technology");
@@ -107,7 +108,7 @@ class NewsApiClientTest {
                                 "source", Map.of("name", "Ex"), "publishedAt", "2026-03-03T10:00:00Z")
                 )
         ));
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(), eq(String.class)))
+        when(restTemplate.exchange(any(java.net.URI.class), eq(HttpMethod.GET), any(), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(responseBody));
 
         List<Map<String, String>> result = newsApiClient.fetchNewsArticles("technology");
@@ -118,12 +119,60 @@ class NewsApiClientTest {
 
     @Test
     void fetchNewsArticles_returnsEmpty_whenHttpCallThrows() {
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(), eq(String.class)))
+        when(restTemplate.exchange(any(java.net.URI.class), eq(HttpMethod.GET), any(), eq(String.class)))
                 .thenThrow(new RuntimeException("connection refused"));
 
         List<Map<String, String>> result = newsApiClient.fetchNewsArticles("technology");
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void fetchNewsArticles_searchesNewsApiWithTheTopicsNames_encodingQuotesAndAmpersands() {
+        when(restTemplate.exchange(any(java.net.URI.class), eq(HttpMethod.GET), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok("{\"articles\":[]}"));
+
+        newsApiClient.fetchNewsArticles("GPT & ChatGPT (OpenAI)");
+        newsApiClient.fetchNewsArticles("Some & Unmapped (Topic)");
+
+        org.mockito.ArgumentCaptor<java.net.URI> uris = org.mockito.ArgumentCaptor.forClass(java.net.URI.class);
+        verify(restTemplate, times(2)).exchange(uris.capture(), eq(HttpMethod.GET), any(), eq(String.class));
+        java.net.URI mapped = uris.getAllValues().get(0);
+        assertThat(mapped.getRawQuery()).contains("q=OpenAI%20OR%20ChatGPT&").contains("searchIn=title,description");
+        assertThat(uris.getAllValues().get(1).getRawQuery()).contains("q=Some%20Unmapped%20Topic&");
+    }
+
+    @Test
+    void fetchNewsArticles_givesEachSourceItsShare_andHandsUnusedSlotsToTheOthers() throws Exception {
+        java.util.function.BiFunction<String, Integer, List<Map<String, String>>> items = (host, n) -> {
+            List<Map<String, String>> out = new java.util.ArrayList<>();
+            for (int i = 0; i < n; i++) {
+                out.add(Map.of("title", host + i, "url", "https://" + host + "/" + i, "publishedAt", "2026-03-03T10:00:00Z"));
+            }
+            return out;
+        };
+        when(labBlogFetcher.fetchForTopic("t")).thenReturn(items.apply("lab.example", 9));
+        when(hackerNewsFetcher.fetchForTopic("t")).thenReturn(items.apply("hn.example", 4));
+        String press = objectMapper.writeValueAsString(Map.of("articles", List.of(
+                Map.of("title", "p0", "url", "https://press.example/0", "source", Map.of("name", "P"), "publishedAt", "2026-03-03T10:00:00Z"))));
+        when(restTemplate.exchange(any(java.net.URI.class), eq(HttpMethod.GET), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(press));
+
+        List<String> titles = newsApiClient.fetchNewsArticles("t").stream().map(m -> m.get("title")).toList();
+
+        // 6 lab + 3 HN, then the press article, capped at 10.
+        assertThat(titles).containsExactly("lab.example0", "lab.example1", "lab.example2", "lab.example3",
+                "lab.example4", "lab.example5", "hn.example0", "hn.example1", "hn.example2", "p0");
+    }
+
+    @Test
+    void fetchNewsArticles_fillsHackerNewsAndPressGapsWithMoreLabArticles() {
+        List<Map<String, String>> lab = new java.util.ArrayList<>();
+        for (int i = 0; i < 9; i++) lab.add(Map.of("title", "lab" + i, "url", "https://lab.example/" + i));
+        when(labBlogFetcher.fetchForTopic("t")).thenReturn(lab);
+        ReflectionTestUtils.setField(newsApiClient, "newsApiKey", "");
+
+        assertThat(newsApiClient.fetchNewsArticles("t")).hasSize(9);
     }
 
     // --- parseNewsApiArticles ---

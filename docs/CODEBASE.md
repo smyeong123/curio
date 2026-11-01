@@ -118,7 +118,7 @@ curio/
 │       │   │   │   ├── service/      NewsService, AbstractAiProvider (shared AI orchestration base:
 │       │   │   │   │                 cache, single-flight, retry, breaker, parse), AiPrompts (the summary + quiz
 │       │   │   │   │                 prompt text, pure functions), ClaudeService, GeminiService, OpenAiService, NewsApiClient,
-│       │   │   │   │                 LabBlogFetcher (45-min feed memo), LabBlogRegistry, ArticleTextFetcher, LlmKeyValidator
+│       │   │   │   │                 LabBlogFetcher (45-min feed memo), LabBlogRegistry, HackerNewsFetcher, TopicQueries, ArticleTextFetcher, LlmKeyValidator
 │       │   │   │   ├── dto/          DigestResponse, NewsSummary, QuizGenerationResult, QuizQuestionItem
 │       │   │   │   ├── entity/       Digest
 │       │   │   │   ├── repository/   DigestRepository
@@ -188,7 +188,7 @@ curio/
 │           ├── user/service/        UserServicePasswordTest, UserApiKeyServiceTest, UserServicePreferencesTest
 │           ├── quiz/service/        QuizServiceTest, QuizAttemptRecorderTest
 │           ├── studio/service/      StudioServiceTest
-│           ├── news/service/        ClaudeServiceTest, GeminiServiceTest, OpenAiServiceTest, NewsApiClientTest, NewsServiceTest, AiPromptsTest
+│           ├── news/service/        ClaudeServiceTest, GeminiServiceTest, OpenAiServiceTest, NewsApiClientTest, HackerNewsFetcherTest, NewsServiceTest, AiPromptsTest
 │           ├── shared/webhook/      WebhookControllerSignatureIntegrationTest, EmailEventProcessorTest
 │           ├── shared/batch/        SubscriberBatchTest (+ InlinePool test helper)
 │           ├── shared/digest/       DigestPipelineTest, DigestBatchTest, DigestEmailBatchTest
@@ -577,7 +577,7 @@ All providers: Redis cache check first, call NewsApiClient for articles, call AI
 
 | Service | Responsibilities |
 |---------|-----------------|
-| `NewsApiClient` | Shared `@Component`. Merges lab-feed and News API articles; drops ones older than 14 days and duplicate URLs (query string, trailing slash and `www.` ignored); caps the list at 10; adds each article's page text via `ArticleTextFetcher`; builds the numbered context for the AI prompt. A blank API key just means lab feeds only. |
+| `NewsApiClient` | Shared `@Component`. Merges three sources: lab and product feeds, Hacker News (`HackerNewsFetcher`) and News API (queried with the topic's search terms from `TopicQueries`, title + description only). Drops articles older than 14 days and duplicate URLs (query string, trailing slash and `www.` ignored); fills the 10 slots with up to 6 feed articles, up to 3 Hacker News stories, then press, handing unused slots to the others; adds each article's page text via `ArticleTextFetcher`; builds the numbered context for the AI prompt. A blank API key just means lab feeds only. |
 | `AuthService` | Register (BCrypt, auto-sets `emailVerified=true`; duplicate-email race caught as clean 400), login (AuthenticationManager, then hands off to the 2FA challenge when enabled), Google login policy (merging into a password-only account found by email clears the unproven password and revokes sessions — pre-account-hijack defense), token refresh (hashes tokens before lookup), logout, password reset (SHA-256 hashed tokens). Owns session issuance; ~290 lines. |
 | `EmailVerificationChallengeService` | The emailed-code second factor: `start` (hashed challenge id + code, attempts budget, TTL, sends the mail), `verify` → `Verification` (`VERIFIED`/`INVALID_CODE`/`LOCKED`/`EXPIRED`, attempts remaining, reset hint, user), `resend`. Constant-time compare, atomic attempt decrement, lockout marks the challenge consumed. |
 | `GoogleIdTokenVerifier` | Resolves a Google ID token via the tokeninfo endpoint and adds the audience + issuer checks Google does not do; returns a `GoogleIdentity(sub, email, name, emailVerified)` record. Fails closed without a client id. |
@@ -598,6 +598,8 @@ All providers: Redis cache check first, call NewsApiClient for articles, call AI
 | `StudioTaskStatusService` | Tracks live Studio task status and context for `GET /studio/status`. |
 | `LabBlogFetcher` | Fetches lab/company blog (RSS) content for digest sourcing. |
 | `LabBlogRegistry` | Registry of lab blog feed URLs consumed by `LabBlogFetcher`. |
+| `HackerNewsFetcher` | Searches the public Algolia Hacker News API for each of the topic's phrases (title match, last 14 days, at least 60 points); returns the top 5 by points, linking the story's original URL, with points and comments in the description. 45-min memo per phrase. |
+| `TopicQueries` | Per-topic search terms: the NewsAPI `q` and the Hacker News phrases (keys must match `TopicConstants.ALL_TOPICS`; a test checks). |
 | `ArticleTextFetcher` | Fetches the readable text of each source article for the summary prompt, and checks that URLs found by web search exist. SSRF-guarded (public http(s) hosts only, every redirect hop checked), 2 MB body cap, 6 h per-URL memo. |
 | `LlmKeyValidator` | Validates user-supplied (BYOK) provider API keys. |
 | `DigestPipeline` | `shared/digest` — one user end to end: `NewsService.generate` then `QuizService.generateQuizForDigest`; returns digest status + quiz status. Used by the scheduled batch, admin triggers and Studio. |

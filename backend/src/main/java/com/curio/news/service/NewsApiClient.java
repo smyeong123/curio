@@ -25,6 +25,7 @@ public class NewsApiClient {
     private final ObjectMapper objectMapper;
     private final RestTemplateBuilder restTemplateBuilder;
     private final LabBlogFetcher labBlogFetcher;
+    private final HackerNewsFetcher hackerNewsFetcher;
     private final ArticleTextFetcher articleTextFetcher;
 
     /** Articles older than this are not news any more; feeds keep years-old posts. */
@@ -51,34 +52,58 @@ public class NewsApiClient {
                 .build();
     }
 
+    /** At most this many lab-feed articles, so community and press coverage still get a say. */
+    static final int MAX_LAB_ARTICLES = 6;
+    /** At most this many Hacker News stories per topic. */
+    static final int MAX_HN_ARTICLES = 3;
+
     /**
-     * Fetches recent articles for a topic, combining first-party lab RSS feeds
-     * (highest signal for release notes) with NewsAPI keyword search
-     * (broader coverage). Lab-blog results come first so the AI prompt sees them
-     * at the top of the context. Stale and duplicate articles are dropped, the list is
-     * capped at {@link #MAX_ARTICLES_PER_TOPIC}, and each article gets its readable page
-     * text under {@code content} where the page could be fetched.
+     * Fetches recent articles for a topic from three kinds of source: first-party lab and
+     * product feeds (release notes), Hacker News stories people are discussing, and NewsAPI
+     * press coverage. Stale and duplicate articles are dropped. Each source gets a share of
+     * the {@link #MAX_ARTICLES_PER_TOPIC} slots (lab first, then Hacker News, then NewsAPI);
+     * slots a source can't fill go to the others. Each article gets its readable page text
+     * under {@code content} where the page could be fetched.
      *
      * <p>The returned order is the numbering the summary prompt uses: the AI cites an
      * article by its 1-based position, and the URL is taken from here, never from the AI.
      */
     public List<Map<String, String>> fetchNewsArticles(String topic) {
-        List<Map<String, String>> combined = new ArrayList<>(labBlogFetcher.fetchForTopic(topic));
-        combined.addAll(fetchFromNewsApi(topic));
-
         Instant cutoff = clock.instant().minus(MAX_ARTICLE_AGE);
         Set<String> seenUrls = new HashSet<>();
+        List<Map<String, String>> lab = fresh(labBlogFetcher.fetchForTopic(topic), cutoff, seenUrls);
+        List<Map<String, String>> hn = fresh(hackerNewsFetcher.fetchForTopic(topic), cutoff, seenUrls);
+        List<Map<String, String>> press = fresh(fetchFromNewsApi(topic), cutoff, seenUrls);
+
         List<Map<String, String>> selected = new ArrayList<>();
-        for (Map<String, String> article : combined) {
-            String url = article.getOrDefault("url", "").trim();
-            if (!url.startsWith("http://") && !url.startsWith("https://")) continue;
-            if (!seenUrls.add(normalizeUrl(url))) continue;
-            Instant published = parsePublishedAt(article.getOrDefault("publishedAt", ""));
-            if (published != null && published.isBefore(cutoff)) continue;
-            selected.add(article);
-            if (selected.size() >= MAX_ARTICLES_PER_TOPIC) break;
+        selected.addAll(lab.subList(0, Math.min(lab.size(), MAX_LAB_ARTICLES)));
+        selected.addAll(hn.subList(0, Math.min(hn.size(), MAX_HN_ARTICLES)));
+        for (List<Map<String, String>> rest : List.of(press,
+                lab.subList(Math.min(lab.size(), MAX_LAB_ARTICLES), lab.size()),
+                hn.subList(Math.min(hn.size(), MAX_HN_ARTICLES), hn.size()))) {
+            for (Map<String, String> article : rest) {
+                if (selected.size() >= MAX_ARTICLES_PER_TOPIC) break;
+                selected.add(article);
+            }
+        }
+        if (selected.size() > MAX_ARTICLES_PER_TOPIC) {
+            selected = new ArrayList<>(selected.subList(0, MAX_ARTICLES_PER_TOPIC));
         }
         return selected.isEmpty() ? List.of() : articleTextFetcher.enrich(selected);
+    }
+
+    /** The http(s) articles not older than {@code cutoff} whose URL isn't in {@code seenUrls} yet (undated ones are kept). */
+    private static List<Map<String, String>> fresh(List<Map<String, String>> articles, Instant cutoff, Set<String> seenUrls) {
+        List<Map<String, String>> out = new ArrayList<>();
+        for (Map<String, String> article : articles) {
+            String url = article.getOrDefault("url", "").trim();
+            if (!url.startsWith("http://") && !url.startsWith("https://")) continue;
+            Instant published = parsePublishedAt(article.getOrDefault("publishedAt", ""));
+            if (published != null && published.isBefore(cutoff)) continue;
+            if (!seenUrls.add(normalizeUrl(url))) continue;
+            out.add(article);
+        }
+        return out;
     }
 
     /** Whether a URL the AI found through web search points at a real page. */
@@ -125,12 +150,17 @@ public class NewsApiClient {
         }
 
         try {
-            String url = UriComponentsBuilder.fromHttpUrl(newsApiUrl)
-                    .queryParam("q", topic)
+            // The query goes in as a template variable so its quotes, parentheses and any
+            // "&" are percent-encoded; a literal "&" would otherwise split the parameter.
+            java.net.URI url = UriComponentsBuilder.fromHttpUrl(newsApiUrl)
+                    .queryParam("q", "{q}")
+                    .queryParam("searchIn", "title,description")
                     .queryParam("language", "en")
                     .queryParam("sortBy", "publishedAt")
                     .queryParam("pageSize", 10)
-                    .toUriString();
+                    .encode()
+                    .buildAndExpand(TopicQueries.newsApiQuery(topic))
+                    .toUri();
 
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-Api-Key", newsApiKey);
