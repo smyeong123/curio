@@ -13,6 +13,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
+import com.curio.shared.time.DigestDay;
+import java.time.Clock;
+import java.time.LocalDate;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SetOperations;
@@ -32,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class GeminiServiceTest {
 
     @Mock private RestTemplate restTemplate;
@@ -274,12 +279,128 @@ class GeminiServiceTest {
         // Only the uncovered article reached the prompt, so "source": 1 is the lab post.
         verify(newsApiClient).buildSourceContext(List.of(articles.get(1)));
         assertThat(result).singleElement().extracting(NewsSummary::getSourceUrl).isEqualTo("https://lab.example.com/post");
+        // Two lookups over the last 14 digest days: this topic's URLs, then every topic's headlines.
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Collection<String>> keys = ArgumentCaptor.forClass(Collection.class);
-        verify(setOperations).union(keys.capture());
-        assertThat(keys.getValue()).hasSize(14).allMatch(k -> k.startsWith("news:covered:science:"));
+        verify(setOperations, times(2)).union(keys.capture());
+        assertThat(keys.getAllValues().get(0)).hasSize(14).allMatch(k -> k.startsWith("news:covered:science:"));
+        assertThat(keys.getAllValues().get(1)).hasSize(14).allMatch(k -> k.startsWith("news:covered-headlines:"));
         verify(setOperations).add(startsWith("news:covered:science:"), eq("lab.example.com/post"));
         verify(redisTemplate).expire(startsWith("news:covered:science:"), eq(Duration.ofDays(15)));
+    }
+
+    // --- covered headlines (same story, new outlet) ---
+
+    @Test
+    void generateNewsSummaries_listsHeadlinesEarlierDigestsRan_thisTopicFirstNewestFirst() throws Exception {
+        LocalDate today = DigestDay.current(Clock.systemUTC());
+        java.util.Set<Object> stored = new java.util.HashSet<>();
+        stored.add(today.minusDays(3) + "\tscience\tOlder science story");
+        stored.add(today.minusDays(1) + "\tscience\tNewer science story");
+        stored.add(today.minusDays(1) + "\tother topic\tCross-topic story");
+        stored.add(today.minusDays(2) + "\tother topic\tnewer science story"); // same story, other topic: listed once
+        stored.add("garbage without tabs");
+        stubUnion(java.util.Set.of(), stored);
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
+        when(newsApiClient.buildSourceContext(any())).thenReturn("[1] ...");
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(geminiBody(SUMMARIES_JSON)));
+
+        geminiService.generateNewsSummaries("science");
+
+        String prompt = sentPrompt();
+        assertThat(prompt).contains("Already covered in earlier digests")
+                .contains("- Newer science story\n- Older science story\n- Cross-topic story")
+                .doesNotContain("garbage without tabs");
+        // Today's headlines go into today's shared store, tagged with the day and topic.
+        verify(setOperations).add(eq("news:covered-headlines:" + today), eq(today + "\tscience\tGemini Headline"));
+        verify(redisTemplate).expire(eq("news:covered-headlines:" + today), eq(Duration.ofDays(15)));
+    }
+
+    @Test
+    void generateNewsSummaries_capsTheCoveredHeadlineList() throws Exception {
+        LocalDate yesterday = DigestDay.current(Clock.systemUTC()).minusDays(1);
+        java.util.Set<Object> stored = new java.util.HashSet<>();
+        for (int i = 0; i < 60; i++) stored.add(yesterday + "\tother\tStory number " + i);
+        stubUnion(java.util.Set.of(), stored);
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
+        when(newsApiClient.buildSourceContext(any())).thenReturn("[1] ...");
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(geminiBody(SUMMARIES_JSON)));
+
+        geminiService.generateNewsSummaries("science");
+
+        assertThat(sentPrompt().split("- Story number ", -1)).hasSize(AbstractAiProvider.MAX_COVERED_HEADLINES + 1);
+    }
+
+    @Test
+    void generateNewsSummaries_stillGenerates_whenTheHeadlineStoreFails() throws Exception {
+        when(setOperations.union(anyCollection())).thenAnswer(inv -> {
+            if (firstKey(inv.getArgument(0)).startsWith("news:covered-headlines:")) {
+                throw new RuntimeException("redis down");
+            }
+            return java.util.Set.of();
+        });
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
+        when(newsApiClient.buildSourceContext(any())).thenReturn("[1] ...");
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(geminiBody(SUMMARIES_JSON)));
+
+        List<NewsSummary> result = geminiService.generateNewsSummaries("science");
+
+        assertThat(result).extracting(NewsSummary::getHeadline).containsExactly("Gemini Headline");
+        assertThat(sentPrompt()).doesNotContain("Already covered in earlier digests");
+    }
+
+    @Test
+    void generateNewsSummaries_withAUserKey_neitherReadsNorWritesCoveredHeadlines() throws Exception {
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
+        when(newsApiClient.buildSourceContext(any())).thenReturn("[1] ...");
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(geminiBody(SUMMARIES_JSON)));
+
+        List<NewsSummary> result = geminiService.generateNewsSummaries("science", com.curio.shared.i18n.Language.EN, "user-key");
+
+        assertThat(result).hasSize(1);
+        verify(setOperations, never()).union(argThat((Collection<String> k) -> firstKey(k).startsWith("news:covered-headlines:")));
+        verify(setOperations, never()).add(startsWith("news:covered-headlines:"), any());
+    }
+
+    @Test
+    void generateNewsSummaries_logsAnEmptyTopic_tellingNothingWrittenFromAllDropped(CapturedOutput output) throws Exception {
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
+        when(newsApiClient.buildSourceContext(any())).thenReturn("[1] ...");
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(geminiBody("[]")))
+                .thenReturn(ResponseEntity.ok(geminiBody("[{\"headline\":\"H\",\"summary\":\"S\",\"source\":9}]")));
+
+        geminiService.generateNewsSummaries("science");
+        geminiService.generateNewsSummaries("science");
+
+        assertThat(output.getOut())
+                .contains("Gemini returned no en summaries for topic 'science' from 1 source articles")
+                .contains("Gemini wrote 1 en summaries for topic 'science' from 1 source articles, but none were usable");
+    }
+
+    /** Answers the URL lookup with {@code urls} and the headline lookup with {@code headlines}. */
+    private void stubUnion(java.util.Set<Object> urls, java.util.Set<Object> headlines) {
+        when(setOperations.union(anyCollection())).thenAnswer(inv ->
+                firstKey(inv.getArgument(0)).startsWith("news:covered-headlines:") ? headlines : urls);
+    }
+
+    private static String firstKey(Collection<String> keys) {
+        return keys == null || keys.isEmpty() ? "" : keys.iterator().next();
+    }
+
+    /** The prompt text of the (single) request sent to Gemini. */
+    private String sentPrompt() {
+        ArgumentCaptor<HttpEntity> entity = ArgumentCaptor.forClass(HttpEntity.class);
+        verify(restTemplate).exchange(anyString(), eq(HttpMethod.POST), entity.capture(), eq(String.class));
+        return String.valueOf(entity.getValue().getBody());
     }
 
     @Test

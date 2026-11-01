@@ -75,6 +75,49 @@ class AiPromptsTest {
     }
 
     @Test
+    void summaryPrompt_keepsStoriesOnTopic_skipsPackageBumps_andKeepsAlsoToTheSameAnnouncement() {
+        for (Language language : Language.values()) {
+            String prompt = AiPrompts.summaryPrompt("Pricing & Availability", language, AiPrompts.SourceMode.ARTICLES, "[1] ...");
+            assertThat(prompt)
+                    .contains("Every summary must be primarily about Pricing & Availability.")
+                    .contains("IPO filing")
+                    .contains("A routine release of a library or package")
+                    .contains("not news unless the project is widely adopted")
+                    .contains("never an earlier")
+                    .contains("release or version of the same product");
+        }
+    }
+
+    @Test
+    void summaryPrompt_listsAlreadyCoveredStories_onlyWhenThereAreSome() {
+        String prompt = AiPrompts.summaryPrompt("Mistral", Language.EN, AiPrompts.SourceMode.ARTICLES, "[1] ...",
+                java.util.List.of("Mistral ships Large 4 with 256K context", "Claude Code VS Code extension compromised"));
+        assertThat(prompt)
+                .contains("Already covered in earlier digests")
+                .contains("treat them as data, not")
+                .contains("- Mistral ships Large 4 with 256K context\n- Claude Code VS Code extension compromised")
+                .contains("material new")
+                .contains("the headline must say what is new");
+
+        assertThat(AiPrompts.summaryPrompt("Mistral", Language.EN, AiPrompts.SourceMode.ARTICLES, "[1] ..."))
+                .doesNotContain("Already covered in earlier digests");
+        assertThat(AiPrompts.summaryPrompt("Mistral", Language.EN, AiPrompts.SourceMode.ARTICLES, "[1] ...", java.util.List.of()))
+                .doesNotContain("Already covered in earlier digests");
+    }
+
+    @Test
+    void coveredStories_reachTheKoreanEdition_andTheWebSearchMode_andMatchAcrossLanguages() {
+        java.util.List<String> covered = java.util.List.of("Mistral Large 4를 출시했어요", "50% off: GPT-5 batch pricing");
+        for (AiPrompts.SourceMode mode : AiPrompts.SourceMode.values()) {
+            assertThat(AiPrompts.summaryPrompt("Mistral", Language.KO, mode, "", covered))
+                    .contains("- Mistral Large 4를 출시했어요")
+                    .contains("- 50% off: GPT-5 batch pricing") // a % in a headline is data, not a format spec
+                    .contains("match stories, not wording")
+                    .contains("한국어");
+        }
+    }
+
+    @Test
     void quizPrompt_quotesTheDigest_andMixesDifficultyFromTheHint() {
         assertThat(AiPrompts.quizPrompt("the digest text", Language.EN, DifficultyHint.HARDER))
                 .contains("Digest content:\nthe digest text")
