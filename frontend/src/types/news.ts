@@ -9,6 +9,8 @@ export interface NewsSummary {
   published_at?: string | null
   /** Other outlets that reported the same story; absent on older digests. */
   also_covered_by?: SourceLink[] | null
+  /** 1 (minor update) to 5 (major launch); the digest is ordered by it. Absent on older digests. */
+  importance?: number | null
 }
 
 export interface SourceLink {
