@@ -206,6 +206,86 @@ public abstract class AbstractAiProvider implements AiService {
         }
     }
 
+    /** Most covered headlines passed into one summary prompt (keeps the prompt small). */
+    static final int MAX_COVERED_HEADLINES = 40;
+
+    /** Longest headline kept in the covered-headlines store. */
+    private static final int MAX_STORED_HEADLINE_CHARS = 200;
+
+    /**
+     * Redis set of the headlines every topic's platform summaries ran on one digest day. One
+     * store across topics, because a story often shows up under several. Members are
+     * {@code day TAB topic TAB headline} so a single SUNION over the lookback keeps both
+     * the day (for recency) and the topic (this topic's own stories rank first).
+     */
+    protected static String coveredHeadlinesKey(java.time.LocalDate day) {
+        return "news:covered-headlines:" + day;
+    }
+
+    /**
+     * Headlines earlier digests already ran, for the prompt's "already covered" list: this
+     * topic's own first, then other topics', each newest day first, no repeats, at most
+     * {@link #MAX_COVERED_HEADLINES}. Today is left out (as with URLs), and a Redis failure
+     * means "nothing covered". Headlines stay in the edition they were written in.
+     */
+    protected List<String> previouslyCoveredHeadlines(String topic) {
+        try {
+            java.time.LocalDate today = DigestDay.current(java.time.Clock.systemUTC());
+            List<String> keys = new java.util.ArrayList<>();
+            for (int i = 1; i <= COVERED_LOOKBACK_DAYS; i++) {
+                keys.add(coveredHeadlinesKey(today.minusDays(i)));
+            }
+            Set<Object> members = redisTemplate.opsForSet().union(keys);
+            if (members == null || members.isEmpty()) return List.of();
+            record Entry(String day, boolean sameTopic, String headline) {}
+            List<Entry> entries = new java.util.ArrayList<>();
+            for (Object m : members) {
+                String[] parts = String.valueOf(m).split("\t", 3);
+                if (parts.length < 3 || parts[2].isBlank()) continue;
+                entries.add(new Entry(parts[0], parts[1].equals(topic), parts[2]));
+            }
+            entries.sort(java.util.Comparator.comparing(Entry::sameTopic).reversed()
+                    .thenComparing(Entry::day, java.util.Comparator.reverseOrder())
+                    .thenComparing(Entry::headline));
+            java.util.LinkedHashSet<String> seen = new java.util.LinkedHashSet<>();
+            List<String> out = new java.util.ArrayList<>();
+            for (Entry e : entries) {
+                if (out.size() >= MAX_COVERED_HEADLINES) break;
+                if (seen.add(e.headline().toLowerCase(java.util.Locale.ROOT))) out.add(e.headline());
+            }
+            return out;
+        } catch (Exception e) {
+            log.warn("Could not read covered headlines for topic {} — not listing them: {}", topic, e.toString());
+            return List.of();
+        }
+    }
+
+    /** Remembers the headlines today's platform summaries for {@code topic} ran. */
+    protected void recordCoveredHeadlines(String topic, List<NewsSummary> summaries) {
+        try {
+            java.time.LocalDate today = DigestDay.current(java.time.Clock.systemUTC());
+            Object[] members = summaries.stream()
+                    .map(s -> storableHeadline(s.getHeadline()))
+                    .filter(h -> !h.isEmpty())
+                    .distinct()
+                    .map(h -> today + "\t" + topic + "\t" + h)
+                    .toArray();
+            if (members.length == 0) return;
+            String key = coveredHeadlinesKey(today);
+            redisTemplate.opsForSet().add(key, members);
+            redisTemplate.expire(key, Duration.ofDays(COVERED_LOOKBACK_DAYS + 1));
+        } catch (Exception e) {
+            log.warn("Could not record covered headlines for topic {}: {}", topic, e.toString());
+        }
+    }
+
+    /** One line, no tabs/control characters (they'd break the member format or the prompt list), bounded. */
+    static String storableHeadline(String headline) {
+        if (headline == null) return "";
+        String h = headline.replaceAll("[\\p{Cntrl}\\s]+", " ").strip();
+        return h.length() <= MAX_STORED_HEADLINE_CHARS ? h : h.substring(0, MAX_STORED_HEADLINE_CHARS).strip();
+    }
+
     /** Reads + deserializes cached summaries for the key, or null on miss/garbage. */
     protected List<NewsSummary> readCachedSummaries(String cacheKey, String topic) {
         Object cached;
@@ -262,14 +342,20 @@ public abstract class AbstractAiProvider implements AiService {
         AiPrompts.SourceMode mode = hasSourceArticles ? AiPrompts.SourceMode.ARTICLES : AiPrompts.SourceMode.WEB_SEARCH;
         String sourceContext = hasSourceArticles ? newsApiClient.buildSourceContext(sourceArticles) : "";
 
-        String prompt = AiPrompts.summaryPrompt(topic, language, mode, sourceContext);
-        log.info("Generating {} summaries for topic '{}' ({})", language.code(), topic,
-                hasSourceArticles ? sourceArticles.size() + " source articles" : "web search");
+        // A new outlet's article on an old story has a new URL, so the URL filter above can't
+        // catch it; the model is shown what earlier digests ran instead. Platform path only:
+        // a BYOK call neither reads nor writes shared state.
+        List<String> coveredHeadlines = useCache ? previouslyCoveredHeadlines(topic) : List.of();
+        String prompt = AiPrompts.summaryPrompt(topic, language, mode, sourceContext, coveredHeadlines);
+        String evidence = hasSourceArticles ? sourceArticles.size() + " source articles" : "web search";
+        log.info("Generating {} summaries for topic '{}' ({}, {} covered headlines listed)", language.code(), topic,
+                evidence, coveredHeadlines.size());
 
         try {
             String response = callApi(prompt, overrideApiKey, !hasSourceArticles);
             List<RawSummary> raw = objectMapper.readValue(response, new TypeReference<List<RawSummary>>() {});
             List<NewsSummary> summaries = attachSources(raw, topic, mode, sourceArticles);
+            logIfNothingUsable(topic, language, evidence, raw, summaries);
             if (useCache && summaries != null && !summaries.isEmpty()) {
                 try {
                     redisTemplate.opsForValue().set(cacheKey, summaries, Duration.ofHours(12));
@@ -278,6 +364,7 @@ public abstract class AbstractAiProvider implements AiService {
                     log.warn("Redis cache write failed for key {} — continuing uncached: {}", cacheKey, e.toString());
                 }
                 recordCovered(topic, summaries);
+                recordCoveredHeadlines(topic, summaries);
             }
             return summaries != null ? summaries : List.of();
         } catch (CallNotPermittedException | BulkheadFullException e) {
@@ -286,6 +373,24 @@ public abstract class AbstractAiProvider implements AiService {
         } catch (Exception e) {
             log.error("Failed to parse {} API response for summaries", providerName(), e);
             return List.of();
+        }
+    }
+
+    /**
+     * An empty topic is otherwise silent: say whether the model itself wrote nothing (it judged
+     * every article off-topic, old or not news) or wrote summaries that were all dropped (the
+     * per-summary warnings in {@link #attachSources} give the reasons). Counts only — no
+     * article or response content.
+     */
+    private void logIfNothingUsable(String topic, Language language, String evidence,
+                                    List<RawSummary> raw, List<NewsSummary> summaries) {
+        if (summaries != null && !summaries.isEmpty()) return;
+        int written = raw == null ? 0 : raw.size();
+        if (written == 0) {
+            log.info("{} returned no {} summaries for topic '{}' from {}", providerName(), language.code(), topic, evidence);
+        } else {
+            log.info("{} wrote {} {} summaries for topic '{}' from {}, but none were usable", providerName(),
+                    written, language.code(), topic, evidence);
         }
     }
 
