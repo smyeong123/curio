@@ -29,6 +29,7 @@ import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -152,6 +153,59 @@ public abstract class AbstractAiProvider implements AiService {
                 + ":" + Language.orDefault(language).code();
     }
 
+    /** How many earlier digest days count as "already covered" (matches the article freshness window). */
+    static final int COVERED_LOOKBACK_DAYS = 14;
+
+    /** Redis set of the article URLs (normalized) a topic's platform summaries used on one digest day. */
+    protected static String coveredKey(String topic, java.time.LocalDate day) {
+        return "news:covered:" + topic + ":" + day;
+    }
+
+    /**
+     * Article URLs this topic's summaries already used on the previous
+     * {@link #COVERED_LOOKBACK_DAYS} digest days. Today is left out, so every run on one
+     * digest day (both editions, a regenerated cache entry) sees the same articles.
+     * Like the cache, this is an optimization: a Redis failure means "nothing covered".
+     */
+    protected Set<String> previouslyCoveredUrls(String topic) {
+        try {
+            java.time.LocalDate today = DigestDay.current(java.time.Clock.systemUTC());
+            List<String> keys = new java.util.ArrayList<>();
+            for (int i = 1; i <= COVERED_LOOKBACK_DAYS; i++) {
+                keys.add(coveredKey(topic, today.minusDays(i)));
+            }
+            Set<Object> members = redisTemplate.opsForSet().union(keys);
+            if (members == null) return Set.of();
+            Set<String> urls = new java.util.HashSet<>();
+            for (Object m : members) urls.add(String.valueOf(m));
+            return urls;
+        } catch (Exception e) {
+            log.warn("Could not read covered stories for topic {} — not filtering: {}", topic, e.toString());
+            return Set.of();
+        }
+    }
+
+    /** Remembers which articles today's platform summaries used (main source and "also covered by"). */
+    protected void recordCovered(String topic, List<NewsSummary> summaries) {
+        try {
+            Object[] urls = summaries.stream()
+                    .flatMap(s -> java.util.stream.Stream.concat(
+                            java.util.stream.Stream.of(s.getSourceUrl()),
+                            s.getAlsoCoveredBy() == null ? java.util.stream.Stream.<String>empty()
+                                    : s.getAlsoCoveredBy().stream().map(SourceLink::url)))
+                    .filter(u -> u != null && !u.isBlank())
+                    .map(NewsApiClient::normalizeUrl)
+                    .distinct()
+                    .toArray();
+            if (urls.length == 0) return;
+            String key = coveredKey(topic, DigestDay.current(java.time.Clock.systemUTC()));
+            redisTemplate.opsForSet().add(key, urls);
+            redisTemplate.expire(key, Duration.ofDays(COVERED_LOOKBACK_DAYS + 1));
+        } catch (Exception e) {
+            log.warn("Could not record covered stories for topic {}: {}", topic, e.toString());
+        }
+    }
+
     /** Reads + deserializes cached summaries for the key, or null on miss/garbage. */
     protected List<NewsSummary> readCachedSummaries(String cacheKey, String topic) {
         Object cached;
@@ -184,7 +238,19 @@ public abstract class AbstractAiProvider implements AiService {
             }
         }
 
-        List<Map<String, String>> sourceArticles = newsApiClient.fetchNewsArticles(topic);
+        List<Map<String, String>> fetched = newsApiClient.fetchNewsArticles(topic);
+        // Articles stay eligible for two weeks, so without this the model would pick the
+        // same top stories every day and newer ones would never be written up.
+        Set<String> covered = previouslyCoveredUrls(topic);
+        List<Map<String, String>> sourceArticles = fetched.stream()
+                .filter(a -> !covered.contains(NewsApiClient.normalizeUrl(a.getOrDefault("url", ""))))
+                .toList();
+        if (!fetched.isEmpty() && sourceArticles.isEmpty()) {
+            // Everything found was already covered: a quiet day, not a reason to web-search
+            // (which would just find the same stories again).
+            log.info("All {} articles for topic '{}' were covered on earlier days — nothing new", fetched.size(), topic);
+            return List.of();
+        }
         boolean hasSourceArticles = !sourceArticles.isEmpty();
         // No fetched articles: a provider with web search goes looking (and every URL it
         // returns is checked); a provider without one has nothing to cite, so it writes
@@ -211,6 +277,7 @@ public abstract class AbstractAiProvider implements AiService {
                     // Cache write failure must not discard freshly generated summaries.
                     log.warn("Redis cache write failed for key {} — continuing uncached: {}", cacheKey, e.toString());
                 }
+                recordCovered(topic, summaries);
             }
             return summaries != null ? summaries : List.of();
         } catch (CallNotPermittedException | BulkheadFullException e) {

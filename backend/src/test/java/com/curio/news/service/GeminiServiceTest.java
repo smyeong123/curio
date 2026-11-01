@@ -15,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -23,6 +24,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -38,6 +40,7 @@ class GeminiServiceTest {
     @Mock private RedisTemplate<String, Object> redisTemplate;
     @Mock private ValueOperations<String, Object> valueOperations;
     @Mock private NewsApiClient newsApiClient;
+    @Mock private SetOperations<String, Object> setOperations;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private GeminiService geminiService;
@@ -61,6 +64,7 @@ class GeminiServiceTest {
         when(restTemplateBuilder.build()).thenReturn(restTemplate);
         // lenient: not every test exercises Redis (quiz tests don't cache)
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        lenient().when(redisTemplate.opsForSet()).thenReturn(setOperations);
 
         geminiService = new GeminiService(objectMapper, redisTemplate, restTemplateBuilder, newsApiClient, new SingleFlight(),
                 CircuitBreakerRegistry.ofDefaults(), BulkheadRegistry.ofDefaults());
@@ -227,6 +231,43 @@ class GeminiServiceTest {
                 new SourceLink("blog.example.org", "https://blog.example.org/take"));
         assertThat(result.get(1).getPublishedAt()).isNull();
         assertThat(result.get(1).getAlsoCoveredBy()).isEmpty();
+    }
+
+    @Test
+    void generateNewsSummaries_leavesOutArticlesCoveredOnEarlierDays_andRemembersTodaysOnes() throws Exception {
+        List<Map<String, String>> articles = List.of(
+                Map.of("url", "https://www.anthropic.com/news/old/", "sourceName", "Anthropic"),
+                Map.of("url", "https://lab.example.com/post", "sourceName", "Lab Blog"));
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(setOperations.union(anyCollection())).thenReturn(java.util.Set.of("anthropic.com/news/old"));
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(articles);
+        when(newsApiClient.buildSourceContext(any())).thenReturn("[1] ...");
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(geminiBody(SUMMARIES_JSON)));
+
+        List<NewsSummary> result = geminiService.generateNewsSummaries("science");
+
+        // Only the uncovered article reached the prompt, so "source": 1 is the lab post.
+        verify(newsApiClient).buildSourceContext(List.of(articles.get(1)));
+        assertThat(result).singleElement().extracting(NewsSummary::getSourceUrl).isEqualTo("https://lab.example.com/post");
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Collection<String>> keys = ArgumentCaptor.forClass(Collection.class);
+        verify(setOperations).union(keys.capture());
+        assertThat(keys.getValue()).hasSize(14).allMatch(k -> k.startsWith("news:covered:science:"));
+        verify(setOperations).add(startsWith("news:covered:science:"), eq("lab.example.com/post"));
+        verify(redisTemplate).expire(startsWith("news:covered:science:"), eq(Duration.ofDays(15)));
+    }
+
+    @Test
+    void generateNewsSummaries_makesNoCall_whenEveryArticleWasCoveredOnEarlierDays() {
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(setOperations.union(anyCollection())).thenReturn(java.util.Set.of("lab.example.com/post"));
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
+
+        List<NewsSummary> result = geminiService.generateNewsSummaries("science");
+
+        assertThat(result).isEmpty();
+        verifyNoInteractions(restTemplate);
     }
 
     @Test

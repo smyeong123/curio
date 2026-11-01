@@ -28,6 +28,7 @@ public interface DigestRepository extends JpaRepository<Digest, UUID> {
     List<UUID> findIdsByGeneratedAtBefore(@Param("cutoff") LocalDateTime cutoff, Pageable pageable);
     Page<Digest> findAllByOrderByGeneratedAtDesc(Pageable pageable);
     boolean existsByUserIdAndGeneratedAtBetween(UUID userId, LocalDateTime start, LocalDateTime end);
+    List<Digest> findByUserIdAndGeneratedAtGreaterThanEqualAndGeneratedAtLessThan(UUID userId, LocalDateTime start, LocalDateTime end);
 
     Optional<Digest> findFirstByUserIdAndEmailSentAtIsNullOrderByGeneratedAtDesc(UUID userId);
 

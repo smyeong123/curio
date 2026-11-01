@@ -191,6 +191,77 @@ class NewsServiceTest {
         assertThat(generatedFor).containsExactly("Reasoning & Context", "Multimodal (Vision, Audio, Video)");
     }
 
+    private static NewsSummary story(String headline, String url, String... alsoUrls) {
+        List<com.curio.news.dto.SourceLink> also = new ArrayList<>();
+        for (String u : alsoUrls) also.add(new com.curio.news.dto.SourceLink("Other", u));
+        return NewsSummary.builder().headline(headline).sourceUrl(url).alsoCoveredBy(also).build();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> savedHeadlines() {
+        ArgumentCaptor<Digest> captor = ArgumentCaptor.forClass(Digest.class);
+        verify(digestPort).save(captor.capture());
+        return ((List<Map<String, Object>>) captor.getValue().getContent().get("summaries")).stream()
+                .map(m -> (String) m.get("headline")).toList();
+    }
+
+    @Test
+    void generate_skipsAStoryAlreadyPickedUnderAnotherTopic_andLetsThatTopicsNextStoryIn() {
+        when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
+        when(userPreferencesPort.findByUserId(userId)).thenReturn(Optional.of(
+                UserPreferences.builder().topics(new String[]{"Claude", "New Models"}).build()));
+        when(aiService.generateNewsSummaries(eq("Claude"), eq(Language.EN), isNull())).thenReturn(List.of(
+                story("Claude launch", "https://www.anthropic.com/news/launch")));
+        when(aiService.generateNewsSummaries(eq("New Models"), eq(Language.EN), isNull())).thenReturn(List.of(
+                // Same launch via another outlet that lists the Anthropic post as "also covered by".
+                story("Same launch elsewhere", "https://news.example.com/claude", "https://anthropic.com/news/launch/"),
+                story("Other model", "https://mistral.ai/news/x")));
+        when(digestPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        newsService.generate(testUser, DigestProgressListener.NOOP);
+
+        assertThat(savedHeadlines()).containsExactly("Claude launch", "Other model");
+    }
+
+    @Test
+    void generate_skipsStoriesTheReaderGotInARecentDigest() {
+        when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
+        when(userPreferencesPort.findByUserId(userId)).thenReturn(Optional.of(
+                UserPreferences.builder().topics(new String[]{"Claude"}).build()));
+        Digest yesterday = Digest.builder().user(testUser).content(Map.of("summaries", List.of(
+                Map.of("headline", "Old", "source_url", "https://www.anthropic.com/news/old"),
+                Map.of("headline", "Older", "source_url", "https://x.example/a",
+                        "also_covered_by", List.of(Map.of("name", "B", "url", "https://b.example/story")))))).build();
+        when(digestPort.findByUserIdAndGeneratedAtGreaterThanEqualAndGeneratedAtLessThan(eq(userId), any(), any()))
+                .thenReturn(List.of(yesterday));
+        when(aiService.generateNewsSummaries(eq("Claude"), eq(Language.EN), isNull())).thenReturn(List.of(
+                story("Repeat", "https://anthropic.com/news/old?utm_source=x"),
+                story("Repeat via another outlet", "https://c.example/z", "https://b.example/story"),
+                story("New", "https://www.anthropic.com/news/new")));
+        when(digestPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        newsService.generate(testUser, DigestProgressListener.NOOP);
+
+        assertThat(savedHeadlines()).containsExactly("New");
+    }
+
+    @Test
+    void generate_writesNothing_whenEveryStoryWasAlreadySent() {
+        when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);
+        when(userPreferencesPort.findByUserId(userId)).thenReturn(Optional.of(
+                UserPreferences.builder().topics(new String[]{"Claude"}).build()));
+        when(digestPort.findByUserIdAndGeneratedAtGreaterThanEqualAndGeneratedAtLessThan(eq(userId), any(), any()))
+                .thenReturn(List.of(Digest.builder().user(testUser).content(Map.of("summaries", List.of(
+                        Map.of("source_url", "https://www.anthropic.com/news/old")))).build()));
+        when(aiService.generateNewsSummaries(eq("Claude"), eq(Language.EN), isNull())).thenReturn(List.of(
+                story("Repeat", "https://www.anthropic.com/news/old")));
+
+        DigestGeneration result = newsService.generate(testUser, DigestProgressListener.NOOP);
+
+        assertThat(result.digest()).isNull();
+        verify(digestPort, never()).save(any());
+    }
+
     @Test
     void generate_continuesOnPartialTopicFailure() {
         when(digestPort.existsByUserIdAndGeneratedAtBetween(eq(userId), any(), any())).thenReturn(false);

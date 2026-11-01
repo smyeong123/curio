@@ -168,14 +168,23 @@ public class NewsService implements NewsUseCase {
         // Round-robin across topics, then cap the digest so the email stays
         // scannable no matter how many topics the user selected. The same
         // capped list backs the web view and quiz, keeping everything consistent.
+        // A story is skipped when its article (or one of its "also covered by"
+        // articles) was already picked under another topic, or was in one of this
+        // reader's recent digests; the topic's next story takes its turn instead.
+        Set<String> seen = recentlySentUrls(user, day);
         List<NewsSummary> allSummaries = new ArrayList<>();
-        for (int round = 0; allSummaries.size() < MAX_SUMMARIES_PER_DIGEST; round++) {
+        int[] next = new int[perTopic.size()];
+        while (allSummaries.size() < MAX_SUMMARIES_PER_DIGEST) {
             boolean addedThisRound = false;
-            for (List<NewsSummary> bucket : perTopic) {
-                if (round < bucket.size()) {
-                    allSummaries.add(bucket.get(round));
-                    addedThisRound = true;
-                    if (allSummaries.size() >= MAX_SUMMARIES_PER_DIGEST) break;
+            for (int b = 0; b < perTopic.size() && allSummaries.size() < MAX_SUMMARIES_PER_DIGEST; b++) {
+                List<NewsSummary> bucket = perTopic.get(b);
+                while (next[b] < bucket.size()) {
+                    NewsSummary candidate = bucket.get(next[b]++);
+                    if (claimStory(storyUrls(candidate), seen)) {
+                        allSummaries.add(candidate);
+                        addedThisRound = true;
+                        break;
+                    }
                 }
             }
             if (!addedThisRound) break;
@@ -209,6 +218,66 @@ public class NewsService implements NewsUseCase {
             log.info("Digest for user {} was generated concurrently, skipping", user.getId());
             return DigestGeneration.alreadyExists();
         }
+    }
+
+    /** How many earlier digest days a story counts as already sent to a reader. */
+    private static final int REPEAT_LOOKBACK_DAYS = 14;
+
+    /**
+     * The article URLs (normalized) behind the stories in this reader's digests from the
+     * previous {@link #REPEAT_LOOKBACK_DAYS} digest days. A lookup failure means nothing
+     * is filtered rather than no digest.
+     */
+    private Set<String> recentlySentUrls(User user, LocalDate day) {
+        Set<String> urls = new HashSet<>();
+        try {
+            List<Digest> recent = digestPort.findByUserIdAndGeneratedAtGreaterThanEqualAndGeneratedAtLessThan(
+                    user.getId(), DigestDay.startUtc(day.minusDays(REPEAT_LOOKBACK_DAYS)), DigestDay.startUtc(day));
+            for (Digest d : recent) {
+                Object summaries = d.getContent() == null ? null : d.getContent().get("summaries");
+                if (!(summaries instanceof List<?> list)) continue;
+                for (Object item : list) {
+                    if (item instanceof Map<?, ?> m) urls.addAll(storyUrls(m));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not load recent digests for user {} — not filtering repeats: {}", user.getId(), e.toString());
+        }
+        return urls;
+    }
+
+    private static Set<String> storyUrls(NewsSummary s) {
+        Set<String> urls = new HashSet<>();
+        addUrl(urls, s.getSourceUrl());
+        if (s.getAlsoCoveredBy() != null) {
+            s.getAlsoCoveredBy().forEach(link -> addUrl(urls, link.url()));
+        }
+        return urls;
+    }
+
+    /** Same as {@link #storyUrls(NewsSummary)} for a summary stored in a digest's JSON content. */
+    private static Set<String> storyUrls(Map<?, ?> stored) {
+        Set<String> urls = new HashSet<>();
+        if (stored.get("source_url") instanceof String u) addUrl(urls, u);
+        if (stored.get("also_covered_by") instanceof List<?> also) {
+            for (Object link : also) {
+                if (link instanceof Map<?, ?> l && l.get("url") instanceof String u) addUrl(urls, u);
+            }
+        }
+        return urls;
+    }
+
+    private static void addUrl(Set<String> urls, String url) {
+        if (url != null && !url.isBlank()) urls.add(NewsApiClient.normalizeUrl(url));
+    }
+
+    /** Adds the story's URLs to {@code seen} and returns true, unless any of them is already there. */
+    private static boolean claimStory(Set<String> urls, Set<String> seen) {
+        for (String u : urls) {
+            if (seen.contains(u)) return false;
+        }
+        seen.addAll(urls);
+        return true;
     }
 
     private DigestResponse toDigestResponse(Digest digest) {

@@ -82,6 +82,11 @@ public class DigestJpaAdapter implements DigestPort {
     }
 
     @Override
+    public List<Digest> findByUserIdAndGeneratedAtGreaterThanEqualAndGeneratedAtLessThan(UUID userId, LocalDateTime start, LocalDateTime end) {
+        return repository.findByUserIdAndGeneratedAtGreaterThanEqualAndGeneratedAtLessThan(userId, start, end);
+    }
+
+    @Override
     public Optional<Digest> findFirstByUserIdAndEmailSentAtIsNullOrderByGeneratedAtDesc(UUID userId) {
         return repository.findFirstByUserIdAndEmailSentAtIsNullOrderByGeneratedAtDesc(userId);
     }
