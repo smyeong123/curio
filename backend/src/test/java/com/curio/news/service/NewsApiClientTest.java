@@ -253,6 +253,61 @@ class NewsApiClientTest {
         assertThat(result).extracting(a -> a.get("title")).containsExactly("Fresh", "Undated");
     }
 
+    // --- package-registry pages, lab relevance ---
+
+    @Test
+    void fetchNewsArticles_dropsPackageRegistryPagesFromHackerNewsAndPress_butKeepsLabReleaseFeeds() throws Exception {
+        when(labBlogFetcher.fetchForTopic("t")).thenReturn(List.of(
+                Map.of("title", "v2.1.0", "url", "https://github.com/anthropics/claude-code/releases/tag/v2.1.0")));
+        when(hackerNewsFetcher.fetchForTopic("t")).thenReturn(List.of(
+                Map.of("title", "tool-guardian 0.9.0", "url", "https://pypi.org/project/tool-guardian/0.9.0/"),
+                Map.of("title", "Real story", "url", "https://news.example/story")));
+        String press = objectMapper.writeValueAsString(Map.of("articles", List.of(
+                Map.of("title", "left-pad 2.0", "url", "https://www.npmjs.com/package/left-pad",
+                        "source", Map.of("name", "npm"), "publishedAt", "2026-03-03T10:00:00Z"),
+                Map.of("title", "Skybox pack", "url", "https://assetstore.unity.com/packages/2d/sky",
+                        "source", Map.of("name", "Unity.com"), "publishedAt", "2026-03-03T10:00:00Z"),
+                Map.of("title", "Press story", "url", "https://press.example/a",
+                        "source", Map.of("name", "P"), "publishedAt", "2026-03-03T10:00:00Z"))));
+        when(restTemplate.exchange(any(java.net.URI.class), eq(HttpMethod.GET), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(press));
+
+        List<String> titles = newsApiClient.fetchNewsArticles("t").stream().map(m -> m.get("title")).toList();
+
+        assertThat(titles).containsExactly("v2.1.0", "Real story", "Press story");
+        org.mockito.ArgumentCaptor<java.net.URI> uri = org.mockito.ArgumentCaptor.forClass(java.net.URI.class);
+        verify(restTemplate).exchange(uri.capture(), eq(HttpMethod.GET), any(), eq(String.class));
+        assertThat(uri.getValue().getRawQuery()).contains("excludeDomains=pypi.org,npmjs.com,crates.io,");
+    }
+
+    @Test
+    void isPackageRegistryPage_matchesRegistryHostsAndTheirSubdomainsOnly() {
+        assertThat(NewsApiClient.isPackageRegistryPage("https://pypi.org/project/x/1.0/")).isTrue();
+        assertThat(NewsApiClient.isPackageRegistryPage("https://test.pypi.org/project/x/")).isTrue();
+        assertThat(NewsApiClient.isPackageRegistryPage("https://WWW.NPMJS.COM/package/x")).isTrue();
+        assertThat(NewsApiClient.isPackageRegistryPage("https://crates.io/crates/x")).isTrue();
+        assertThat(NewsApiClient.isPackageRegistryPage("https://pkg.go.dev/github.com/x/y")).isTrue();
+        assertThat(NewsApiClient.isPackageRegistryPage("https://notpypi.org/news")).isFalse();
+        assertThat(NewsApiClient.isPackageRegistryPage("https://github.com/openai/codex/releases")).isFalse();
+        assertThat(NewsApiClient.isPackageRegistryPage("not a url")).isFalse();
+    }
+
+    @Test
+    void fetchNewsArticles_keepsOnlyMultimodalLabPosts_forTheMultimodalTopic() {
+        List<Map<String, String>> lab = List.of(
+                Map.of("title", "Community safety report and new protections for teens", "url", "https://lab.example/1"),
+                Map.of("title", "Veo 4", "url", "https://lab.example/2"),
+                Map.of("title", "Introducing a new model", "description", "Our fastest text-to-speech yet",
+                        "url", "https://lab.example/3"));
+        when(labBlogFetcher.fetchForTopic(anyString())).thenReturn(lab);
+        ReflectionTestUtils.setField(newsApiClient, "newsApiKey", "");
+
+        assertThat(newsApiClient.fetchNewsArticles("Multimodal (Vision, Audio, Video)"))
+                .extracting(a -> a.get("title")).containsExactly("Veo 4", "Introducing a new model");
+        // Topics without a relevance filter keep every lab post.
+        assertThat(newsApiClient.fetchNewsArticles("GPT & ChatGPT (OpenAI)")).hasSize(3);
+    }
+
     @Test
     void parsePublishedAt_readsRssAtomAndNewsApiDates() {
         assertThat(NewsApiClient.parsePublishedAt("Wed, 28 Oct 2026 00:00:00 +0000"))

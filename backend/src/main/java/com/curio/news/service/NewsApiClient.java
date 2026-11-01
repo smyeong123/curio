@@ -71,9 +71,10 @@ public class NewsApiClient {
     public List<Map<String, String>> fetchNewsArticles(String topic) {
         Instant cutoff = clock.instant().minus(MAX_ARTICLE_AGE);
         Set<String> seenUrls = new HashSet<>();
-        List<Map<String, String>> lab = fresh(labBlogFetcher.fetchForTopic(topic), cutoff, seenUrls);
-        List<Map<String, String>> hn = fresh(hackerNewsFetcher.fetchForTopic(topic), cutoff, seenUrls);
-        List<Map<String, String>> press = fresh(fetchFromNewsApi(topic), cutoff, seenUrls);
+        List<Map<String, String>> lab = fresh(labBlogFetcher.fetchForTopic(topic).stream()
+                .filter(a -> TopicQueries.isRelevantLabArticle(topic, a)).toList(), cutoff, seenUrls);
+        List<Map<String, String>> hn = fresh(withoutPackagePages(hackerNewsFetcher.fetchForTopic(topic)), cutoff, seenUrls);
+        List<Map<String, String>> press = fresh(withoutPackagePages(fetchFromNewsApi(topic)), cutoff, seenUrls);
 
         List<Map<String, String>> selected = new ArrayList<>();
         selected.addAll(lab.subList(0, Math.min(lab.size(), MAX_LAB_ARTICLES)));
@@ -104,6 +105,33 @@ public class NewsApiClient {
             out.add(article);
         }
         return out;
+    }
+
+    /**
+     * Package-registry and asset-store hosts. Their release pages ("tool-guardian 0.9.0") show
+     * up in keyword search but are not news. Only Hacker News and NewsAPI results are checked;
+     * lab feeds (including GitHub release feeds) are chosen by hand.
+     */
+    static final List<String> PACKAGE_REGISTRY_HOSTS = List.of(
+            "pypi.org", "npmjs.com", "crates.io", "rubygems.org", "pkg.go.dev", "nuget.org",
+            "packagist.org", "pub.dev", "hex.pm", "mvnrepository.com", "central.sonatype.com",
+            "assetstore.unity.com");
+
+    /** Whether the URL is a page on a package registry (the host or any subdomain of it). */
+    static boolean isPackageRegistryPage(String url) {
+        String host;
+        try {
+            host = java.net.URI.create(url.trim()).getHost();
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+        if (host == null) return false;
+        String h = host.toLowerCase(Locale.ROOT);
+        return PACKAGE_REGISTRY_HOSTS.stream().anyMatch(r -> h.equals(r) || h.endsWith("." + r));
+    }
+
+    private static List<Map<String, String>> withoutPackagePages(List<Map<String, String>> articles) {
+        return articles.stream().filter(a -> !isPackageRegistryPage(a.getOrDefault("url", ""))).toList();
     }
 
     /** Whether a URL the AI found through web search points at a real page. */
@@ -158,6 +186,10 @@ public class NewsApiClient {
                     .queryParam("language", "en")
                     .queryParam("sortBy", "publishedAt")
                     .queryParam("pageSize", 10)
+                    // Keeps registry pages from taking the 10 result slots. NewsAPI matches
+                    // registrable domains only (a subdomain like assetstore.unity.com is
+                    // ignored here), so withoutPackagePages still checks every result.
+                    .queryParam("excludeDomains", String.join(",", PACKAGE_REGISTRY_HOSTS))
                     .encode()
                     .buildAndExpand(TopicQueries.newsApiQuery(topic))
                     .toUri();

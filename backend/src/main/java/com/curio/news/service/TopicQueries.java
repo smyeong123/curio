@@ -2,6 +2,7 @@ package com.curio.news.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Search terms per topic for the keyword sources (NewsAPI and Hacker News). Topic ids
@@ -30,9 +31,15 @@ final class TopicQueries {
             Map.entry("Browser & Computer-Use Agents", "\"computer use\" OR \"browser agent\" OR \"AI agent browser\""),
             Map.entry("Agent Frameworks & SDKs", "\"Agents SDK\" OR \"Agent SDK\" OR \"Model Context Protocol\" OR LangChain"),
             Map.entry("Reasoning & Context", "\"reasoning model\" OR \"context window\""),
-            Map.entry("Multimodal (Vision, Audio, Video)", "\"AI video model\" OR \"image generation model\" OR \"voice model\" OR Sora OR Veo"),
+            // Bare "Sora" matched an unrelated person, and "Show HN" posts are product pages,
+            // not model news (Hacker News itself comes in through HackerNewsFetcher).
+            Map.entry("Multimodal (Vision, Audio, Video)", "(\"OpenAI Sora\" OR \"Google Veo\" OR \"Nano Banana\" OR Midjourney"
+                    + " OR ElevenLabs OR \"video generation model\" OR \"video model\" OR \"image model\" OR \"speech model\""
+                    + " OR \"voice model\" OR \"transcription model\" OR \"text-to-speech\" OR \"multimodal model\""
+                    + " OR \"vision-language model\") NOT \"Show HN\""),
             Map.entry("Pricing & Availability", "(\"API pricing\" OR \"price cut\") AND (OpenAI OR Anthropic OR Gemini)"),
-            Map.entry("Benchmarks & Evaluations", "\"AI benchmark\" OR \"LLM benchmark\" OR \"SWE-bench\" OR \"ARC-AGI\""),
+            Map.entry("Benchmarks & Evaluations", "\"LLM benchmark\" OR \"SWE-bench\" OR \"ARC-AGI\" OR \"Humanity's Last Exam\""
+                    + " OR \"Artificial Analysis\" OR LMArena"),
             Map.entry("New & Emerging Models", "\"new AI model\" OR \"open-weight model\" OR \"open-source model\"")
     );
 
@@ -52,11 +59,33 @@ final class TopicQueries {
             Map.entry("Browser & Computer-Use Agents", List.of("computer use", "browser agent")),
             Map.entry("Agent Frameworks & SDKs", List.of("Agents SDK", "MCP", "LangChain")),
             Map.entry("Reasoning & Context", List.of("reasoning model", "context window")),
-            Map.entry("Multimodal (Vision, Audio, Video)", List.of("Sora", "Veo", "image model", "video model")),
+            Map.entry("Multimodal (Vision, Audio, Video)", List.of("multimodal", "text-to-speech", "TTS",
+                    "speech-to-text", "image model", "image generation", "video model", "Sora", "Veo", "ElevenLabs")),
             Map.entry("Pricing & Availability", List.of("API pricing")),
             Map.entry("Benchmarks & Evaluations", List.of("LLM benchmark", "SWE-bench", "ARC-AGI")),
             Map.entry("New & Emerging Models", List.of("open weights", "open-weight model"))
     );
+
+    /**
+     * For topics fed by general lab blogs, the words a lab post's title or description must
+     * contain to count for the topic. Without this a lab feed's newest posts (policy, safety,
+     * funding) fill the topic's lab slots whatever they are about. Topics not listed here
+     * keep every lab post: their feeds are about the topic already (Claude, Cursor...).
+     */
+    static final Map<String, Pattern> LAB_RELEVANCE = Map.of(
+            "Multimodal (Vision, Audio, Video)", Pattern.compile(
+                    "\\b(multi-?modal|images?|video|vision|audio|speech|voices?|tts|asr|text-to-speech"
+                            + "|speech-to-text|transcription|music|sora|veo|imagen|nano banana|genie|world model|omni)\\b",
+                    Pattern.CASE_INSENSITIVE)
+    );
+
+    /** Whether a lab-feed article belongs to the topic (always true for topics without a filter). */
+    static boolean isRelevantLabArticle(String topic, Map<String, String> article) {
+        Pattern pattern = LAB_RELEVANCE.get(topic);
+        if (pattern == null) return true;
+        String text = article.getOrDefault("title", "") + " " + article.getOrDefault("description", "");
+        return pattern.matcher(text).find();
+    }
 
     /** The topic label minus the punctuation that breaks a keyword search, for unmapped topics. */
     static String newsApiQuery(String topic) {
