@@ -4,7 +4,7 @@
 
 **A daily, AI-curated brief on AI model news — with a five-question quiz so it actually sticks.**
 
-Curio reads first-party lab blogs (Anthropic, OpenAI, DeepMind, Meta AI, Mistral, Hugging Face) plus NewsAPI, has Claude write plain-language summaries of the topics you picked, and emails you the issue at your local delivery hour. Then it quizzes you on what you read.
+Curio reads first-party lab blogs (Anthropic, OpenAI, DeepMind, Mistral, Hugging Face) plus NewsAPI, has Claude write plain-language summaries of the topics you picked, and emails you the issue at your local delivery hour. Then it quizzes you on what you read.
 
 ![Curio landing page](docs/screenshots/home.png)
 

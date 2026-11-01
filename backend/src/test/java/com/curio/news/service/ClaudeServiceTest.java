@@ -47,7 +47,11 @@ class ClaudeServiceTest {
     // Minimal valid payloads that Claude would return as text
     private static final String SUMMARIES_JSON =
             "[{\"headline\":\"Test Headline\",\"summary\":\"A summary\",\"why_it_matters\":\"It matters\"," +
-            "\"source_url\":\"https://example.com\",\"source_name\":\"Example\",\"topic\":\"technology\"}]";
+            "\"source\":1,\"topic\":\"technology\"}]";
+
+    /** One cited article; summaries cite it as "source": 1 and get its URL and publisher. */
+    private static final List<Map<String, String>> ARTICLES = List.of(Map.of(
+            "title", "Source title", "url", "https://lab.example.com/post", "sourceName", "Lab Blog"));
 
     private static final String QUIZ_JSON =
             "{\"questions\":[{\"id\":1,\"question\":\"What?\",\"options\":{\"A\":\"a\",\"B\":\"b\"," +
@@ -87,7 +91,7 @@ class ClaudeServiceTest {
     @Test
     void generateNewsSummaries_callsApiAndCachesResult_onCacheMiss() throws Exception {
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles("technology")).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles("technology")).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(claudeBody(SUMMARIES_JSON)));
@@ -103,7 +107,7 @@ class ClaudeServiceTest {
     void generateNewsSummaries_stripsJsonCodeFences_beforeParsing() throws Exception {
         String textWithFences = "```json\n" + SUMMARIES_JSON + "\n```";
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles(any())).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(claudeBody(textWithFences)));
@@ -118,7 +122,7 @@ class ClaudeServiceTest {
     void generateNewsSummaries_stripsPlainCodeFences_beforeParsing() throws Exception {
         String textWithFences = "```\n" + SUMMARIES_JSON + "\n```";
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles(any())).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(claudeBody(textWithFences)));
@@ -131,7 +135,7 @@ class ClaudeServiceTest {
     @Test
     void generateNewsSummaries_returnsEmptyList_whenApiCallThrows() {
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles(any())).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
                 .thenThrow(new RuntimeException("API unavailable"));
@@ -145,7 +149,7 @@ class ClaudeServiceTest {
     @Test
     void generateNewsSummaries_doesNotCache_whenSummariesAreEmpty() throws Exception {
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles(any())).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(claudeBody("[]")));
@@ -159,7 +163,7 @@ class ClaudeServiceTest {
     @Test
     void generateNewsSummaries_throwsAfterAllRetriesExhausted() {
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles(any())).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
                 .thenThrow(new RuntimeException("connection timeout"));
@@ -167,6 +171,29 @@ class ClaudeServiceTest {
         // RuntimeException is swallowed by callClaudeApi and returns null → empty list
         List<NewsSummary> result = claudeService.generateNewsSummaries("technology");
         assertThat(result).isEmpty();
+    }
+
+    // --- web search sources ---
+
+    @Test
+    void generateNewsSummaries_keepsOnlyReachableUrls_whenItHadToSearchTheWeb() throws Exception {
+        String json = "[{\"headline\":\"Real\",\"summary\":\"S\",\"source_url\":\"https://real.example/a\",\"source_name\":\"Real\"}," +
+                "{\"headline\":\"Invented\",\"summary\":\"S\",\"source_url\":\"https://real.example/made-up\"}," +
+                "{\"headline\":\"Script\",\"summary\":\"S\",\"source_url\":\"javascript:alert(1)\"}]";
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(List.of());
+        when(newsApiClient.isReachable("https://real.example/a")).thenReturn(true);
+        when(newsApiClient.isReachable("https://real.example/made-up")).thenReturn(false);
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(claudeBody(json)));
+
+        List<NewsSummary> result = claudeService.generateNewsSummaries("technology");
+
+        assertThat(result).singleElement().satisfies(s -> {
+            assertThat(s.getHeadline()).isEqualTo("Real");
+            assertThat(s.getSourceUrl()).isEqualTo("https://real.example/a");
+        });
+        verify(newsApiClient, never()).isReachable("javascript:alert(1)");
     }
 
     // --- generateQuizQuestions ---
@@ -241,7 +268,7 @@ class ClaudeServiceTest {
     @Test
     void generateNewsSummaries_defaultsToTheEnglishEdition_withItsOwnCacheKey() throws Exception {
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles("technology")).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles("technology")).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(claudeBody(SUMMARIES_JSON)));

@@ -10,13 +10,15 @@ class AiPromptsTest {
 
     @Test
     void summaryPrompt_carriesTheTopic_sources_andLanguageBlock() {
-        String prompt = AiPrompts.summaryPrompt("Mistral", Language.EN, "Use the sources.", "Source articles:\n- one");
+        String prompt = AiPrompts.summaryPrompt("Mistral", Language.EN, AiPrompts.SourceMode.ARTICLES, "[1] Title: one");
 
         assertThat(prompt)
                 .contains("summaries for the topic: Mistral.")
                 .contains("Prefer changes that happened in the last 14 days.")
-                .contains("Use the sources.")
-                .contains("Source articles:\n- one")
+                .contains("Use ONLY the numbered source articles below")
+                .contains("Source articles:\n[1] Title: one")
+                .contains("\"source\": 1,")
+                .doesNotContain("source_url")
                 .contains("in English")
                 .contains("\"topic\": \"Mistral\"")
                 .doesNotContain("한국어");
@@ -24,7 +26,7 @@ class AiPromptsTest {
 
     @Test
     void summaryPrompt_scansForBrandNewModels_onTheEmergingTopic() {
-        String prompt = AiPrompts.summaryPrompt("New & Emerging Models", Language.EN, "", "");
+        String prompt = AiPrompts.summaryPrompt("New & Emerging Models", Language.EN, AiPrompts.SourceMode.ARTICLES, "");
 
         assertThat(prompt).contains("brand-new frontier or agentic model launches in the last 7 days")
                 .doesNotContain("last 14 days");
@@ -32,10 +34,19 @@ class AiPromptsTest {
 
     @Test
     void koreanEdition_asksForKoreanInTheFriendlyRegister_andKeepsJsonKeys() {
-        assertThat(AiPrompts.summaryPrompt("Mistral", Language.KO, "", ""))
+        assertThat(AiPrompts.summaryPrompt("Mistral", Language.KO, AiPrompts.SourceMode.ARTICLES, ""))
                 .contains("한국어").contains("해요체").contains("\"topic\": \"Mistral\"");
         assertThat(AiPrompts.quizPrompt("digest", Language.KO, DifficultyHint.NORMAL))
                 .contains("한국어").contains("해요체").contains("all JSON keys stay exactly as specified");
+    }
+
+    @Test
+    void summaryPrompt_asksForTheExactPageUrl_whenSearchingTheWeb() {
+        assertThat(AiPrompts.summaryPrompt("Grok (xAI)", Language.EN, AiPrompts.SourceMode.WEB_SEARCH, ""))
+                .contains("Search the web")
+                .contains("exact URL")
+                .contains("\"source_url\"")
+                .doesNotContain("Source articles:");
     }
 
     @Test

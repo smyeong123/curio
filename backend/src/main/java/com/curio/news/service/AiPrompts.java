@@ -12,17 +12,46 @@ final class AiPrompts {
 
     private AiPrompts() {}
 
-    static String summaryPrompt(String topic, Language language, String sourceInstruction, String sourceContextBlock) {
+    /** Where a summary prompt's evidence comes from, which decides how a summary cites it. */
+    enum SourceMode {
+        /** Numbered articles are in the prompt; each summary cites one by number. */
+        ARTICLES,
+        /** No articles were found; the model searches the web and returns the page URL it used. */
+        WEB_SEARCH
+    }
+
+    static String summaryPrompt(String topic, Language language, SourceMode mode, String sourceContext) {
         String topicInstruction = "New & Emerging Models".equals(topic)
                 ? "Scan for brand-new frontier or agentic model launches in the last 7 days — including models you may not have heard of. Prioritize launches from labs outside the big five (Anthropic, OpenAI, DeepMind, xAI, Meta) and any new agentic systems. Avoid repeating models already widely covered."
                 : "Focus on the most recent news, features, and releases for this topic. Prefer changes that happened in the last 14 days.";
+
+        boolean articles = mode == SourceMode.ARTICLES;
+        String sourceInstruction = articles
+                ? """
+                  Use ONLY the numbered source articles below as evidence. Base every summary on one
+                  article and state only facts that article supports — when an article's text is
+                  given, rely on it over its description. Prefer first-party announcements (lab
+                  blogs) over commentary. Skip articles that are off-topic for %s or not news.
+                  If no article fits, return an empty JSON array [].
+
+                  Source articles:
+                  %s""".formatted(topic, sourceContext)
+                : """
+                  Search the web for the latest news on this topic. Base every summary on one page
+                  you actually opened in the search results, and give that page's exact URL — the
+                  original article, not a search or aggregator page. If you find nothing current,
+                  return an empty JSON array [].""";
+        String sourceRule = articles
+                ? "- \"source\": the number of the article the summary is based on (e.g. 3 for [3]) — never invent one"
+                : "- \"source_url\" and \"source_name\": the exact URL and publisher of the page the summary is based on";
+        String sourceFields = articles
+                ? "\"source\": 1,"
+                : "\"source_url\": \"https://example.com/actual-article\",\n                \"source_name\": \"Source Name\",";
 
         return String.format("""
             You are Curio, a curator of AI *model* news. Your readers track new
             features, model releases, pricing changes, and brand-new agentic systems.
             Generate 2-3 plain-language TL;DR summaries for the topic: %s.
-
-            %s
 
             %s
 
@@ -39,7 +68,7 @@ final class AiPrompts {
             - Merge near-duplicate stories into a single summary; never cover the same announcement twice
             - headline: plain and specific, no hype or clickbait
             - "why_it_matters": one concrete, plain-language sentence about the real-world impact
-            - MUST include a real, valid source_url and source_name for each summary
+            %s
 
             %s
 
@@ -49,14 +78,13 @@ final class AiPrompts {
                 "headline": "...",
                 "summary": "...",
                 "why_it_matters": "...",
-                "source_url": "https://example.com/actual-article",
-                "source_name": "Source Name",
+                %s
                 "topic": "%s"
               }
             ]
 
             Return ONLY the JSON array, no additional text.
-            """, topic, topicInstruction, sourceInstruction, sourceContextBlock, summaryLanguageInstruction(language), topic);
+            """, topic, topicInstruction, sourceInstruction, sourceRule, summaryLanguageInstruction(language), sourceFields, topic);
     }
 
     static String quizPrompt(String digestContent, Language language, DifficultyHint hint) {
@@ -109,7 +137,7 @@ final class AiPrompts {
                 - Register: friendly, plain 해요체 (e.g. "출시했어요", "쓸 수 있어요"), the way a Korean newsletter editor writes for a general reader
                 - Keep company, product and model names in their original form (Anthropic, Claude, GPT-5, Gemini, Hugging Face); explain a technical term in plain Korean the first time it appears
                 - Length: the word limits above become 120-220 Korean characters per summary (never exceed 260), in short sentences
-                - JSON keys, source_url, source_name and topic stay exactly as specified below""";
+                - JSON keys and the source, source_url, source_name and topic values stay exactly as specified below""";
         };
     }
 

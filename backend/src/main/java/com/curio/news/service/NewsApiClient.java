@@ -12,7 +12,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.time.Duration;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 @Component
@@ -23,6 +25,15 @@ public class NewsApiClient {
     private final ObjectMapper objectMapper;
     private final RestTemplateBuilder restTemplateBuilder;
     private final LabBlogFetcher labBlogFetcher;
+    private final ArticleTextFetcher articleTextFetcher;
+
+    /** Articles older than this are not news any more; feeds keep years-old posts. */
+    static final Duration MAX_ARTICLE_AGE = Duration.ofDays(14);
+    /** Articles handed to one summary prompt (each may carry up to 2,000 chars of text). */
+    static final int MAX_ARTICLES_PER_TOPIC = 10;
+
+    /** Package-private so tests can pin "now" against fixed article dates. */
+    Clock clock = Clock.systemUTC();
 
     @Value("${news.api-key:}")
     private String newsApiKey;
@@ -44,13 +55,69 @@ public class NewsApiClient {
      * Fetches recent articles for a topic, combining first-party lab RSS feeds
      * (highest signal for release notes) with NewsAPI keyword search
      * (broader coverage). Lab-blog results come first so the AI prompt sees them
-     * at the top of the context.
+     * at the top of the context. Stale and duplicate articles are dropped, the list is
+     * capped at {@link #MAX_ARTICLES_PER_TOPIC}, and each article gets its readable page
+     * text under {@code content} where the page could be fetched.
+     *
+     * <p>The returned order is the numbering the summary prompt uses: the AI cites an
+     * article by its 1-based position, and the URL is taken from here, never from the AI.
      */
     public List<Map<String, String>> fetchNewsArticles(String topic) {
         List<Map<String, String>> combined = new ArrayList<>(labBlogFetcher.fetchForTopic(topic));
         combined.addAll(fetchFromNewsApi(topic));
-        return combined;
+
+        Instant cutoff = clock.instant().minus(MAX_ARTICLE_AGE);
+        Set<String> seenUrls = new HashSet<>();
+        List<Map<String, String>> selected = new ArrayList<>();
+        for (Map<String, String> article : combined) {
+            String url = article.getOrDefault("url", "").trim();
+            if (!url.startsWith("http://") && !url.startsWith("https://")) continue;
+            if (!seenUrls.add(normalizeUrl(url))) continue;
+            Instant published = parsePublishedAt(article.getOrDefault("publishedAt", ""));
+            if (published != null && published.isBefore(cutoff)) continue;
+            selected.add(article);
+            if (selected.size() >= MAX_ARTICLES_PER_TOPIC) break;
+        }
+        return selected.isEmpty() ? List.of() : articleTextFetcher.enrich(selected);
     }
+
+    /** Whether a URL the AI found through web search points at a real page. */
+    public boolean isReachable(String url) {
+        return articleTextFetcher.isReachable(url);
+    }
+
+    /** Same article, different tracking params or trailing slash → one entry. */
+    static String normalizeUrl(String url) {
+        String u = url.trim().toLowerCase(Locale.ROOT);
+        int q = u.indexOf('?');
+        if (q >= 0) u = u.substring(0, q);
+        int h = u.indexOf('#');
+        if (h >= 0) u = u.substring(0, h);
+        while (u.endsWith("/")) u = u.substring(0, u.length() - 1);
+        return u.replaceFirst("^https?://(www\\.)?", "");
+    }
+
+    /**
+     * Parses the date formats our sources use: RFC 1123 (RSS pubDate, with or without a
+     * zone) and ISO-8601 (Atom, NewsAPI). Null when unparseable — those articles are kept.
+     */
+    static Instant parsePublishedAt(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String value = raw.trim();
+        try {
+            return OffsetDateTime.parse(value).toInstant();
+        } catch (DateTimeParseException ignored) { }
+        try {
+            return ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant();
+        } catch (DateTimeParseException ignored) { }
+        try {
+            return LocalDateTime.parse(value, RSS_DATE_NO_ZONE).toInstant(ZoneOffset.UTC);
+        } catch (DateTimeParseException ignored) { }
+        return null;
+    }
+
+    private static final DateTimeFormatter RSS_DATE_NO_ZONE =
+            DateTimeFormatter.ofPattern("EEE, d MMM yyyy HH:mm:ss", Locale.ENGLISH);
 
     private List<Map<String, String>> fetchFromNewsApi(String topic) {
         if (newsApiKey == null || newsApiKey.isBlank()) {
@@ -120,12 +187,15 @@ public class NewsApiClient {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < sourceArticles.size(); i++) {
             Map<String, String> article = sourceArticles.get(i);
-            sb.append(i + 1).append(". ")
+            sb.append("[").append(i + 1).append("] ")
                     .append("Title: ").append(article.getOrDefault("title", "")).append("\n")
                     .append("   Source: ").append(article.getOrDefault("sourceName", "")).append("\n")
-                    .append("   URL: ").append(article.getOrDefault("url", "")).append("\n")
                     .append("   Published: ").append(article.getOrDefault("publishedAt", "")).append("\n")
                     .append("   Description: ").append(article.getOrDefault("description", "")).append("\n");
+            String content = article.getOrDefault("content", "");
+            if (!content.isBlank()) {
+                sb.append("   Article text:\n").append(content.indent(6));
+            }
         }
         return sb.toString();
     }

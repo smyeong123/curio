@@ -43,7 +43,11 @@ class GeminiServiceTest {
 
     private static final String SUMMARIES_JSON =
             "[{\"headline\":\"Gemini Headline\",\"summary\":\"A summary\",\"why_it_matters\":\"It matters\"," +
-            "\"source_url\":\"https://example.com\",\"source_name\":\"Example\",\"topic\":\"science\"}]";
+            "\"source\":1,\"topic\":\"science\"}]";
+
+    /** One cited article; summaries cite it as "source": 1 and get its URL and publisher. */
+    private static final List<Map<String, String>> ARTICLES = List.of(Map.of(
+            "title", "Source title", "url", "https://lab.example.com/post", "sourceName", "Lab Blog"));
 
     private static final String QUIZ_JSON =
             "{\"questions\":[{\"id\":1,\"question\":\"What?\",\"options\":{\"A\":\"a\",\"B\":\"b\"," +
@@ -83,7 +87,7 @@ class GeminiServiceTest {
     @Test
     void generateNewsSummaries_callsGeminiApiAndCachesResult_onCacheMiss() throws Exception {
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles("science")).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles("science")).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(geminiBody(SUMMARIES_JSON)));
@@ -98,7 +102,7 @@ class GeminiServiceTest {
     @Test
     void generateNewsSummaries_passesApiKeyViaHeader() throws Exception {
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles(any())).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(geminiBody(SUMMARIES_JSON)));
@@ -117,7 +121,7 @@ class GeminiServiceTest {
     void generateNewsSummaries_stripsJsonCodeFences_beforeParsing() throws Exception {
         String textWithFences = "```json\n" + SUMMARIES_JSON + "\n```";
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles(any())).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(geminiBody(textWithFences)));
@@ -131,7 +135,7 @@ class GeminiServiceTest {
     @Test
     void generateNewsSummaries_returnsEmptyList_whenApiCallThrows() {
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles(any())).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
                 .thenThrow(new RuntimeException("Gemini unavailable"));
@@ -145,7 +149,7 @@ class GeminiServiceTest {
     @Test
     void generateNewsSummaries_doesNotCache_whenSummariesAreEmpty() throws Exception {
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles(any())).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(geminiBody("[]")));
@@ -154,6 +158,55 @@ class GeminiServiceTest {
 
         assertThat(result).isEmpty();
         verify(valueOperations, never()).set(any(), any(), any(Duration.class));
+    }
+
+    // --- source links ---
+
+    @Test
+    void generateNewsSummaries_takesTheLinkFromTheCitedArticle_notFromTheModel() throws Exception {
+        String json = "[{\"headline\":\"H\",\"summary\":\"S\",\"why_it_matters\":\"W\"," +
+                "\"source\":1,\"source_url\":\"https://invented.example/fake\",\"topic\":\"other\"}]";
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
+        when(newsApiClient.buildSourceContext(any())).thenReturn("[1] Title: Source title");
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(geminiBody(json)));
+
+        List<NewsSummary> result = geminiService.generateNewsSummaries("science");
+
+        assertThat(result).singleElement().satisfies(s -> {
+            assertThat(s.getSourceUrl()).isEqualTo("https://lab.example.com/post");
+            assertThat(s.getSourceName()).isEqualTo("Lab Blog");
+            assertThat(s.getTopic()).isEqualTo("science");
+        });
+    }
+
+    @Test
+    void generateNewsSummaries_dropsSummariesCitingAnUnknownArticle_andRepeatsOfOneArticle() throws Exception {
+        String json = "[{\"headline\":\"Good\",\"summary\":\"S\",\"source\":1}," +
+                "{\"headline\":\"Repeat\",\"summary\":\"S\",\"source\":1}," +
+                "{\"headline\":\"Out of range\",\"summary\":\"S\",\"source\":7}," +
+                "{\"headline\":\"Uncited\",\"summary\":\"S\"}]";
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
+        when(newsApiClient.buildSourceContext(any())).thenReturn("[1] Title: Source title");
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(geminiBody(json)));
+
+        List<NewsSummary> result = geminiService.generateNewsSummaries("science");
+
+        assertThat(result).extracting(NewsSummary::getHeadline).containsExactly("Good");
+    }
+
+    @Test
+    void generateNewsSummaries_writesNothing_whenNoArticles_andTheProviderCannotSearch() {
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(List.of());
+
+        List<NewsSummary> result = geminiService.generateNewsSummaries("science");
+
+        assertThat(result).isEmpty();
+        verifyNoInteractions(restTemplate);
     }
 
     // --- generateQuizQuestions ---

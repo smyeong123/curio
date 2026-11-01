@@ -24,15 +24,19 @@ public final class LabBlogRegistry {
     private LabBlogRegistry() {}
 
     /**
-     * Anthropic publishes no public RSS, so its signal comes from a Google News
-     * RSS query — third-party, but Anthropic-specific. Meta likewise has no
-     * first-party product feed; the Meta Research blog feed stands in.
+     * Anthropic publishes no RSS of its own. This feed is generated from
+     * anthropic.com/news by the community-maintained Olshansk/rss-feeds project, so
+     * every item links straight to the anthropic.com post. (Google News RSS was used
+     * before, but its links are news.google.com redirects, not the original article,
+     * and its terms limit the feed to personal, non-commercial use.)
+     *
+     * Meta has no live first-party feed (the Meta Research feed stopped in 2023), so
+     * Llama news comes from the Hugging Face blog and NewsAPI.
      */
     private static final String ANTHROPIC_NEWS =
-            "https://news.google.com/rss/search?q=Anthropic+Claude&hl=en-US&gl=US&ceid=US:en";
+            "https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_news.xml";
     private static final String OPENAI_BLOG = "https://openai.com/blog/rss.xml";
     private static final String DEEPMIND_BLOG = "https://deepmind.google/blog/rss.xml";
-    private static final String META_AI_BLOG = "https://research.facebook.com/feed/";
     private static final String MISTRAL_NEWS = "https://mistral.ai/rss.xml";
     private static final String HUGGINGFACE_BLOG = "https://huggingface.co/blog/feed.xml";
 
@@ -50,7 +54,7 @@ public final class LabBlogRegistry {
             Map.entry("Gemini (Google DeepMind)", List.of(DEEPMIND_BLOG)),
             Map.entry("Grok (xAI)", List.of()),
             // Open-Weight Leaders
-            Map.entry("Llama (Meta AI)", List.of(META_AI_BLOG, HUGGINGFACE_BLOG)),
+            Map.entry("Llama (Meta AI)", List.of(HUGGINGFACE_BLOG)),
             Map.entry("DeepSeek", List.of(HUGGINGFACE_BLOG)),
             Map.entry("Qwen (Alibaba)", List.of(HUGGINGFACE_BLOG)),
             Map.entry("Mistral", List.of(MISTRAL_NEWS, HUGGINGFACE_BLOG)),
@@ -63,12 +67,12 @@ public final class LabBlogRegistry {
             Map.entry("Agent Frameworks & SDKs", List.of(ANTHROPIC_NEWS, OPENAI_BLOG)),
             // Capabilities & Ecosystem
             Map.entry("Reasoning & Context", List.of(ANTHROPIC_NEWS, OPENAI_BLOG, DEEPMIND_BLOG)),
-            Map.entry("Multimodal (Vision, Audio, Video)", List.of(OPENAI_BLOG, DEEPMIND_BLOG, META_AI_BLOG)),
+            Map.entry("Multimodal (Vision, Audio, Video)", List.of(OPENAI_BLOG, DEEPMIND_BLOG)),
             Map.entry("Pricing & Availability", List.of(ANTHROPIC_NEWS, OPENAI_BLOG, DEEPMIND_BLOG)),
             Map.entry("Benchmarks & Evaluations", List.of(ANTHROPIC_NEWS, OPENAI_BLOG, DEEPMIND_BLOG, HUGGINGFACE_BLOG)),
             // Emerging (catch-all — broadest coverage)
             Map.entry("New & Emerging Models",
-                    List.of(ANTHROPIC_NEWS, OPENAI_BLOG, DEEPMIND_BLOG, META_AI_BLOG, MISTRAL_NEWS, HUGGINGFACE_BLOG))
+                    List.of(ANTHROPIC_NEWS, OPENAI_BLOG, DEEPMIND_BLOG, MISTRAL_NEWS, HUGGINGFACE_BLOG))
     );
 
     public static List<String> feedsForTopic(String topic) {

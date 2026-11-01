@@ -6,6 +6,8 @@ import com.curio.news.dto.QuizGenerationResult;
 import com.curio.shared.concurrent.SingleFlight;
 import com.curio.shared.time.DigestDay;
 import com.curio.shared.i18n.Language;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.bulkhead.Bulkhead;
@@ -183,28 +185,24 @@ public abstract class AbstractAiProvider implements AiService {
 
         List<Map<String, String>> sourceArticles = newsApiClient.fetchNewsArticles(topic);
         boolean hasSourceArticles = !sourceArticles.isEmpty();
-        // No fetched articles: a provider with web search goes looking; the others are
-        // told to report only verifiable sources (or nothing) rather than invent "news"
-        // with fabricated URLs from training data.
-        boolean webSearch = !hasSourceArticles && supportsWebSearch();
-        String sourceInstruction;
-        if (hasSourceArticles) {
-            sourceInstruction = "Use the source articles below as your primary evidence. Prefer first-party announcements (lab blogs) over commentary.";
-        } else if (webSearch) {
-            sourceInstruction = "Search the web for the latest news on this topic. Use the search results to write summaries with real source URLs.";
-        } else {
-            sourceInstruction = "Only produce summaries you can attribute to a real, verifiable source with a valid source_url. If you cannot verify any current story for this topic, return an empty JSON array [].";
+        // No fetched articles: a provider with web search goes looking (and every URL it
+        // returns is checked); a provider without one has nothing to cite, so it writes
+        // nothing rather than "news" with links invented from training data.
+        if (!hasSourceArticles && !supportsWebSearch()) {
+            log.info("No source articles for topic '{}' and {} has no web search — skipping", topic, providerName());
+            return List.of();
         }
-        String sourceContext = newsApiClient.buildSourceContext(sourceArticles);
-        String sourceContextBlock = hasSourceArticles ? "Source articles:\n" + sourceContext : "";
+        AiPrompts.SourceMode mode = hasSourceArticles ? AiPrompts.SourceMode.ARTICLES : AiPrompts.SourceMode.WEB_SEARCH;
+        String sourceContext = hasSourceArticles ? newsApiClient.buildSourceContext(sourceArticles) : "";
 
-        String prompt = AiPrompts.summaryPrompt(topic, language, sourceInstruction, sourceContextBlock);
+        String prompt = AiPrompts.summaryPrompt(topic, language, mode, sourceContext);
         log.info("Generating {} summaries for topic '{}' ({})", language.code(), topic,
-                hasSourceArticles ? sourceArticles.size() + " source articles" : webSearch ? "web search" : "no sources");
+                hasSourceArticles ? sourceArticles.size() + " source articles" : "web search");
 
         try {
-            String response = callApi(prompt, overrideApiKey, webSearch);
-            List<NewsSummary> summaries = objectMapper.readValue(response, new TypeReference<List<NewsSummary>>() {});
+            String response = callApi(prompt, overrideApiKey, !hasSourceArticles);
+            List<RawSummary> raw = objectMapper.readValue(response, new TypeReference<List<RawSummary>>() {});
+            List<NewsSummary> summaries = attachSources(raw, topic, mode, sourceArticles);
             if (useCache && summaries != null && !summaries.isEmpty()) {
                 try {
                     redisTemplate.opsForValue().set(cacheKey, summaries, Duration.ofHours(12));
@@ -221,6 +219,83 @@ public abstract class AbstractAiProvider implements AiService {
             log.error("Failed to parse {} API response for summaries", providerName(), e);
             return List.of();
         }
+    }
+
+    /**
+     * What the model returns for one summary. In ARTICLES mode it names its evidence by
+     * number ({@code source}); in WEB_SEARCH mode by URL. Either way the link the reader
+     * gets is decided by {@link #attachSources}, not copied blindly from the model.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record RawSummary(String headline,
+                      String summary,
+                      @JsonProperty("why_it_matters") String whyItMatters,
+                      Integer source,
+                      @JsonProperty("source_url") String sourceUrl,
+                      @JsonProperty("source_name") String sourceName) { }
+
+    /**
+     * Turns the model's summaries into reader-facing ones with exact links:
+     * <ul>
+     *   <li>ARTICLES: the URL and publisher come from the cited article; a summary citing a
+     *       number that isn't in the list is dropped.</li>
+     *   <li>WEB_SEARCH: the URL must be http(s) and actually reachable (an invented URL 404s
+     *       or doesn't resolve); otherwise the summary is dropped.</li>
+     * </ul>
+     * Two summaries resting on the same page are the same story, so only the first is kept.
+     * The topic is always the one requested, whatever the model wrote.
+     */
+    List<NewsSummary> attachSources(List<RawSummary> raw, String topic, AiPrompts.SourceMode mode,
+                                    List<Map<String, String>> sourceArticles) {
+        if (raw == null) return List.of();
+        List<NewsSummary> out = new java.util.ArrayList<>();
+        java.util.Set<String> usedUrls = new java.util.HashSet<>();
+        for (RawSummary r : raw) {
+            if (r == null || isBlank(r.headline()) || isBlank(r.summary())) continue;
+            String url;
+            String name;
+            if (mode == AiPrompts.SourceMode.ARTICLES) {
+                Integer n = r.source();
+                if (n == null || n < 1 || n > sourceArticles.size()) {
+                    log.warn("Dropping summary '{}' for topic '{}': cites unknown source {}", r.headline(), topic, n);
+                    continue;
+                }
+                Map<String, String> article = sourceArticles.get(n - 1);
+                url = article.getOrDefault("url", "");
+                name = article.getOrDefault("sourceName", "");
+            } else {
+                url = r.sourceUrl() == null ? "" : r.sourceUrl().trim();
+                name = r.sourceName();
+                boolean http = url.startsWith("https://") || url.startsWith("http://");
+                if (!http || !newsApiClient.isReachable(url)) {
+                    log.warn("Dropping summary '{}' for topic '{}': source URL not reachable", r.headline(), topic);
+                    continue;
+                }
+            }
+            if (!usedUrls.add(NewsApiClient.normalizeUrl(url))) continue;
+            out.add(NewsSummary.builder()
+                    .headline(r.headline())
+                    .summary(r.summary())
+                    .whyItMatters(r.whyItMatters())
+                    .sourceUrl(url)
+                    .sourceName(isBlank(name) ? hostOf(url) : name)
+                    .topic(topic)
+                    .build());
+        }
+        return out;
+    }
+
+    private static String hostOf(String url) {
+        try {
+            String host = java.net.URI.create(url).getHost();
+            return host == null ? "" : host.replaceFirst("^www\\.", "");
+        } catch (IllegalArgumentException e) {
+            return "";
+        }
+    }
+
+    private static boolean isBlank(String s) {
+        return s == null || s.isBlank();
     }
 
     // --- quiz ---
