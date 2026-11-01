@@ -40,7 +40,7 @@ public class RedisConfig {
      * cache a record, enum, or {@code java.time} field through this template
      * without re-checking round-tripping and the allowlist below.
      */
-    private GenericJackson2JsonRedisSerializer allowlistedJsonSerializer() {
+    GenericJackson2JsonRedisSerializer allowlistedJsonSerializer() {
         BasicPolymorphicTypeValidator typeValidator = BasicPolymorphicTypeValidator.builder()
                 .allowIfSubType("com.curio.")
                 .allowIfSubType("java.util.")

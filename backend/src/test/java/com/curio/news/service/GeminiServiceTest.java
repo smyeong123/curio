@@ -1,6 +1,7 @@
 package com.curio.news.service;
 
 import com.curio.news.dto.NewsSummary;
+import com.curio.news.dto.SourceLink;
 import com.curio.news.dto.QuizGenerationResult;
 import com.curio.shared.concurrent.SingleFlight;
 import io.github.resilience4j.bulkhead.BulkheadRegistry;
@@ -196,6 +197,36 @@ class GeminiServiceTest {
         List<NewsSummary> result = geminiService.generateNewsSummaries("science");
 
         assertThat(result).extracting(NewsSummary::getHeadline).containsExactly("Good");
+    }
+
+    @Test
+    void generateNewsSummaries_attachesThePublishDate_andOtherOutletsReportingTheSameStory() throws Exception {
+        List<Map<String, String>> articles = List.of(
+                Map.of("url", "https://lab.example.com/post", "sourceName", "Lab Blog",
+                        "publishedAt", "2026-10-30T14:00:00Z"),
+                Map.of("url", "https://news.example.com/story", "sourceName", "News Site"),
+                Map.of("url", "https://blog.example.org/take", "sourceName", ""),
+                Map.of("url", "https://other.example.com/unrelated", "sourceName", "Other"));
+        // [2] and [3] back up story one; story two rests on [3], already shown under story one.
+        String json = "[{\"headline\":\"One\",\"summary\":\"S\",\"source\":1,\"also\":[2,3,3,1,9]}," +
+                "{\"headline\":\"Same again\",\"summary\":\"S\",\"source\":3}," +
+                "{\"headline\":\"Two\",\"summary\":\"S\",\"source\":4}]";
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(articles);
+        when(newsApiClient.buildSourceContext(any())).thenReturn("[1] ...");
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok(geminiBody(json)));
+
+        List<NewsSummary> result = geminiService.generateNewsSummaries("science");
+
+        assertThat(result).extracting(NewsSummary::getHeadline).containsExactly("One", "Two");
+        NewsSummary first = result.get(0);
+        assertThat(first.getPublishedAt()).isEqualTo("2026-10-30T14:00:00Z");
+        assertThat(first.getAlsoCoveredBy()).containsExactly(
+                new SourceLink("News Site", "https://news.example.com/story"),
+                new SourceLink("blog.example.org", "https://blog.example.org/take"));
+        assertThat(result.get(1).getPublishedAt()).isNull();
+        assertThat(result.get(1).getAlsoCoveredBy()).isEmpty();
     }
 
     @Test
