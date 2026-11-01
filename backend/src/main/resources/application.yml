@@ -70,6 +70,11 @@ auth:
     max-account-failures: ${AUTH_EMAIL_VERIFICATION_MAX_ACCOUNT_FAILURES:10}
     code-length: ${AUTH_EMAIL_VERIFICATION_CODE_LENGTH:6}
     code-ttl-minutes: ${AUTH_EMAIL_VERIFICATION_CODE_TTL_MINUTES:10}
+  # Refresh-token reuse detection (V31). A rotated token replayed within this
+  # many seconds is the benign two-tabs race (plain 401); later it is treated as
+  # theft and every session of that user is revoked + audit-logged.
+  refresh-token:
+    reuse-grace-seconds: ${AUTH_REFRESH_TOKEN_REUSE_GRACE_SECONDS:30}
 
 springdoc:
   api-docs:

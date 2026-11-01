@@ -1,0 +1,14 @@
+-- Refresh-token reuse detection (OWASP / RFC 6819 5.2.2.3).
+--
+-- Rotation used to DELETE the presented row, so a replayed token looked exactly
+-- like an unknown one. Rotation now stamps rotated_at instead and keeps the row
+-- until it expires (ExpiredAuthRowReaper still reaps it on expires_at). A token
+-- presented again after rotation is therefore recognisable:
+--   * within auth.refresh-token.reuse-grace-seconds (default 30): plain 401,
+--     the usual two-tabs-raced case; no other session is touched;
+--   * after the grace window: treated as theft; every refresh token of that
+--     user is revoked and an audit_log entry is written.
+-- Logout, password reset/change and account deletion still DELETE rows, so
+-- those tokens stay unknown and are never mistaken for reuse.
+-- NULL = live token. Every existing row is live, so no backfill is needed.
+ALTER TABLE refresh_tokens ADD COLUMN rotated_at TIMESTAMP WITH TIME ZONE;

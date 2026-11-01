@@ -2,6 +2,7 @@ package com.curio.auth.port.out;
 
 import com.curio.auth.entity.RefreshToken;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -19,4 +20,11 @@ public interface RefreshTokenPort {
     void delete(RefreshToken refreshToken);
 
     void deleteByUserId(UUID userId);
+
+    /**
+     * Atomically marks a live token as rotated. Returns 1 when this caller won the
+     * rotation, 0 when the token was already rotated (e.g. a concurrent refresh of
+     * the same token committed first).
+     */
+    int markRotated(UUID id, LocalDateTime rotatedAt);
 }

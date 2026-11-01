@@ -2,7 +2,9 @@ package com.curio.auth.controller;
 
 import com.curio.auth.dto.AuthResponse;
 import com.curio.auth.service.AuthService;
+import com.curio.shared.exception.UnauthorizedException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -83,5 +85,16 @@ class AuthControllerIntegrationTest {
                 .andExpect(jsonPath("$.email").value("admin@curio.test"))
                 .andExpect(jsonPath("$.isAdmin").value(true))
                 .andExpect(header().string("Set-Cookie", containsString("refreshToken=refresh-token")));
+    }
+
+    @Test
+    void refreshWithReusedTokenIs401_soTheFrontendNeverStrandsOnA403() throws Exception {
+        when(authService.refreshToken("rotated-token"))
+                .thenThrow(new UnauthorizedException("Invalid refresh token"));
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .cookie(new Cookie("refreshToken", "rotated-token")))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().doesNotExist("Set-Cookie"));
     }
 }

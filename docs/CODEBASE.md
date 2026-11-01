@@ -46,7 +46,7 @@ Curio is an AI-powered personalized news service. Each day it fetches news artic
 | Java | 21 | Runtime |
 | Spring Boot | 3.5 | Framework (Web, Data JPA, Security, Validation, Actuator) |
 | jjwt | 0.12.6 | JWT access tokens |
-| PostgreSQL | 16 | Primary DB, Flyway migrations (V1–V30) |
+| PostgreSQL | 16 | Primary DB, Flyway migrations (V1–V31) |
 | Redis | 7 | AI summary cache (12 h TTL) + job-status registry |
 | Resilience4j | 2.2 | Circuit breaker + bulkhead around AI calls |
 | ShedLock | 5.10 | Distributed scheduler locking |
@@ -170,7 +170,7 @@ curio/
 │       │       ├── application-dev.yml
 │       │       ├── application-prod.yml
 │       │       ├── application-test.yml
-│       │       ├── db/migration/    # V1-V30 Flyway SQL scripts
+│       │       ├── db/migration/    # V1-V31 Flyway SQL scripts
 │       │       ├── messages.properties      # email chrome, English (digest + auth mails: subject, labels, date patterns)
 │       │       ├── messages_ko.properties   # same keys, Korean edition
 │       │       └── templates/
@@ -456,6 +456,7 @@ User implements Spring Security's `UserDetails`. `isEnabled()` returns `emailVer
 | `token_hash` | VARCHAR | UNIQUE, NOT NULL | SHA-256 hash of JWT refresh token (V9 migration) |
 | `expires_at` | TIMESTAMP | NOT NULL | |
 | `created_at` | TIMESTAMP | @PrePersist | |
+| `rotated_at` | TIMESTAMP | nullable | Set when `/auth/refresh` exchanges the token for a successor (V31); NULL = live. Rotated rows are kept until `expires_at` for reuse detection; logout / password reset / account deletion still delete rows |
 
 #### `password_reset_tokens` table
 
@@ -533,6 +534,7 @@ Indexes: `idx_audit_log_actor_id` (actor_id), `idx_audit_log_action` (action), `
 | V28 | `add_language_to_user_preferences` (Adds `language` VARCHAR(8) NOT NULL DEFAULT 'en' + CHECK ('en','ko') to user_preferences — the edition the AI writes the digest/quiz/email in) |
 | V29 | `digest_day_kst_and_default_delivery_hour` (Replaces V23's UTC-day index with `idx_digests_user_digest_day` on `curio_digest_day(generated_at)` — one digest per user per 05:00-KST digest day; dedupes any pair sharing a digest day, keeping the newest; moves every `delivery_hour = 8` to the new default 6) |
 | V30 | `add_login_code_failures_to_users` (`users.login_code_failures` — account-wide 2FA wrong-code budget, so re-logging in can't refill the per-challenge 5 attempts) |
+| V31 | `add_rotated_at_to_refresh_tokens` (`refresh_tokens.rotated_at` — rotation marks the row instead of deleting it, enabling refresh-token reuse detection) |
 
 ### Service Layer
 
@@ -578,7 +580,7 @@ All providers: Redis cache check first, call NewsApiClient for articles, call AI
 | Service | Responsibilities |
 |---------|-----------------|
 | `NewsApiClient` | Shared `@Component`. Merges three sources: lab and product feeds, Hacker News (`HackerNewsFetcher`) and News API (queried with the topic's search terms from `TopicQueries`, title + description only). Drops articles older than 14 days and duplicate URLs (query string, trailing slash and `www.` ignored); fills the 10 slots with up to 6 feed articles, up to 3 Hacker News stories, then press, handing unused slots to the others; adds each article's page text via `ArticleTextFetcher`; builds the numbered context for the AI prompt. A blank API key just means lab feeds only. |
-| `AuthService` | Register (BCrypt, auto-sets `emailVerified=true`; duplicate-email race caught as clean 400), login (AuthenticationManager, then hands off to the 2FA challenge when enabled), Google login policy (merging into a password-only account found by email clears the unproven password and revokes sessions — pre-account-hijack defense), token refresh (hashes tokens before lookup), logout, password reset (SHA-256 hashed tokens). Owns session issuance; ~290 lines. |
+| `AuthService` | Register (BCrypt, auto-sets `emailVerified=true`; duplicate-email race caught as clean 400), login (AuthenticationManager, then hands off to the 2FA challenge when enabled), Google login policy (merging into a password-only account found by email clears the unproven password and revokes sessions — pre-account-hijack defense), token refresh (hashes tokens before lookup; rotated-token reuse after a 30 s grace revokes every session + audit-logs), logout, password reset (SHA-256 hashed tokens). Owns session issuance; ~290 lines. |
 | `EmailVerificationChallengeService` | The emailed-code second factor: `start` (hashed challenge id + code, attempts budget, TTL, sends the mail), `verify` → `Verification` (`VERIFIED`/`INVALID_CODE`/`LOCKED`/`EXPIRED`, attempts remaining, reset hint, user), `resend`. Constant-time compare, atomic attempt decrement, lockout marks the challenge consumed. |
 | `GoogleIdTokenVerifier` | Resolves a Google ID token via the tokeninfo endpoint and adds the audience + issuer checks Google does not do; returns a `GoogleIdentity(sub, email, name, emailVerified)` record. Fails closed without a client id. |
 | `UserService` | Profile CRUD, preferences upsert, account deletion, unsubscribe (sets `deliveryEnabled=false`). |
@@ -626,6 +628,7 @@ All providers: Redis cache check first, call NewsApiClient for articles, call AI
 - CSRF: disabled (stateless JWT API)
 - Sessions: STATELESS
 - JWT: HMAC-SHA256 access tokens (15 min) + refresh tokens (3-hour sliding idle timeout, single-use rotation, stored SHA-256-hashed in DB). Lifetime derives from `jwt.refresh-expiration` (env `JWT_REFRESH_EXPIRATION`, default 10800000 ms = 3h); the DB row, cookie max-age, and JWT expiry share this one source of truth
+- Refresh-token reuse detection (V31): rotation is an atomic conditional `UPDATE ... SET rotated_at WHERE rotated_at IS NULL` (the loser of a same-token race gets 401). A rotated token presented again within `auth.refresh-token.reuse-grace-seconds` (env `AUTH_REFRESH_TOKEN_REUSE_GRACE_SECONDS`, default 30) is a plain 401 with nothing else revoked (two tabs racing). After the window it counts as theft: all of the user's refresh tokens are deleted, a WARN is logged (user id only) and a `REFRESH_TOKEN_REUSE_DETECTED` audit entry (target `USER`) is written; still 401, never 403. Expired and logged-out tokens are never treated as reuse (expired is checked first; logout deletes the row). The successor is never re-sent, since only its hash is stored
 - `JwtAuthenticationFilter` extracts Bearer token from Authorization header
 - Public paths: `/api/v1/auth/**`, `/api/v1/webhooks/**`, `/api/v1/user/unsubscribe`, `/actuator/health`, `/actuator/info`, `/api-docs/**`, `/swagger-ui/**`
 - Admin paths: `/api/v1/admin/**` requires `ROLE_ADMIN` (via SecurityConfig URL matcher)
@@ -979,7 +982,7 @@ The full variable reference (what each var is, why it's needed, prod-required vs
 |---|---|---|
 | `CurioApplicationTests` | Smoke | Spring context loads |
 | `HexagonalArchitectureTest` | Architecture | ArchUnit rules (ports ≠ adapters, only adapters/repositories touch repositories, controllers depend on inbound ports, adapters isolated, no cycles among `shared.*` packages) |
-| `AuthServiceTest` | Unit | Register/login/refresh/logout/password-reset paths, token rotation, used-token rejection, 2FA hand-off mapping, Google merge policy (unverified email rejected, password cleared + sessions revoked on merge) |
+| `AuthServiceTest` | Unit | Register/login/refresh/logout/password-reset paths, token rotation, used-token rejection, refresh-token reuse detection (after-grace revoke-all + audit, within-grace and lost-race 401 without revoking, expired/logged-out not reuse), 2FA hand-off mapping, Google merge policy (unverified email rejected, password cleared + sessions revoked on merge) |
 | `EmailVerificationChallengeServiceTest` | Unit | Challenge start persists hashes not plaintext, 6-digit code, mail failure still issues the challenge, attempts/lockout/expiry outcomes and copy, resend rotates code + expiry |
 | `GoogleIdTokenVerifierTest` | Unit | tokeninfo success, bare/https issuer, audience mismatch, blank client id fails closed, missing sub/email, empty response, transport error |
 | `ClaudeServiceTest` | Unit | Cache hit/miss, API calls, JSON parsing, code-fence stripping, error handling, retry, quiz generation |

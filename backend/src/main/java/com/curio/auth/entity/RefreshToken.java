@@ -37,6 +37,14 @@ public class RefreshToken {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    /**
+     * When {@code /auth/refresh} exchanged this token for a successor; {@code null}
+     * while the token is live. Rotated rows are kept until they expire so a replay
+     * can be told apart from an unknown token (reuse detection, V31).
+     */
+    @Column(name = "rotated_at")
+    private LocalDateTime rotatedAt;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -44,5 +52,9 @@ public class RefreshToken {
 
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(expiresAt);
+    }
+
+    public boolean isRotated() {
+        return rotatedAt != null;
     }
 }
