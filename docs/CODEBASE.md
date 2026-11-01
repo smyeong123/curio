@@ -118,7 +118,7 @@ curio/
 │       │   │   │   ├── service/      NewsService, AbstractAiProvider (shared AI orchestration base:
 │       │   │   │   │                 cache, single-flight, retry, breaker, parse), AiPrompts (the summary + quiz
 │       │   │   │   │                 prompt text, pure functions), ClaudeService, GeminiService, OpenAiService, NewsApiClient,
-│       │   │   │   │                 LabBlogFetcher (45-min feed memo), LabBlogRegistry, LlmKeyValidator
+│       │   │   │   │                 LabBlogFetcher (45-min feed memo), LabBlogRegistry, ArticleTextFetcher, LlmKeyValidator
 │       │   │   │   ├── dto/          DigestResponse, NewsSummary, QuizGenerationResult, QuizQuestionItem
 │       │   │   │   ├── entity/       Digest
 │       │   │   │   ├── repository/   DigestRepository
@@ -567,11 +567,13 @@ Provider selected via `AI_PROVIDER` env var:
 
 All providers: Redis cache check first, call NewsApiClient for articles, call AI API, cache result. Retry: MAX_RETRIES=2, RETRY_DELAY_MS=2000 (linear: `delay * attempt`).
 
+**Source links are never written by the model.** The prompt numbers the articles (`[1]`, `[2]`, …, no URLs shown) and the model returns `"source": n` per summary; `AbstractAiProvider.attachSources` copies the URL and publisher from article *n*, and drops any summary citing a number that isn't there. Two summaries on the same article keep only the first, and `topic` is always the requested topic. With no articles, Claude falls back to web search and returns `source_url`/`source_name`; each URL must be http(s) and reachable (`ArticleTextFetcher.isReachable`: 2xx, or 401/403/429 bot walls), or the summary is dropped. Gemini/OpenAI have no web search, so a topic with no articles returns nothing and no AI call is made.
+
 #### Other Services
 
 | Service | Responsibilities |
 |---------|-----------------|
-| `NewsApiClient` | Shared `@Component`. Fetches articles from News API, parses responses, builds context strings for AI prompts. Gracefully returns empty list if API key is blank. |
+| `NewsApiClient` | Shared `@Component`. Merges lab-feed and News API articles; drops ones older than 14 days and duplicate URLs (query string, trailing slash and `www.` ignored); caps the list at 10; adds each article's page text via `ArticleTextFetcher`; builds the numbered context for the AI prompt. A blank API key just means lab feeds only. |
 | `AuthService` | Register (BCrypt, auto-sets `emailVerified=true`; duplicate-email race caught as clean 400), login (AuthenticationManager, then hands off to the 2FA challenge when enabled), Google login policy (merging into a password-only account found by email clears the unproven password and revokes sessions — pre-account-hijack defense), token refresh (hashes tokens before lookup), logout, password reset (SHA-256 hashed tokens). Owns session issuance; ~290 lines. |
 | `EmailVerificationChallengeService` | The emailed-code second factor: `start` (hashed challenge id + code, attempts budget, TTL, sends the mail), `verify` → `Verification` (`VERIFIED`/`INVALID_CODE`/`LOCKED`/`EXPIRED`, attempts remaining, reset hint, user), `resend`. Constant-time compare, atomic attempt decrement, lockout marks the challenge consumed. |
 | `GoogleIdTokenVerifier` | Resolves a Google ID token via the tokeninfo endpoint and adds the audience + issuer checks Google does not do; returns a `GoogleIdentity(sub, email, name, emailVerified)` record. Fails closed without a client id. |
@@ -592,6 +594,7 @@ All providers: Redis cache check first, call NewsApiClient for articles, call AI
 | `StudioTaskStatusService` | Tracks live Studio task status and context for `GET /studio/status`. |
 | `LabBlogFetcher` | Fetches lab/company blog (RSS) content for digest sourcing. |
 | `LabBlogRegistry` | Registry of lab blog feed URLs consumed by `LabBlogFetcher`. |
+| `ArticleTextFetcher` | Fetches the readable text of each source article for the summary prompt, and checks that URLs found by web search exist. SSRF-guarded (public http(s) hosts only, every redirect hop checked), 2 MB body cap, 6 h per-URL memo. |
 | `LlmKeyValidator` | Validates user-supplied (BYOK) provider API keys. |
 | `DigestPipeline` | `shared/digest` — one user end to end: `NewsService.generate` then `QuizService.generateQuizForDigest`; returns digest status + quiz status. Used by the scheduled batch, admin triggers and Studio. |
 | `DigestBatch` / `DigestEmailBatch` | `shared/digest` — the two subscriber-wide runs, built on `SubscriberBatch`: generation for every subscriber and the hourly delivery run (`sendDue`: hour gate, today-only, generate-if-missing) or the admin `sendAllUnsent`. Each batch owns its job status through `JobRunRecorder` (success with the result map, or FAILED + Sentry when the run dies). A quiet news day (every topic empty) is a *skip*, not a failure, so it cannot trip the partial-failure alert. |

@@ -43,7 +43,11 @@ class OpenAiServiceTest {
 
     private static final String SUMMARIES_JSON =
             "[{\"headline\":\"OpenAI Headline\",\"summary\":\"A summary\",\"why_it_matters\":\"It matters\"," +
-            "\"source_url\":\"https://example.com\",\"source_name\":\"Example\",\"topic\":\"business\"}]";
+            "\"source\":1,\"topic\":\"business\"}]";
+
+    /** One cited article; summaries cite it as "source": 1 and get its URL and publisher. */
+    private static final List<Map<String, String>> ARTICLES = List.of(Map.of(
+            "title", "Source title", "url", "https://lab.example.com/post", "sourceName", "Lab Blog"));
 
     private static final String QUIZ_JSON =
             "{\"questions\":[{\"id\":1,\"question\":\"What?\",\"options\":{\"A\":\"a\",\"B\":\"b\"," +
@@ -83,7 +87,7 @@ class OpenAiServiceTest {
     @Test
     void generateNewsSummaries_callsOpenAiAndCachesResult_onCacheMiss() throws Exception {
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles("business")).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles("business")).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(openAiBody(SUMMARIES_JSON)));
@@ -98,7 +102,7 @@ class OpenAiServiceTest {
     @Test
     void generateNewsSummaries_sendsBearerAuthHeader() throws Exception {
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles(any())).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
                 .thenAnswer(invocation -> {
@@ -115,7 +119,7 @@ class OpenAiServiceTest {
     void generateNewsSummaries_stripsJsonCodeFences_beforeParsing() throws Exception {
         String textWithFences = "```json\n" + SUMMARIES_JSON + "\n```";
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles(any())).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(openAiBody(textWithFences)));
@@ -129,7 +133,7 @@ class OpenAiServiceTest {
     @Test
     void generateNewsSummaries_returnsEmptyList_whenApiCallThrows() {
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles(any())).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
                 .thenThrow(new RuntimeException("OpenAI unavailable"));
@@ -143,7 +147,7 @@ class OpenAiServiceTest {
     @Test
     void generateNewsSummaries_doesNotCache_whenSummariesAreEmpty() throws Exception {
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(newsApiClient.fetchNewsArticles(any())).thenReturn(List.of());
+        when(newsApiClient.fetchNewsArticles(any())).thenReturn(ARTICLES);
         when(newsApiClient.buildSourceContext(any())).thenReturn("no articles");
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(openAiBody("[]")));
