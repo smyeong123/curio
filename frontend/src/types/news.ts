@@ -5,6 +5,15 @@ export interface NewsSummary {
   source_url: string
   source_name: string
   topic: string
+  /** ISO instant the cited article was published; absent on older digests or undated sources. */
+  published_at?: string | null
+  /** Other outlets that reported the same story; absent on older digests. */
+  also_covered_by?: SourceLink[] | null
+}
+
+export interface SourceLink {
+  name: string
+  url: string
 }
 
 export interface DigestContent {
