@@ -589,7 +589,7 @@ All providers: Redis cache check first, call NewsApiClient for articles, call AI
 | `AdminStatsService` | Stats aggregation (total users, emails sent, quiz completions), topic distribution, topic status per-topic stats, job status retrieval. |
 | `AdminOperationsService` | Manual triggers: `DigestEmailBatch.sendAllUnsent()` (every unsent digest, no hour gate) and the 30-day cleanup job. |
 | `AdminManualJobService` | Backs the async admin triggers (`POST /admin/generate-digests`, `/admin/send-emails`): returns 202 `JobTriggerResponse(status)` `started`/`already_running` immediately and runs the batch on a background executor. |
-| `EmailService` | Renders and orchestrates mail: digest email (claim → render `digest-email.html` in the digest's edition → send → release the claim on failure → record provider id), 2FA-code and password-reset mails (`auth-email.html`, edition from the user's preference). |
+| `EmailService` | Renders and orchestrates mail: digest email (claim → render `digest-email.html` in the digest's edition → send → release the claim on failure → record provider id; each story also gets its `published_at` date in the reader's zone and `also_covered_by` outlet links, http(s) only), 2FA-code and password-reset mails (`auth-email.html`, edition from the user's preference). |
 | `EmailTransport` | The wire call: Resend HTTP with 3 attempts on 429/5xx, fail-fast on other 4xx, SMTP fallback when no Resend key. Returns the provider message id. |
 | `EmailEventProcessor` | Resend webhook events: open/click stamp the digest, hard bounce/complaint disable delivery for the address. |
 | `UnsubscribeTokenService` | HMAC-SHA256 signed tokens with configurable TTL (default 720 hours / 30 days) — `shared/security`. |
