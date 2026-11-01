@@ -39,6 +39,9 @@ public interface DigestPort {
 
     boolean existsByUserIdAndGeneratedAtBetween(UUID userId, LocalDateTime start, LocalDateTime end);
 
+    /** The user's digests generated in [start, end), used to avoid sending a story twice. */
+    List<Digest> findByUserIdAndGeneratedAtGreaterThanEqualAndGeneratedAtLessThan(UUID userId, LocalDateTime start, LocalDateTime end);
+
     Optional<Digest> findFirstByUserIdAndEmailSentAtIsNullOrderByGeneratedAtDesc(UUID userId);
 
     /** The user's newest digest, sent or not. */
