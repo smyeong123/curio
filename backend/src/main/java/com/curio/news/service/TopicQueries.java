@@ -70,12 +70,45 @@ final class TopicQueries {
      * For topics fed by general lab blogs, the words a lab post's title or description must
      * contain to count for the topic. Without this a lab feed's newest posts (policy, safety,
      * funding) fill the topic's lab slots whatever they are about. Topics not listed here
-     * keep every lab post: their feeds are about the topic already (Claude, Cursor...).
+     * keep every lab post: their feeds are about the topic already (Claude, Cursor...), and
+     * "New & Emerging Models" is the catch-all. Tuned against the live feeds: bare words like
+     * "cost", "context", "API", "skills" or "framework" also match customer stories, education
+     * programmes and security posts, so those only count in the phrases below.
      */
     static final Map<String, Pattern> LAB_RELEVANCE = Map.of(
             "Multimodal (Vision, Audio, Video)", Pattern.compile(
                     "\\b(multi-?modal|images?|video|vision|audio|speech|voices?|tts|asr|text-to-speech"
                             + "|speech-to-text|transcription|music|sora|veo|imagen|nano banana|genie|world model|omni)\\b",
+                    Pattern.CASE_INSENSITIVE),
+            "Reasoning & Context", Pattern.compile(
+                    "\\b(reasoning|extended thinking|deep think|thinking (mode|models?|budgets?|tokens?)"
+                            + "|think(ing)? (longer|harder)|chain[- ]of[- ]thought|test[- ]time (compute|scaling)"
+                            + "|context windows?|long[- ]context|context length|million[- ]tokens?|\\d+[km][- ]tokens?"
+                            + "|memory|o[1-9](-mini|-pro)?)\\b",
+                    Pattern.CASE_INSENSITIVE),
+            // "costs 40% less" is a launch post's price line; "cut costs" is a customer story.
+            "Pricing & Availability", Pattern.compile(
+                    "\\b(pricing|(api|token|model) prices?|price (cuts?|drops?|reductions?)|cheaper|cost-efficient"
+                            + "|costs? (up to )?\\d+% less|fraction of the cost|per million|now available"
+                            + "|generally available|general availability|rate limits?|free tier|prompt caching|batch api"
+                            + "|google cloud|bedrock|vertex ai|model garden|foundry|azure openai)\\b",
+                    Pattern.CASE_INSENSITIVE),
+            // Any "...Bench" name (SWE-bench, MentalHealthBench) but not "workbench"; "evaluations"
+            // alone is mostly safety testing, so it needs a qualifier.
+            "Benchmarks & Evaluations", Pattern.compile(
+                    "\\b((?!workbench)\\w*bench(marks?|marking|ed)?|evals?"
+                            + "|(ai|model|llm|new|open|capability|double-blind) evaluations?|leaderboards?|lmarena"
+                            + "|gpqa|arc-agi|mmlu|humanity's last exam|aime)\\b",
+                    Pattern.CASE_INSENSITIVE),
+            "Browser & Computer-Use Agents", Pattern.compile(
+                    "\\b(computer[- ]use|browser[- ]use|browser agents?|(ai|agentic) browsers?|browser automation"
+                            + "|browser tests?|chatgpt (agent|atlas)|atlas browser|agent mode|comet|chrome"
+                            + "|web agents?|gui agents?)\\b",
+                    Pattern.CASE_INSENSITIVE),
+            "Agent Frameworks & SDKs", Pattern.compile(
+                    "\\b(sdks?|agents? sdk|mcp|model context protocol|tool[- ]use|tool[- ]calling|function[- ]calling"
+                            + "|responses api|agentkit|agent skills|agent builder|agent(ic)? (frameworks?|standards?)"
+                            + "|subagents?|langgraph|langchain|llamaindex|smolagents|crewai|autogen|devday)\\b",
                     Pattern.CASE_INSENSITIVE)
     );
 
