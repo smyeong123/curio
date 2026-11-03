@@ -938,7 +938,7 @@ These are correctly not consumed by the frontend SPA.
 
 **Backend Dockerfile:** Multi-stage (`eclipse-temurin:21-jdk-alpine` build -> `eclipse-temurin:21-jre-alpine` runtime). Exploded JAR layout. Non-root `appuser` (UID 1001). Port 8080.
 
-**nginx.conf:** Gzip enabled, 1-year immutable cache for `/assets/`, SPA fallback, API reverse proxy to `backend:8080`. This eliminates CORS in Docker/prod since frontend and API share the same origin.
+**nginx.conf:** Gzip enabled, 1-year immutable cache for `/assets/`, SPA fallback, API reverse proxy to `backend:8080` (resolved at request time via Docker DNS `127.0.0.11`, so backend restarts need no nginx restart). This eliminates CORS in Docker/prod since frontend and API share the same origin.
 
 ### Docker Compose (Split Architecture)
 
