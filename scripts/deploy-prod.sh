@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 #
-# Bring up the full production stack WITH TLS termination (Caddy + Let's Encrypt).
+# Bring up the full production stack WITH TLS termination.
+# Production (curio-news.dev) runs behind Cloudflare and is deployed with
+# `--cloudflare`: nginx terminates TLS with a Cloudflare Origin Cert via the
+# docker-compose.cf-tls.yml overlay (which mounts frontend/nginx-tls.conf).
+# Without the flag the script still defaults to the Caddy + Let's Encrypt
+# overlay (docker-compose.tls.yml) for origins that are NOT behind Cloudflare.
 # This is the correct production entrypoint — plain `docker compose up -d` serves
 # the app over HTTP on :80 only, which means JWTs and passwords travel in clear.
 #
@@ -9,14 +14,18 @@
 # pushed to Docker Hub, so the default flow here is PULL + UP (no build).
 #
 # Prerequisites (one-time):
-#   1. A domain whose A/AAAA record points at this host.
-#   2. CURIO_DOMAIN and ACME_EMAIL set in .env.prod.
-#   3. Ports 80 AND 443 reachable from the public internet (security group / firewall).
+#   1. A domain whose A/AAAA record points at this host (proxied through
+#      Cloudflare for --cloudflare).
+#   2. CURIO_DOMAIN set in .env.prod, plus TLS_CERT_DIR (--cloudflare: host dir
+#      holding origin.pem/origin.key) or ACME_EMAIL (Caddy mode).
+#   3. Ports 80 AND 443 reachable — for --cloudflare, from Cloudflare IP ranges
+#      only (security group); for Caddy, from the public internet.
 #   4. The tagged images referenced by .env.prod already pushed to the registry.
 #
 # Usage:
-#   ./scripts/deploy-prod.sh            # pull pre-built images, then up (production)
-#   ./scripts/deploy-prod.sh --build    # build locally instead of pulling (dev machine ONLY)
+#   ./scripts/deploy-prod.sh --cloudflare          # production: pull images, up with cf-tls overlay
+#   ./scripts/deploy-prod.sh                       # Caddy + Let's Encrypt overlay (non-Cloudflare origin)
+#   ./scripts/deploy-prod.sh --cloudflare --build  # build locally instead of pulling (dev machine ONLY)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
