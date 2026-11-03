@@ -60,6 +60,8 @@ class TopicQueriesTest {
             "Pricing & Availability | Helping older adults use AI in everyday life | Free, hands-on ChatGPT workshops.",
             "Benchmarks & Evaluations | An update on independent evaluators | To evaluate the safety of our systems.",
             "Benchmarks & Evaluations | Investigating three real-world incidents in our cybersecurity evaluations | ",
+            "Benchmarks & Evaluations | Safety evals for our latest model | ",
+            "Pricing & Availability | Expanding our infrastructure partnership with Google Cloud | ",
             "Benchmarks & Evaluations | Claude Science, an AI workbench for scientists, is now available | ",
             "Browser & Computer-Use Agents | Making it easier for websites to express AI training preferences | Website operators can opt out.",
             "Browser & Computer-Use Agents | Expanding our partnership with GSA | A new agreement for government partners.",

@@ -87,17 +87,18 @@ final class TopicQueries {
                             + "|memory|o[1-9](-mini|-pro)?)\\b",
                     Pattern.CASE_INSENSITIVE),
             // "costs 40% less" is a launch post's price line; "cut costs" is a customer story.
+            // Google Cloud only with an availability phrase (bare mentions are infra/partnership posts).
             "Pricing & Availability", Pattern.compile(
                     "\\b(pricing|(api|token|model) prices?|price (cuts?|drops?|reductions?)|cheaper|cost-efficient"
                             + "|costs? (up to )?\\d+% less|fraction of the cost|per million|now available"
                             + "|generally available|general availability|rate limits?|free tier|prompt caching|batch api"
-                            + "|google cloud|bedrock|vertex ai|model garden|foundry|azure openai)\\b",
+                            + "|google cloud marketplace|(coming|available) (to|on|through|in) google cloud|bedrock|vertex ai|model garden|foundry|azure openai)\\b",
                     Pattern.CASE_INSENSITIVE),
             // Any "...Bench" name (SWE-bench, MentalHealthBench) but not "workbench"; "evaluations"
-            // alone is mostly safety testing, so it needs a qualifier.
+            // or "evals" alone is mostly safety testing, so it needs a qualifier.
             "Benchmarks & Evaluations", Pattern.compile(
-                    "\\b((?!workbench)\\w*bench(marks?|marking|ed)?|evals?"
-                            + "|(ai|model|llm|new|open|capability|double-blind) evaluations?|leaderboards?|lmarena"
+                    "\\b((?!workbench)\\w*bench(marks?|marking|ed)?"
+                            + "|(ai|model|llm|new|open|capability|double-blind) (evals?|evaluations?)|leaderboards?|lmarena"
                             + "|gpqa|arc-agi|mmlu|humanity's last exam|aime)\\b",
                     Pattern.CASE_INSENSITIVE),
             "Browser & Computer-Use Agents", Pattern.compile(
