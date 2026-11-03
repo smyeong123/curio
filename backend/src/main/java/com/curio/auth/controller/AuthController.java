@@ -1,11 +1,14 @@
 package com.curio.auth.controller;
 
+import com.curio.auth.dto.ConfirmEmailRequest;
 import com.curio.auth.dto.ForgotPasswordRequest;
 import com.curio.auth.dto.GoogleLoginRequest;
 import com.curio.auth.dto.LoginRequest;
 import com.curio.auth.dto.LoginResponse;
 import com.curio.auth.dto.ResetPasswordRequest;
 import com.curio.auth.dto.RegisterRequest;
+import com.curio.auth.dto.RegisterResponse;
+import com.curio.auth.dto.ResendConfirmationRequest;
 import com.curio.auth.dto.ResendCodeRequest;
 import com.curio.auth.dto.ResendCodeResponse;
 import com.curio.auth.dto.VerifyCodeRequest;
@@ -18,6 +21,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,10 +37,24 @@ public class AuthController {
     private final CookieUtils cookieUtils;
 
     @PostMapping("/register")
-    @Operation(summary = "Register a new user")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        AuthResponse response = authService.register(request);
+    @Operation(summary = "Start a sign-up: emails a confirmation link (no session until it is opened)")
+    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
+        // 202 with one body for every case (new / confirmed / unconfirmed address).
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(authService.register(request));
+    }
+
+    @PostMapping("/confirm-email")
+    @Operation(summary = "Open a sign-up confirmation link: confirms the email and signs in")
+    public ResponseEntity<AuthResponse> confirmEmail(@Valid @RequestBody ConfirmEmailRequest request) {
+        AuthResponse response = authService.confirmEmail(request.token());
         return withRefreshTokenCookie(response);
+    }
+
+    @PostMapping("/resend-confirmation")
+    @Operation(summary = "Email a fresh sign-up confirmation link (always 202)")
+    public ResponseEntity<RegisterResponse> resendConfirmation(@Valid @RequestBody ResendConfirmationRequest request) {
+        authService.resendConfirmation(request.email(), request.language());
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(RegisterResponse.confirmationSent());
     }
 
     @PostMapping("/login")

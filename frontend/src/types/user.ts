@@ -20,6 +20,14 @@ export interface RegisterRequest {
   email: string
   password: string
   fullName: string
+  /** UI edition the confirmation email is written in; the backend defaults to English. */
+  language?: DigestLanguage
+}
+
+// Every sign-up (new, already confirmed, or unconfirmed address) gets this same
+// 202 answer, and never a session: the account works once the emailed link is opened.
+export interface RegisterResponse {
+  status: 'confirmation_sent'
 }
 
 export interface AuthResponse {

@@ -11,6 +11,16 @@ export function getApiErrorMessage(err: unknown, fallback: string): string {
   return anyErr?.response?.data?.message || fallback
 }
 
+/**
+ * Machine-readable error code from GlobalExceptionHandler (e.g.
+ * "EMAIL_NOT_CONFIRMED", "CONFIRMATION_TOKEN_INVALID"), or undefined when the
+ * error carries none. Branch on this, never on the human-readable message.
+ */
+export function getApiErrorCode(err: unknown): string | undefined {
+  const anyErr = err as { response?: { data?: { code?: string } } }
+  return anyErr?.response?.data?.code || undefined
+}
+
 /** HTTP status of an API error, or undefined for network/non-HTTP failures. */
 export function getApiErrorStatus(err: unknown): number | undefined {
   const anyErr = err as { response?: { status?: number } }

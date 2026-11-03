@@ -7,14 +7,19 @@
     <i18n-t scope="global" :keypath="bodyKeypath" tag="p" class="font-body-curio text-[14px] text-[color:var(--ink-soft)] mb-6 leading-relaxed">
       <template #email><strong class="font-semibold text-[color:var(--ink)]">{{ email }}</strong></template>
     </i18n-t>
-    <router-link to="/login" class="ink-link font-mono-curio text-[12px] uppercase tracking-[0.14em]">
-      {{ t('auth.common.backToSignIn') }}
-    </router-link>
+    <div class="flex flex-wrap items-baseline justify-between gap-4">
+      <router-link to="/login" class="ink-link font-mono-curio text-[12px] uppercase tracking-[0.14em]">
+        {{ t('auth.common.backToSignIn') }}
+      </router-link>
+      <!-- Optional extra action, e.g. a resend button. -->
+      <slot />
+    </div>
   </section>
 </template>
 
 <script setup lang="ts">
-// "Mail's away" confirmation shown after a reset link has been emailed.
+// "Mail's away" confirmation shown after a reset or sign-up confirmation link
+// has been emailed. The default slot sits beside the back link (e.g. a resend button).
 
 import { useI18n } from 'vue-i18n'
 

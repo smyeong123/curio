@@ -43,6 +43,13 @@ const router = createRouter({
       component: () => import('@/views/auth/ResetPasswordView.vue')
     },
     {
+      // Sign-up confirmation link target (?token=...). Guest-accessible; the
+      // token is stripped from the URL the moment the view reads it.
+      path: '/verify-email',
+      name: 'verify-email',
+      component: () => import('@/views/auth/VerifyEmailView.vue')
+    },
+    {
       path: '/verify',
       name: 'verify-code',
       component: () => import('@/views/auth/VerifyCodeView.vue')

@@ -9,6 +9,8 @@ vi.mock('@/services/api', () => ({
       verifyCode: vi.fn(),
       resendCode: vi.fn(),
       register: vi.fn(),
+      confirmEmail: vi.fn(),
+      resendConfirmation: vi.fn(),
       googleLogin: vi.fn(),
       logout: vi.fn(),
       refresh: vi.fn()
@@ -122,14 +124,54 @@ describe('auth store', () => {
     expect(store.pendingVerification?.attemptsRemaining).toBe(4)
   })
 
-  it('register sets access token and user', async () => {
-    vi.mocked(api.auth.register).mockResolvedValue(mockAuthResponse)
+  it('register does NOT start a session — it only asks for a confirmation email', async () => {
+    vi.mocked(api.auth.register).mockResolvedValue({ data: { status: 'confirmation_sent' } } as any)
     const store = useAuthStore()
 
-    await store.register({ email: 'test@example.com', password: 'password', fullName: 'Test User' })
+    const result = await store.register({ email: 'test@example.com', password: 'password', fullName: 'Test User' })
 
+    expect(result.status).toBe('confirmation_sent')
+    // The confirmation email follows the edition on screen.
+    expect(api.auth.register).toHaveBeenCalledWith({
+      email: 'test@example.com', password: 'password', fullName: 'Test User', language: 'en'
+    })
+    expect(store.isAuthenticated).toBe(false)
+    expect(store.accessToken).toBeNull()
+    expect(store.user).toBeNull()
+    expect(localStorage.getItem('user')).toBeNull()
+  })
+
+  it('confirmEmail starts the session like a completed login', async () => {
+    vi.mocked(api.auth.confirmEmail).mockResolvedValue(mockAuthResponse)
+    const store = useAuthStore()
+
+    await store.confirmEmail('link-token')
+
+    expect(api.auth.confirmEmail).toHaveBeenCalledWith('link-token')
+    expect(store.accessToken).toBe('access-123')
     expect(store.isAuthenticated).toBe(true)
     expect(store.user?.email).toBe('test@example.com')
+    expect(store.pendingVerification).toBeNull()
+  })
+
+  it('confirmEmail leaves the reader signed out when the link is rejected', async () => {
+    vi.mocked(api.auth.confirmEmail).mockRejectedValue({
+      response: { status: 400, data: { code: 'CONFIRMATION_TOKEN_INVALID' } }
+    })
+    const store = useAuthStore()
+
+    await expect(store.confirmEmail('stale')).rejects.toBeTruthy()
+    expect(store.isAuthenticated).toBe(false)
+  })
+
+  it('resendConfirmation sends the address with the current edition', async () => {
+    vi.mocked(api.auth.resendConfirmation).mockResolvedValue({ data: { status: 'confirmation_sent' } } as any)
+    const store = useAuthStore()
+
+    await store.resendConfirmation('test@example.com')
+
+    expect(api.auth.resendConfirmation).toHaveBeenCalledWith('test@example.com', 'en')
+    expect(store.isAuthenticated).toBe(false)
   })
 
   it('googleLogin sets access token and user', async () => {

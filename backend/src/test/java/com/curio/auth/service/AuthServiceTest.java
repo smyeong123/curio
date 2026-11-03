@@ -5,16 +5,22 @@ import com.curio.auth.dto.AuthResponse;
 import com.curio.auth.dto.LoginRequest;
 import com.curio.auth.dto.LoginResponse;
 import com.curio.auth.dto.RegisterRequest;
+import com.curio.auth.dto.RegisterResponse;
 import com.curio.auth.dto.VerifyCodeRequest;
 import com.curio.auth.dto.VerifyCodeResponse;
+import com.curio.auth.entity.EmailConfirmationToken;
 import com.curio.auth.entity.EmailVerificationCode;
 import com.curio.auth.entity.PasswordResetToken;
 import com.curio.auth.entity.RefreshToken;
+import com.curio.auth.port.out.EmailConfirmationTokenPort;
 import com.curio.auth.port.out.EmailVerificationCodePort;
 import com.curio.auth.port.out.PasswordResetTokenPort;
 import com.curio.auth.port.out.RefreshTokenPort;
 import com.curio.shared.email.EmailService;
+import com.curio.shared.exception.EmailNotConfirmedException;
+import com.curio.shared.exception.InvalidConfirmationTokenException;
 import com.curio.shared.exception.UnauthorizedException;
+import com.curio.shared.i18n.Language;
 import com.curio.shared.security.JwtTokenProvider;
 import com.curio.user.entity.User;
 import com.curio.user.port.out.UserPort;
@@ -52,6 +58,7 @@ class AuthServiceTest {
     @Mock private UserPort userPort;
     @Mock private RefreshTokenPort refreshTokenPort;
     @Mock private PasswordResetTokenPort passwordResetTokenPort;
+    @Mock private EmailConfirmationTokenPort emailConfirmationTokenPort;
     @Mock private EmailVerificationCodePort emailVerificationCodePort;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtTokenProvider jwtTokenProvider;
@@ -74,7 +81,7 @@ class AuthServiceTest {
         ReflectionTestUtils.setField(challengeService, "codeTtlMinutes", 10L);
 
         authService = new AuthService(userPort, refreshTokenPort, passwordResetTokenPort,
-                passwordEncoder, jwtTokenProvider, authenticationManager, emailService,
+                emailConfirmationTokenPort, passwordEncoder, jwtTokenProvider, authenticationManager, emailService,
                 challengeService, googleIdTokenVerifier, auditLog);
         ReflectionTestUtils.setField(authService, "refreshReuseGraceSeconds", 30L);
     }
@@ -94,72 +101,239 @@ class AuthServiceTest {
         return new GoogleIdentity("google-sub-123", email, "Google User", true);
     }
 
-    // --- register ---
+    // --- register: no session, one answer for every case ---
 
-    @Test
-    void register_persistsUser_andIssuesTokens() {
+    private static RegisterRequest registerRequest(String email, String password) {
         RegisterRequest req = new RegisterRequest();
-        req.setEmail("new@example.com");
-        req.setPassword("Pa$$word123");
+        req.setEmail(email);
+        req.setPassword(password);
         req.setFullName("New User");
-
-        when(userPort.existsByEmail("new@example.com")).thenReturn(false);
-        when(passwordEncoder.encode("Pa$$word123")).thenReturn("HASHED");
-        User saved = User.builder().id(UUID.randomUUID()).email("new@example.com")
-                .fullName("New User").isAdmin(false).build();
-        when(userPort.save(any(User.class))).thenReturn(saved);
-        when(jwtTokenProvider.generateToken(saved)).thenReturn("access-token");
-        when(jwtTokenProvider.generateRefreshToken(saved)).thenReturn("refresh-token");
-
-        AuthResponse response = authService.register(req);
-
-        assertThat(response.getAccessToken()).isEqualTo("access-token");
-        assertThat(response.getRefreshToken()).isEqualTo("refresh-token");
-        assertThat(response.getEmail()).isEqualTo("new@example.com");
-        assertThat(response.getIsAdmin()).isFalse();
-
-        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        verify(userPort).save(userCaptor.capture());
-        assertThat(userCaptor.getValue().getPasswordHash()).isEqualTo("HASHED");
-        assertThat(userCaptor.getValue().getEmailVerified()).isTrue();
-        verify(refreshTokenPort).save(any(RefreshToken.class));
+        return req;
     }
 
     @Test
-    void register_rejects_duplicateEmail() {
-        RegisterRequest req = new RegisterRequest();
-        req.setEmail("dup@example.com");
-        req.setPassword("Pa$$word123");
-        req.setFullName("Dup");
-        when(userPort.existsByEmail("dup@example.com")).thenReturn(true);
+    void register_newEmail_createsUnconfirmedAccount_mailsLink_andIssuesNoSession() {
+        RegisterRequest req = registerRequest("new@example.com", "Pa$$word123");
+        req.setLanguage("ko");
+        when(passwordEncoder.encode("Pa$$word123")).thenReturn("HASHED");
+        when(userPort.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        User saved = User.builder().id(UUID.randomUUID()).email("new@example.com")
+                .fullName("New User").isAdmin(false).build();
+        when(userPort.save(any(User.class))).thenReturn(saved);
 
-        assertThatThrownBy(() -> authService.register(req))
-                .isInstanceOf(IllegalArgumentException.class);
+        RegisterResponse response = authService.register(req);
 
-        verify(userPort, never()).save(any());
+        assertThat(response.status()).isEqualTo("confirmation_sent");
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userPort).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getPasswordHash()).isEqualTo("HASHED");
+        assertThat(userCaptor.getValue().getEmailVerified()).isFalse();
+
+        // Only the hash is stored; the raw token goes out in the email.
+        ArgumentCaptor<EmailConfirmationToken> tokenCaptor = ArgumentCaptor.forClass(EmailConfirmationToken.class);
+        verify(emailConfirmationTokenPort).save(tokenCaptor.capture());
+        ArgumentCaptor<String> rawCaptor = ArgumentCaptor.forClass(String.class);
+        verify(emailService).sendEmailConfirmation(eq(saved), rawCaptor.capture(), eq(24L), eq(Language.KO));
+        assertThat(tokenCaptor.getValue().getTokenHash()).isEqualTo(sha(rawCaptor.getValue()));
+        assertThat(tokenCaptor.getValue().getTokenHash()).isNotEqualTo(rawCaptor.getValue());
+        assertThat(tokenCaptor.getValue().getExpiresAt())
+                .isBetween(LocalDateTime.now().plusHours(23), LocalDateTime.now().plusHours(25));
+        verify(emailConfirmationTokenPort).deleteByUserId(saved.getId());
+
+        verifyNoInteractions(jwtTokenProvider);
         verify(refreshTokenPort, never()).save(any());
     }
 
     @Test
-    void register_normalizesEmail_soCaseVariantCollidesAndIsStoredLowercase() {
-        RegisterRequest req = new RegisterRequest();
-        req.setEmail("  Victim@Gmail.COM ");
-        req.setPassword("Pa$$word123");
-        req.setFullName("V");
-        // Existence check must run against the normalized form — a case variant
-        // of an existing address must NOT slip through as a fresh account.
-        when(userPort.existsByEmail("victim@gmail.com")).thenReturn(false);
+    void register_alreadyConfirmedEmail_changesNothing_sendsNothing_answersTheSame() {
         when(passwordEncoder.encode(anyString())).thenReturn("HASHED");
+        User confirmed = User.builder().id(UUID.randomUUID()).email("dup@example.com")
+                .passwordHash("OWNER-HASH").emailVerified(true).build();
+        when(userPort.findByEmail("dup@example.com")).thenReturn(Optional.of(confirmed));
+
+        RegisterResponse response = authService.register(registerRequest("dup@example.com", "Pa$$word123"));
+
+        assertThat(response).isEqualTo(RegisterResponse.confirmationSent());
+        assertThat(confirmed.getPasswordHash()).isEqualTo("OWNER-HASH");
+        // Hashed anyway so this path costs the same bcrypt time as the others.
+        verify(passwordEncoder).encode("Pa$$word123");
+        verify(userPort, never()).save(any());
+        verifyNoInteractions(emailConfirmationTokenPort, emailService, jwtTokenProvider);
+        verify(refreshTokenPort, never()).save(any());
+    }
+
+    @Test
+    void register_unconfirmedEmail_replacesPassword_revokesOldLinks_andMailsAFreshOne() {
+        when(passwordEncoder.encode("NewPa$$word")).thenReturn("NEW-HASH");
+        User pending = User.builder().id(UUID.randomUUID()).email("pending@example.com")
+                .passwordHash("SQUATTER-HASH").fullName("Squatter").emailVerified(false).build();
+        when(userPort.findByEmail("pending@example.com")).thenReturn(Optional.of(pending));
         when(userPort.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(jwtTokenProvider.generateToken(any(User.class))).thenReturn("a");
-        when(jwtTokenProvider.generateRefreshToken(any(User.class))).thenReturn("r");
 
-        authService.register(req);
+        RegisterResponse response = authService.register(registerRequest("pending@example.com", "NewPa$$word"));
 
-        verify(userPort).existsByEmail("victim@gmail.com");
+        assertThat(response.status()).isEqualTo("confirmation_sent");
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userPort).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getPasswordHash()).isEqualTo("NEW-HASH");
+        assertThat(userCaptor.getValue().getFullName()).isEqualTo("New User");
+        assertThat(userCaptor.getValue().getEmailVerified()).isFalse();
+        verify(emailConfirmationTokenPort).deleteByUserId(pending.getId());
+        verify(emailConfirmationTokenPort).save(any(EmailConfirmationToken.class));
+        verify(emailService).sendEmailConfirmation(eq(pending), anyString(), eq(24L), eq(Language.EN));
+        verifyNoInteractions(jwtTokenProvider);
+    }
+
+    @Test
+    void register_normalizesEmail_soCaseVariantCollidesAndIsStoredLowercase() {
+        when(passwordEncoder.encode(anyString())).thenReturn("HASHED");
+        // The lookup must run against the normalized form — a case variant of an
+        // existing address must NOT slip through as a fresh account.
+        when(userPort.findByEmail("victim@gmail.com")).thenReturn(Optional.empty());
+        when(userPort.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        authService.register(registerRequest("  Victim@Gmail.COM ", "Pa$$word123"));
+
+        verify(userPort).findByEmail("victim@gmail.com");
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userPort).save(captor.capture());
         assertThat(captor.getValue().getEmail()).isEqualTo("victim@gmail.com");
+    }
+
+    @Test
+    void register_lostUniqueEmailRace_answersTheSame_withoutMailing() {
+        when(passwordEncoder.encode(anyString())).thenReturn("HASHED");
+        when(userPort.findByEmail("race@example.com")).thenReturn(Optional.empty());
+        when(userPort.save(any(User.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("dup"));
+
+        RegisterResponse response = authService.register(registerRequest("race@example.com", "Pa$$word123"));
+
+        assertThat(response.status()).isEqualTo("confirmation_sent");
+        verifyNoInteractions(emailConfirmationTokenPort, emailService);
+    }
+
+    @Test
+    void register_mailFailure_isSwallowed_soTheAnswerStaysUniform() {
+        when(passwordEncoder.encode(anyString())).thenReturn("HASHED");
+        when(userPort.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        when(userPort.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        doThrow(new RuntimeException("Resend 500"))
+                .when(emailService).sendEmailConfirmation(any(), anyString(), anyLong(), any());
+
+        assertThat(authService.register(registerRequest("new@example.com", "Pa$$word123")).status())
+                .isEqualTo("confirmation_sent");
+    }
+
+    // --- confirmEmail ---
+
+    private EmailConfirmationToken confirmationToken(User user, String raw, LocalDateTime expiresAt,
+                                                     LocalDateTime usedAt) {
+        return EmailConfirmationToken.builder().id(UUID.randomUUID()).user(user)
+                .tokenHash(sha(raw)).expiresAt(expiresAt).usedAt(usedAt).build();
+    }
+
+    @Test
+    void confirmEmail_validToken_confirmsTheEmail_consumesTheToken_andIssuesASession() {
+        User user = User.builder().id(UUID.randomUUID()).email("u@e.com").fullName("U")
+                .isAdmin(false).emailVerified(false).build();
+        EmailConfirmationToken token = confirmationToken(user, "raw", LocalDateTime.now().plusHours(1), null);
+        when(emailConfirmationTokenPort.findByTokenHash(sha("raw"))).thenReturn(Optional.of(token));
+        when(emailConfirmationTokenPort.markUsed(eq(token.getId()), any(LocalDateTime.class))).thenReturn(1);
+        when(userPort.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(jwtTokenProvider.generateToken(user)).thenReturn("a");
+        when(jwtTokenProvider.generateRefreshToken(user)).thenReturn("r");
+
+        AuthResponse response = authService.confirmEmail("raw");
+
+        assertThat(response.getAccessToken()).isEqualTo("a");
+        assertThat(response.getRefreshToken()).isEqualTo("r");
+        assertThat(response.getEmail()).isEqualTo("u@e.com");
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userPort).save(captor.capture());
+        assertThat(captor.getValue().getEmailVerified()).isTrue();
+        assertThat(captor.getValue().getEmailConfirmedAt()).isNotNull();
+        verify(refreshTokenPort).save(any(RefreshToken.class));
+    }
+
+    @Test
+    void confirmEmail_expiredToken_isRejected() {
+        User user = User.builder().id(UUID.randomUUID()).email("u@e.com").build();
+        when(emailConfirmationTokenPort.findByTokenHash(sha("raw")))
+                .thenReturn(Optional.of(confirmationToken(user, "raw", LocalDateTime.now().minusMinutes(1), null)));
+
+        assertThatThrownBy(() -> authService.confirmEmail("raw"))
+                .isInstanceOf(InvalidConfirmationTokenException.class);
+        verify(emailConfirmationTokenPort, never()).markUsed(any(), any());
+        verify(userPort, never()).save(any());
+        verifyNoInteractions(jwtTokenProvider);
+    }
+
+    @Test
+    void confirmEmail_usedToken_isRejected() {
+        User user = User.builder().id(UUID.randomUUID()).email("u@e.com").build();
+        when(emailConfirmationTokenPort.findByTokenHash(sha("raw"))).thenReturn(Optional.of(
+                confirmationToken(user, "raw", LocalDateTime.now().plusHours(1), LocalDateTime.now().minusMinutes(5))));
+
+        assertThatThrownBy(() -> authService.confirmEmail("raw"))
+                .isInstanceOf(InvalidConfirmationTokenException.class);
+        verify(userPort, never()).save(any());
+        verifyNoInteractions(jwtTokenProvider);
+    }
+
+    @Test
+    void confirmEmail_lostTheSingleUseClaim_toAConcurrentConfirm_isRejected() {
+        User user = User.builder().id(UUID.randomUUID()).email("u@e.com").build();
+        EmailConfirmationToken token = confirmationToken(user, "raw", LocalDateTime.now().plusHours(1), null);
+        when(emailConfirmationTokenPort.findByTokenHash(sha("raw"))).thenReturn(Optional.of(token));
+        when(emailConfirmationTokenPort.markUsed(eq(token.getId()), any(LocalDateTime.class))).thenReturn(0);
+
+        assertThatThrownBy(() -> authService.confirmEmail("raw"))
+                .isInstanceOf(InvalidConfirmationTokenException.class);
+        verify(userPort, never()).save(any());
+        verifyNoInteractions(jwtTokenProvider);
+    }
+
+    @Test
+    void confirmEmail_unknownToken_isRejected() {
+        when(emailConfirmationTokenPort.findByTokenHash(anyString())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.confirmEmail("nope"))
+                .isInstanceOf(InvalidConfirmationTokenException.class);
+        verifyNoInteractions(jwtTokenProvider);
+    }
+
+    // --- resendConfirmation: only unconfirmed accounts get mail, nobody can tell ---
+
+    @Test
+    void resendConfirmation_unknownEmail_isASilentNoOp() {
+        when(userPort.findByEmail("ghost@example.com")).thenReturn(Optional.empty());
+
+        authService.resendConfirmation(" Ghost@Example.com ", "en");
+
+        verifyNoInteractions(emailConfirmationTokenPort, emailService);
+    }
+
+    @Test
+    void resendConfirmation_confirmedAccount_isASilentNoOp() {
+        User confirmed = User.builder().id(UUID.randomUUID()).email("c@example.com").emailVerified(true).build();
+        when(userPort.findByEmail("c@example.com")).thenReturn(Optional.of(confirmed));
+
+        authService.resendConfirmation("c@example.com", "en");
+
+        verifyNoInteractions(emailConfirmationTokenPort, emailService);
+    }
+
+    @Test
+    void resendConfirmation_unconfirmedAccount_replacesTheLink_andMailsIt() {
+        User pending = User.builder().id(UUID.randomUUID()).email("p@example.com").emailVerified(false).build();
+        when(userPort.findByEmail("p@example.com")).thenReturn(Optional.of(pending));
+
+        authService.resendConfirmation("P@example.com", "ko");
+
+        verify(emailConfirmationTokenPort).deleteByUserId(pending.getId());
+        verify(emailConfirmationTokenPort).save(any(EmailConfirmationToken.class));
+        verify(emailService).sendEmailConfirmation(eq(pending), anyString(), eq(24L), eq(Language.KO));
     }
 
     // --- google login: account policy for a verified identity ---
@@ -208,7 +382,7 @@ class AuthServiceTest {
     @Test
     void googleLogin_mergeIntoPasswordAccount_clearsPasswordAndRevokesSessions() {
         // Pre-account-hijack defense: a squatter registered the victim's email
-        // with a password (register auto-verifies). When the real owner signs in
+        // with a password and never confirmed it. When the real owner signs in
         // with Google, the merge must neutralize the unproven password and revoke
         // all sessions so the squatter keeps no backdoor.
         when(googleIdTokenVerifier.verify("id-token")).thenReturn(googleIdentity("g@example.com"));
@@ -226,7 +400,81 @@ class AuthServiceTest {
         verify(userPort).save(userCaptor.capture());
         assertThat(userCaptor.getValue().getPasswordHash()).isNull();
         assertThat(userCaptor.getValue().getGoogleId()).isEqualTo("google-sub-123");
+        assertThat(userCaptor.getValue().getEmailVerified()).isTrue();
         verify(refreshTokenPort).deleteByUserId(squatted.getId());
+        verify(emailConfirmationTokenPort).deleteByUserId(squatted.getId());
+    }
+
+    /** Stubs a Google login whose email lookup finds {@code existing}. */
+    private void stubGoogleMergeInto(User existing) {
+        when(googleIdTokenVerifier.verify("id-token")).thenReturn(googleIdentity(existing.getEmail()));
+        when(userPort.findByGoogleId("google-sub-123")).thenReturn(Optional.empty());
+        when(userPort.findByEmail(existing.getEmail())).thenReturn(Optional.of(existing));
+        when(userPort.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(jwtTokenProvider.generateToken(any(User.class))).thenReturn("a");
+        when(jwtTokenProvider.generateRefreshToken(any(User.class))).thenReturn("r");
+    }
+
+    @Test
+    void googleLogin_mergeIntoLegacyAutoVerifiedAccount_stillClearsPasswordAndRevokesSessions() {
+        // Pre-V32 register() auto-verified every address, so email_verified=true
+        // proves nothing: with no email_confirmed_at the squatter defense must fire.
+        User legacy = User.builder().id(UUID.randomUUID()).email("g@example.com")
+                .passwordHash("LEGACY-HASH").emailVerified(true).isAdmin(false).build();
+        stubGoogleMergeInto(legacy);
+
+        authService.googleLogin("id-token");
+
+        assertThat(legacy.getPasswordHash()).isNull();
+        assertThat(legacy.getGoogleId()).isEqualTo("google-sub-123");
+        verify(refreshTokenPort).deleteByUserId(legacy.getId());
+        verify(emailConfirmationTokenPort).deleteByUserId(legacy.getId());
+    }
+
+    @Test
+    void googleLogin_mergeIntoAccountConfirmedViaLink_keepsPasswordAndSessions() {
+        // Proven inbox owner (opened the sign-up link) + Google proving the same
+        // inbox: same person, so just link.
+        User owner = User.builder().id(UUID.randomUUID()).email("g@example.com")
+                .passwordHash("OWNER-HASH").emailVerified(false).isAdmin(false).build();
+        EmailConfirmationToken link = EmailConfirmationToken.builder().id(UUID.randomUUID()).user(owner)
+                .tokenHash(sha("raw")).expiresAt(LocalDateTime.now().plusHours(1)).build();
+        when(emailConfirmationTokenPort.findByTokenHash(sha("raw"))).thenReturn(Optional.of(link));
+        when(emailConfirmationTokenPort.markUsed(eq(link.getId()), any(LocalDateTime.class))).thenReturn(1);
+        stubGoogleMergeInto(owner);
+
+        authService.confirmEmail("raw");
+        assertThat(owner.getEmailConfirmedAt()).isNotNull();
+        authService.googleLogin("id-token");
+
+        assertThat(owner.getPasswordHash()).isEqualTo("OWNER-HASH");
+        assertThat(owner.getGoogleId()).isEqualTo("google-sub-123");
+        verify(refreshTokenPort, never()).deleteByUserId(any());
+        verify(emailConfirmationTokenPort, never()).deleteByUserId(any());
+    }
+
+    @Test
+    void googleLogin_mergeIntoAccountConfirmedViaPasswordReset_keepsPasswordAndSessions() {
+        // A completed password reset also proves the inbox — including for a
+        // legacy auto-verified account, which is how such a user opts back in.
+        User owner = User.builder().id(UUID.randomUUID()).email("g@example.com")
+                .passwordHash("OLD-HASH").emailVerified(true).isAdmin(false).build();
+        PasswordResetToken reset = PasswordResetToken.builder().user(owner)
+                .expiresAt(LocalDateTime.now().plusHours(1)).build();
+        when(passwordResetTokenPort.findByTokenHash(anyString())).thenReturn(Optional.of(reset));
+        when(passwordEncoder.encode("Newpass123!")).thenReturn("RESET-HASH");
+        stubGoogleMergeInto(owner);
+
+        authService.resetPassword("ok", "Newpass123!");
+        assertThat(owner.getEmailConfirmedAt()).isNotNull();
+        // The reset itself revokes sessions; the merge must not do it again.
+        clearInvocations(refreshTokenPort);
+        authService.googleLogin("id-token");
+
+        assertThat(owner.getPasswordHash()).isEqualTo("RESET-HASH");
+        assertThat(owner.getGoogleId()).isEqualTo("google-sub-123");
+        verify(refreshTokenPort, never()).deleteByUserId(any());
+        verify(emailConfirmationTokenPort, never()).deleteByUserId(any());
     }
 
     @Test
@@ -282,7 +530,7 @@ class AuthServiceTest {
         req.setEmail("user@example.com");
         req.setPassword("Pa$$word123");
         User user = User.builder().id(UUID.randomUUID()).email("user@example.com")
-                .fullName("User").isAdmin(false).build();
+                .fullName("User").isAdmin(false).emailVerified(true).build();
         when(userPort.findByEmail("user@example.com")).thenReturn(Optional.of(user));
 
         LoginResponse response = authService.login(req);
@@ -307,7 +555,7 @@ class AuthServiceTest {
         req.setEmail("user@example.com");
         req.setPassword("Pa$$word123");
         User user = User.builder().id(UUID.randomUUID()).email("user@example.com")
-                .fullName("User").isAdmin(false).build();
+                .fullName("User").isAdmin(false).emailVerified(true).build();
         when(userPort.findByEmail("user@example.com")).thenReturn(Optional.of(user));
         when(jwtTokenProvider.generateToken(user)).thenReturn("a");
         when(jwtTokenProvider.generateRefreshToken(user)).thenReturn("r");
@@ -333,6 +581,36 @@ class AuthServiceTest {
                 .isInstanceOf(org.springframework.security.authentication.BadCredentialsException.class);
 
         verify(refreshTokenPort, never()).save(any());
+    }
+
+    @Test
+    void login_unconfirmedAccount_withTheRightPassword_isEmailNotConfirmed_andSendsNoCode() {
+        LoginRequest req = new LoginRequest();
+        req.setEmail("pending@example.com");
+        req.setPassword("Pa$$word123");
+        User pending = User.builder().id(UUID.randomUUID()).email("pending@example.com")
+                .emailVerified(false).build();
+        when(userPort.findByEmail("pending@example.com")).thenReturn(Optional.of(pending));
+
+        assertThatThrownBy(() -> authService.login(req)).isInstanceOf(EmailNotConfirmedException.class);
+
+        verify(authenticationManager).authenticate(any());
+        verifyNoInteractions(emailVerificationCodePort, emailService);
+        verify(refreshTokenPort, never()).save(any());
+    }
+
+    @Test
+    void login_unconfirmedAccount_withAWrongPassword_isTheGenericBadCredentials() {
+        // The confirmation state is only revealed once the password checked out.
+        LoginRequest req = new LoginRequest();
+        req.setEmail("pending@example.com");
+        req.setPassword("wrong");
+        doThrow(new org.springframework.security.authentication.BadCredentialsException("nope"))
+                .when(authenticationManager).authenticate(any());
+
+        assertThatThrownBy(() -> authService.login(req))
+                .isInstanceOf(org.springframework.security.authentication.BadCredentialsException.class);
+        verifyNoInteractions(userPort);
     }
 
     // --- verifyCode: challenge outcome → response contract + session issuance ---
@@ -666,6 +944,8 @@ class AuthServiceTest {
         // A password reset is the recovery path out of a 2FA lockout.
         verify(userPort).resetLoginCodeFailures(user.getId());
         assertThat(user.getEmailVerified()).isTrue();
+        // Opening the reset link proves the inbox (trusted by the Google merge).
+        assertThat(user.getEmailConfirmedAt()).isNotNull();
         assertThat(token.getUsedAt()).isNotNull();
         verify(userPort).save(user);
         verify(passwordResetTokenPort).save(token);

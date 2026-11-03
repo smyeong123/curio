@@ -102,7 +102,7 @@ theft detection more lenient; `0` flags any replay after the same second.
 
 Email/password sign-in is two-step: the password is validated, then a 6-digit
 code is emailed and must be entered before a session is issued. Google OAuth is
-never gated by this. All four variables are optional — the defaults below apply.
+never gated by this. All variables below are optional — the defaults below apply.
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -111,6 +111,7 @@ never gated by this. All four variables are optional — the defaults below appl
 | `AUTH_EMAIL_VERIFICATION_MAX_ACCOUNT_FAILURES` | `10` | Wrong-code budget per ACCOUNT across all challenges (re-login does not refill it); once spent, login issues no code until a password reset |
 | `AUTH_EMAIL_VERIFICATION_CODE_LENGTH` | `6` | Digits in the code |
 | `AUTH_EMAIL_VERIFICATION_CODE_TTL_MINUTES` | `10` | Code lifetime |
+| `AUTH_EMAIL_CONFIRMATION_TOKEN_TTL_HOURS` | `24` | Lifetime of the sign-up email-confirmation link (`auth.email-confirmation.token-ttl-hours`, V32); quoted in the email. Note the frontend copy says "24 hours" |
 
 Requires working email delivery (Resend). In local dev the code is also logged
 (`auth.email-verification.log-code: true` in `application-dev.yml`), so you can

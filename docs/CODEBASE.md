@@ -46,7 +46,7 @@ Curio is an AI-powered personalized news service. Each day it fetches news artic
 | Java | 21 | Runtime |
 | Spring Boot | 3.5 | Framework (Web, Data JPA, Security, Validation, Actuator) |
 | jjwt | 0.12.6 | JWT access tokens |
-| PostgreSQL | 16 | Primary DB, Flyway migrations (V1–V31) |
+| PostgreSQL | 16 | Primary DB, Flyway migrations (V1–V32) |
 | Redis | 7 | AI summary cache (12 h TTL) + job-status registry |
 | Resilience4j | 2.2 | Circuit breaker + bulkhead around AI calls |
 | ShedLock | 5.10 | Distributed scheduler locking |
@@ -92,7 +92,7 @@ curio/
 │       │   │   ├── CurioApplication.java
 │       │   │   ├── auth/
 │       │   │   │   ├── controller/   AuthController
-│       │   │   │   ├── service/      AuthService (register/login/refresh/logout/password reset, session issuance),
+│       │   │   │   ├── service/      AuthService (register + email confirmation/login/refresh/logout/password reset, session issuance),
 │       │   │   │   │                 EmailVerificationChallengeService (2FA code lifecycle), GoogleIdTokenVerifier → GoogleIdentity,
 │       │   │   │   │                 TokenHasher (SHA-256 at-rest form of every auth secret), UserDetailsServiceImpl, UnsubscribeTokenService
 │       │   │   │   ├── dto/          LoginRequest, RegisterRequest, GoogleLoginRequest,
@@ -170,7 +170,7 @@ curio/
 │       │       ├── application-dev.yml
 │       │       ├── application-prod.yml
 │       │       ├── application-test.yml
-│       │       ├── db/migration/    # V1-V31 Flyway SQL scripts
+│       │       ├── db/migration/    # V1-V32 Flyway SQL scripts
 │       │       ├── messages.properties      # email chrome, English (digest + auth mails: subject, labels, date patterns)
 │       │       ├── messages_ko.properties   # same keys, Korean edition
 │       │       └── templates/
@@ -294,8 +294,10 @@ Base URL: `/api/v1`
 
 | Method | Path | Auth | Request Body | Response |
 |--------|------|------|-------------|----------|
-| POST | `/register` | Public | `RegisterRequest { email, password, fullName }` | `AuthResponse` |
-| POST | `/login` | Public | `LoginRequest { email, password }` | `{ challengeId, ... }` (emails 2FA code) |
+| POST | `/register` | Public | `RegisterRequest { email, password, fullName, language? }` | **202** `RegisterResponse { status: "confirmation_sent" }` — same answer for new / confirmed / unconfirmed addresses; no session, emails a confirmation link (unconfirmed re-sign-up replaces the password) |
+| POST | `/confirm-email` | Public | `ConfirmEmailRequest { token }` | `AuthResponse` + refresh cookie (confirms the email, issues the session); unknown/expired/used → 400 `code: CONFIRMATION_TOKEN_INVALID` |
+| POST | `/resend-confirmation` | Public | `ResendConfirmationRequest { email, language? }` | **202** `RegisterResponse` always; mails a fresh link only for an existing unconfirmed account |
+| POST | `/login` | Public | `LoginRequest { email, password }` | `{ challengeId, ... }` (emails 2FA code); right password but unconfirmed email → 403 `code: EMAIL_NOT_CONFIRMED` (no code sent) |
 | POST | `/verify-code` | Public | `{ challengeId, code }` | `AuthResponse` (issues session) |
 | POST | `/resend-code` | Public | `{ challengeId }` | `{ challengeId, ... }` (issues a fresh code) |
 | POST | `/google` | Public | `GoogleLoginRequest { token }` | `AuthResponse` |
@@ -396,7 +398,8 @@ This is a BYOK (Bring Your Own Key) store — users supply their own LLM provide
 | `full_name` | VARCHAR | nullable | |
 | `is_admin` | BOOLEAN | DEFAULT false | No `role` column -- admin status is a boolean |
 | `delivery_enabled` | BOOLEAN | DEFAULT true | |
-| `email_verified` | BOOLEAN | DEFAULT false | Auto-set `true` on register |
+| `email_verified` | BOOLEAN | DEFAULT false | `false` on password sign-up until the confirmation link is opened (`/auth/confirm-email`, V32); `true` for Google sign-ups and after a password reset. Password login refuses unconfirmed accounts (403 `EMAIL_NOT_CONFIRMED`) |
+| `email_confirmed_at` | TIMESTAMP | nullable | V32. Set when the owner opens a sign-up confirmation link or completes a password reset (proven inbox). Null for legacy auto-verified accounts, Google-only and unconfirmed sign-ups. A Google login merged by email into a password account keeps the password + sessions only when this is set; otherwise the password is cleared, pending confirmation links deleted, sessions revoked. Login gating stays on `email_verified` |
 | `login_code_failures` | INTEGER | NOT NULL DEFAULT 0 | Wrong 2FA codes across ALL login challenges (V30); at `auth.email-verification.max-account-failures` (default 10) no new code is issued until a password reset; reset to 0 on successful verify or password reset |
 | `created_at` | TIMESTAMP | @PrePersist | |
 | `updated_at` | TIMESTAMP | @PrePersist, @PreUpdate | |
@@ -469,6 +472,19 @@ User implements Spring Security's `UserDetails`. `isEnabled()` returns `emailVer
 | `used_at` | TIMESTAMP | nullable | NOT a boolean `used` flag |
 | `created_at` | TIMESTAMP | @PrePersist | |
 
+#### `email_confirmation_tokens` table (V32)
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK | |
+| `user_id` | UUID | FK -> users ON DELETE CASCADE, NOT NULL | |
+| `token_hash` | VARCHAR | UNIQUE, NOT NULL | SHA-256 hash of the sign-up link token (NOT raw) |
+| `expires_at` | TIMESTAMP | NOT NULL | `auth.email-confirmation.token-ttl-hours` (default 24) from creation; reaped by `ExpiredAuthRowReaper` |
+| `used_at` | TIMESTAMP | nullable | Single use, claimed by an atomic conditional UPDATE |
+| `created_at` | TIMESTAMP | @PrePersist | |
+
+Each new link (sign-up, re-sign-up, resend) deletes the user's older rows first.
+
 #### `user_api_keys` table (V17, V19)
 
 | Column | Type | Constraints | Notes |
@@ -535,6 +551,7 @@ Indexes: `idx_audit_log_actor_id` (actor_id), `idx_audit_log_action` (action), `
 | V29 | `digest_day_kst_and_default_delivery_hour` (Replaces V23's UTC-day index with `idx_digests_user_digest_day` on `curio_digest_day(generated_at)` — one digest per user per 05:00-KST digest day; dedupes any pair sharing a digest day, keeping the newest; moves every `delivery_hour = 8` to the new default 6) |
 | V30 | `add_login_code_failures_to_users` (`users.login_code_failures` — account-wide 2FA wrong-code budget, so re-logging in can't refill the per-challenge 5 attempts) |
 | V31 | `add_rotated_at_to_refresh_tokens` (`refresh_tokens.rotated_at` — rotation marks the row instead of deleting it, enabling refresh-token reuse detection) |
+| V32 | `create_email_confirmation_tokens` (sign-up email confirmation: hashed single-use link tokens; register no longer auto-verifies or issues a session. Also adds `users.email_confirmed_at` (nullable, NOT backfilled) = when inbox ownership was last proven by a confirmation link or a password reset; the Google-merge anti-squat rule trusts only this, so legacy auto-verified rows are still neutralized) |
 
 ### Service Layer
 
@@ -708,6 +725,7 @@ All providers: Redis cache check first, call NewsApiClient for articles, call AI
 | `/register` | `register` | `RegisterView` | No | No |
 | `/verify` | `verify-code` | `VerifyCodeView` | No | No | (email 2FA for email/password login) |
 | `/reset-password` | `reset-password` | `ResetPasswordView` | No | No |
+| `/verify-email` | `verify-email` | `VerifyEmailView` | No | No | (sign-up confirmation link; strips `?token`, confirms, then onboarding) |
 | `/onboarding` | `onboarding` | `OnboardingView` | Yes | No |
 | `/dashboard/archive` | `archive` | `ArchiveView` | Yes | No |
 | `/dashboard/quiz/:digestId` | `quiz` | `QuizView` | Yes | No |
@@ -736,7 +754,7 @@ All providers: Redis cache check first, call NewsApiClient for articles, call AI
 | `refreshTokenValue` | `string \| null` (the refresh token proper lives in an httpOnly cookie, not readable by JS) |
 | `user` | `AuthUser \| null` (id, email, fullName, isAdmin) |
 
-Actions: `login()`, `register()`, `googleLogin()`, `logout()`, `refreshToken()`, `setTokens()`, `clearTokens()`
+Actions: `login()`, `register()` (no session — returns `confirmation_sent`), `confirmEmail(token)` (starts the session), `resendConfirmation(email)`, `googleLogin()`, `logout()`, `refreshToken()`, `setTokens()`, `clearTokens()`
 
 Computed: `isAuthenticated` (derived from accessToken presence)
 
@@ -782,6 +800,8 @@ Single Axios instance with:
 | POST | `api.auth.verifyCode(challengeId, code)` | `/auth/verify-code` |
 | POST | `api.auth.resendCode(challengeId)` | `/auth/resend-code` |
 | POST | `api.auth.register(data)` | `/auth/register` |
+| POST | `api.auth.confirmEmail(token)` | `/auth/confirm-email` |
+| POST | `api.auth.resendConfirmation(email, language?)` | `/auth/resend-confirmation` |
 | POST | `api.auth.googleLogin(token)` | `/auth/google` |
 | POST | `api.auth.forgotPassword(email)` | `/auth/forgot-password` |
 | POST | `api.auth.resetPassword(token, newPassword)` | `/auth/reset-password` |
@@ -1039,7 +1059,7 @@ Session mocking is centralized in `tests/e2e/helpers.ts`: the app keeps the acce
 
 | Spec | Coverage |
 |---|---|
-| `auth.cy.ts` | Authentication flows (login, register, token refresh) |
+| `auth.cy.ts` | Authentication flows (login, register → check inbox, `/verify-email` confirm + invalid link, unconfirmed login, auth guards) |
 | `onboarding.cy.ts` | Onboarding flow (topic selection, preferences) |
 | `archive.cy.ts` | Digest archive view, pagination, full-text search, digest detail |
 | `quiz.cy.ts` | Quiz view, question navigation, submission, scoring |

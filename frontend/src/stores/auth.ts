@@ -1,7 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api } from '@/services/api'
-import type { AuthResponse, LoginResponse, VerifyCodeResponse, ResendCodeResponse, RegisterRequest } from '@/types/user'
+import { i18n } from '@/i18n'
+import type {
+  AuthResponse, LoginResponse, VerifyCodeResponse, ResendCodeResponse, RegisterRequest, RegisterResponse,
+  DigestLanguage
+} from '@/types/user'
 
 interface AuthUser {
   id: string
@@ -148,12 +152,32 @@ export const useAuthStore = defineStore('auth', () => {
     setPending(null)
   }
 
-  const register = async (data: RegisterRequest) => {
-    const response = await api.auth.register(data)
+  // The edition on screen right now (read at call time), so the confirmation
+  // email matches the page the reader signed up from.
+  const currentEdition = () => i18n.global.locale.value as DigestLanguage
+
+  // Sign-up never signs in: the backend answers 202 for every address and
+  // mails a confirmation link; the session starts in confirmEmail().
+  const register = async (data: RegisterRequest): Promise<RegisterResponse> => {
+    const response = await api.auth.register({ language: currentEdition(), ...data })
+    return response.data
+  }
+
+  // Open the emailed sign-up link: confirms the address and starts the session,
+  // exactly like a completed login.
+  const confirmEmail = async (token: string): Promise<AuthResponse> => {
+    const response = await api.auth.confirmEmail(token)
     // A session via another flow abandons any in-flight login challenge.
     setPending(null)
     setAccessToken(response.data.accessToken)
     setUser(toUser(response.data))
+    return response.data
+  }
+
+  // Ask for a fresh sign-up link. Always succeeds (202) whether or not the
+  // address has an unconfirmed account — the backend reveals nothing.
+  const resendConfirmation = async (email: string): Promise<RegisterResponse> => {
+    const response = await api.auth.resendConfirmation(email, currentEdition())
     return response.data
   }
 
@@ -233,6 +257,8 @@ export const useAuthStore = defineStore('auth', () => {
     resendCode,
     clearPendingVerification,
     register,
+    confirmEmail,
+    resendConfirmation,
     googleLogin,
     logout,
     refreshToken,

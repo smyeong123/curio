@@ -57,6 +57,17 @@ public class User {
     @Builder.Default
     private Integer loginCodeFailures = 0;
 
+    /**
+     * When the owner last PROVED they control this inbox: opened a sign-up
+     * confirmation link or completed a password reset (V32). Null for Google-only
+     * accounts, unconfirmed sign-ups and every legacy account that was merely
+     * auto-verified by the old MVP register(). Unlike {@link #emailVerified}
+     * (which gates login and stays true for legacy users), this is what the
+     * Google-merge anti-squat rule trusts.
+     */
+    @Column(name = "email_confirmed_at")
+    private LocalDateTime emailConfirmedAt;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

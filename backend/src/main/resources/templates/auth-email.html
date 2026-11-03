@@ -8,8 +8,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;800&amp;family=Geist+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
 </head>
 <!-- The account-security shell (ruled masthead, footer) with one of two bodies
-     chosen by ${kind}: "reset" (password reset link) or "code" (sign-in
-     verification code). All copy comes from messages*.properties in the
+     chosen by ${kind}: "reset" (password reset link), "verify" (sign-up
+     email confirmation link) or "code" (sign-in verification code). All copy comes from messages*.properties in the
      Context's locale; the few sentences carrying <strong> use th:utext on
      purpose — they are our own catalog strings, never user input. Keep the
      palette in step with digest-email.html. -->
@@ -62,6 +62,34 @@
                   <tr>
                     <td style="padding-top:12px;">
                       <p style="word-break:keep-all; margin:0; font-size:13px; line-height:1.55; color:#3a362c;" th:text="#{auth.email.reset.note}">Note</p>
+                    </td>
+                  </tr>
+                </table>
+              </th:block>
+
+              <th:block th:if="${kind == 'verify'}">
+                <div style="font-family:'Geist Mono', 'SF Mono', Menlo, Consolas, 'Courier New', monospace; font-size:11px; letter-spacing:0.6px; text-transform:uppercase; color:#a82c10; margin-bottom:12px;">&sect; <span th:text="#{auth.email.verify.kicker}">Confirm your email</span></div>
+                <h1 style="word-break:keep-all; margin:0 0 14px 0; font-family:'Geist', 'Helvetica Neue', Helvetica, Arial, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; font-size:32px; line-height:1.05; font-weight:800; letter-spacing:-1.2px; color:#14130f;" th:text="#{auth.email.verify.title}">Confirm your email</h1>
+                <p style="word-break:keep-all; margin:0 0 24px 0; font-size:15px; line-height:1.6; color:#3a362c;" th:utext="#{auth.email.verify.body(${ttl})}">Body</p>
+
+                <!-- A real link, so the click works in every mail client. -->
+                <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
+                  <tr>
+                    <td bgcolor="#ecbbaa" style="background-color:#ecbbaa; background-image:linear-gradient(180deg,#efc4b5 0%,#ecbbaa 55%,#e6957f 100%); border-radius:9999px; box-shadow:0 2px 6px rgba(20,19,15,0.14), 0 12px 28px -14px rgba(217,58,26,0.6);">
+                      <a th:href="${link}" style="display:inline-block; padding:14px 22px; border-radius:9999px; font-family:'Geist', 'Helvetica Neue', Helvetica, Arial, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; font-size:15px; font-weight:600; color:#14130f; text-decoration:none;" th:text="#{auth.email.verify.button}">Confirm email →</a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="word-break:keep-all; margin:0 0 6px 0; font-size:13px; line-height:1.6; color:#635d4f;" th:text="#{auth.email.verify.paste}">Button not working? Paste this link into your browser:</p>
+                <p style="word-break:keep-all; margin:0 0 28px 0; font-size:12px; line-height:1.5; word-break:break-all;">
+                  <a th:href="${link}" th:text="${link}" style="color:#a82c10; text-decoration:underline;">link</a>
+                </p>
+
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #14130f;">
+                  <tr>
+                    <td style="padding-top:12px;">
+                      <p style="word-break:keep-all; margin:0; font-size:13px; line-height:1.55; color:#3a362c;" th:text="#{auth.email.verify.note}">Note</p>
                     </td>
                   </tr>
                 </table>

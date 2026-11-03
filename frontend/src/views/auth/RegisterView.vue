@@ -45,13 +45,19 @@
           </p>
         </header>
 
+        <!-- Sign-up never signs in: the account works once the emailed link is opened. -->
+        <MailSentPanel v-if="sentTo" :email="sentTo" body-keypath="auth.register.sent.body">
+          <ResendConfirmationButton :email="sentTo" start-cooled-down />
+        </MailSentPanel>
+
         <RegisterForm
+          v-else
           :loading="loading"
           :server-error="serverError"
           @submit="handleRegister"
         />
 
-        <div class="mt-8 pt-6 border-t border-[color:var(--rule)] flex items-baseline justify-between">
+        <div v-if="!sentTo" class="mt-8 pt-6 border-t border-[color:var(--rule)] flex items-baseline justify-between">
           <span class="kicker">{{ t('auth.register.haveAccount') }}</span>
           <router-link to="/login" class="ink-link font-mono-curio text-[12px] uppercase tracking-[0.14em]">
             {{ t('auth.register.signInLink') }}
@@ -65,23 +71,23 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useToast } from '@/composables/useToast'
 import { useTopicLabels } from '@/composables/useTopicLabels'
 import AuthMasthead from '@/components/auth/AuthMasthead.vue'
 import AuthColophon from '@/components/auth/AuthColophon.vue'
 import RegisterForm from '@/components/auth/RegisterForm.vue'
+import MailSentPanel from '@/components/auth/MailSentPanel.vue'
+import ResendConfirmationButton from '@/components/auth/ResendConfirmationButton.vue'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()
 const { topicLabel } = useTopicLabels()
 const authStore = useAuthStore()
-const router = useRouter()
-const { success } = useToast()
 
 const loading = ref(false)
 const serverError = ref('')
+// Address the confirmation link went to; set once sign-up is accepted.
+const sentTo = ref('')
 
 // Canonical topic names (data/topics.ts); rendered through topicLabel().
 const sampleTopics = [
@@ -100,8 +106,7 @@ const handleRegister = async (data: { email: string; password: string; fullName:
   serverError.value = ''
   try {
     await authStore.register(data)
-    success(t('auth.register.toast.created'))
-    router.push({ name: 'onboarding' })
+    sentTo.value = data.email.trim()
   } catch (err: unknown) {
     serverError.value = getApiErrorMessage(err, t('auth.register.errors.failed'))
   } finally {

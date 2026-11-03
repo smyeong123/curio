@@ -36,6 +36,12 @@ public class UserDetailsAdapter implements UserDetails {
     @Override
     public boolean isCredentialsNonExpired() { return true; }
 
+    /**
+     * Always true. Spring checks "enabled" BEFORE the password, so returning
+     * emailVerified here told anyone with just an email address whether the
+     * account was confirmed. AuthService.login checks confirmation itself, only
+     * after the password has been verified.
+     */
     @Override
-    public boolean isEnabled() { return user.getEmailVerified(); }
+    public boolean isEnabled() { return true; }
 }

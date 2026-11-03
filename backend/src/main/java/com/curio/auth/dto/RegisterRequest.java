@@ -19,4 +19,11 @@ public class RegisterRequest {
     @NotBlank(message = "Full name is required")
     @Size(max = 255, message = "Full name must be at most 255 characters")
     private String fullName;
+
+    /**
+     * Edition the sign-up page was shown in ("en" | "ko", optional). The
+     * confirmation email is written in it; unknown or absent means English.
+     */
+    @Size(max = 8)
+    private String language;
 }
