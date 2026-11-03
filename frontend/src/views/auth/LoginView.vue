@@ -51,6 +51,11 @@
           @google="handleGoogleLogin"
         />
 
+        <!-- Right password, but the sign-up link was never opened. -->
+        <p v-if="unconfirmedEmail" class="mt-4 text-center" data-test="email-not-confirmed">
+          <ResendConfirmationButton :email="unconfirmedEmail" />
+        </p>
+
         <div class="mt-8 pt-6 border-t border-[color:var(--rule)] flex items-baseline justify-between">
           <span class="kicker">{{ t('auth.login.noAccount') }}</span>
           <router-link to="/register" class="ink-link font-mono-curio text-[12px] uppercase tracking-[0.14em]">
@@ -71,8 +76,9 @@ import { useToast } from '@/composables/useToast'
 import AuthMasthead from '@/components/auth/AuthMasthead.vue'
 import AuthColophon from '@/components/auth/AuthColophon.vue'
 import LoginForm from '@/components/auth/LoginForm.vue'
+import ResendConfirmationButton from '@/components/auth/ResendConfirmationButton.vue'
 import { safeRedirectPath } from '@/utils/safeUrl'
-import { getApiErrorMessage } from '@/utils/apiError'
+import { getApiErrorCode, getApiErrorMessage } from '@/utils/apiError'
 import { requestGoogleCredential, GoogleCredentialError } from '@/utils/googleCredential'
 
 const { t, tm, rt } = useI18n()
@@ -83,12 +89,15 @@ const { success, error } = useToast()
 
 const loading = ref(false)
 const serverError = ref('')
+// Set when the password was right but the account's email is still unconfirmed.
+const unconfirmedEmail = ref('')
 
 const features = computed(() => (tm('auth.login.aside.features') as string[]).map((line) => rt(line)))
 
 const handleLogin = async (email: string, password: string) => {
   loading.value = true
   serverError.value = ''
+  unconfirmedEmail.value = ''
   try {
     const result = await authStore.login(email, password)
     // Only honor a same-origin in-app path — never an attacker-supplied absolute
@@ -102,7 +111,12 @@ const handleLogin = async (email: string, password: string) => {
       router.push({ name: 'verify-code', query: redirect ? { redirect } : {} })
     }
   } catch (err: unknown) {
-    serverError.value = getApiErrorMessage(err, t('auth.login.errors.invalidCredentials'))
+    if (getApiErrorCode(err) === 'EMAIL_NOT_CONFIRMED') {
+      serverError.value = t('auth.login.errors.emailNotConfirmed')
+      unconfirmedEmail.value = email.trim()
+    } else {
+      serverError.value = getApiErrorMessage(err, t('auth.login.errors.invalidCredentials'))
+    }
   } finally {
     loading.value = false
   }
@@ -110,6 +124,7 @@ const handleLogin = async (email: string, password: string) => {
 
 const handleGoogleLogin = async () => {
   serverError.value = ''
+  unconfirmedEmail.value = ''
   let credential: string
   try {
     loading.value = true

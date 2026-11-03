@@ -2,7 +2,8 @@ import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
 import type {
-  User, AuthResponse, LoginResponse, VerifyCodeResponse, ResendCodeResponse, RegisterRequest,
+  User, AuthResponse, LoginResponse, VerifyCodeResponse, ResendCodeResponse, RegisterRequest, RegisterResponse,
+  DigestLanguage,
   UpdateProfileRequest, PreferencesResponse, DeliverySettings, ApiKeySummary, DeleteAccountProof
 } from '@/types/user'
 import type { Digest } from '@/types/news'
@@ -123,7 +124,11 @@ export const api = {
     resendCode: (challengeId: string) =>
       apiClient.post<ResendCodeResponse>('/auth/resend-code', { challengeId }),
     register: (data: RegisterRequest) =>
-      apiClient.post<AuthResponse>('/auth/register', data),
+      apiClient.post<RegisterResponse>('/auth/register', data),
+    confirmEmail: (token: string) =>
+      apiClient.post<AuthResponse>('/auth/confirm-email', { token }),
+    resendConfirmation: (email: string, language?: DigestLanguage) =>
+      apiClient.post<RegisterResponse>('/auth/resend-confirmation', { email, language }),
     googleLogin: (token: string) =>
       apiClient.post<AuthResponse>('/auth/google', { token }),
     forgotPassword: (email: string) =>

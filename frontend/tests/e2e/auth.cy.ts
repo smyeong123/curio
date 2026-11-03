@@ -237,10 +237,12 @@ describe('Authentication', () => {
       cy.contains('Passwords do not match').should('be.visible')
     })
 
-    it('registers successfully and redirects to onboarding', () => {
+    it('sign-up shows the check-your-inbox panel and starts no session', () => {
+      // Every sign-up gets the same 202 and never a session: the account works
+      // once the emailed confirmation link is opened.
       cy.intercept('POST', '**/auth/register', {
-        statusCode: 200,
-        body: mockAuthResponse
+        statusCode: 202,
+        body: { status: 'confirmation_sent' }
       }).as('register')
 
       cy.visit('/register')
@@ -250,14 +252,19 @@ describe('Authentication', () => {
       cy.get('#register-confirm').type('password123')
       cy.contains('button', 'Create account').click()
 
-      cy.wait('@register')
-      cy.url().should('include', '/onboarding')
+      cy.wait('@register').its('request.body').should('include', { email: 'test@example.com', language: 'en' })
+      cy.contains('Check your inbox.').should('be.visible')
+      cy.contains('We sent a confirmation link to test@example.com.').should('be.visible')
+      cy.url().should('include', '/register')
+      cy.window().then((win) => {
+        expect(win.localStorage.getItem('user')).to.eq(null)
+      })
     })
 
-    it('shows server error on duplicate email', () => {
+    it('shows the server error when sign-up fails', () => {
       cy.intercept('POST', '**/auth/register', {
-        statusCode: 409,
-        body: { message: 'Email already exists' }
+        statusCode: 400,
+        body: { status: 400, message: 'Validation failed' }
       }).as('registerFail')
 
       cy.visit('/register')
@@ -268,7 +275,69 @@ describe('Authentication', () => {
       cy.contains('button', 'Create account').click()
 
       cy.wait('@registerFail')
-      cy.contains('Email already exists').should('be.visible')
+      cy.contains('Validation failed').should('be.visible')
+    })
+  })
+
+  describe('Email confirmation', () => {
+    it('opening the link confirms the email, signs in and lands on onboarding', () => {
+      // The session comes from confirm-email itself (cookie + in-memory token),
+      // exactly like a completed login — nothing is seeded in localStorage.
+      cy.intercept('POST', '**/auth/confirm-email', {
+        statusCode: 200,
+        body: { ...mockAuthResponse, refreshToken: null }
+      }).as('confirm')
+
+      cy.visit('/verify-email?token=abc')
+
+      cy.wait('@confirm').its('request.body').should('deep.equal', { token: 'abc' })
+      cy.url().should('include', '/onboarding')
+      cy.url().should('not.include', 'token=')
+      cy.contains('Email confirmed!').should('be.visible')
+    })
+
+    it('an invalid or expired link offers a fresh one', () => {
+      cy.intercept('POST', '**/auth/confirm-email', {
+        statusCode: 400,
+        body: { status: 400, code: 'CONFIRMATION_TOKEN_INVALID', message: 'This confirmation link is invalid or has expired.' }
+      }).as('confirm')
+      cy.intercept('POST', '**/auth/resend-confirmation', {
+        statusCode: 202,
+        body: { status: 'confirmation_sent' }
+      }).as('resend')
+
+      cy.visit('/verify-email?token=stale')
+
+      cy.wait('@confirm')
+      cy.location('search').should('eq', '')
+      cy.contains('h1', 'That link has expired.').should('be.visible')
+      cy.get('#verify-email-address').type('test@example.com')
+      cy.contains('button', 'Resend link').click()
+
+      cy.wait('@resend').its('request.body').should('include', { email: 'test@example.com' })
+      cy.contains('a fresh link is on its way').should('be.visible')
+    })
+
+    it('login to an unconfirmed account offers to resend the link', () => {
+      cy.intercept('POST', '**/auth/login', {
+        statusCode: 403,
+        body: { status: 403, code: 'EMAIL_NOT_CONFIRMED', message: 'Please confirm your email address before signing in.' }
+      }).as('login')
+      cy.intercept('POST', '**/auth/resend-confirmation', {
+        statusCode: 202,
+        body: { status: 'confirmation_sent' }
+      }).as('resend')
+
+      cy.visit('/login')
+      cy.get('#login-email').type('pending@example.com')
+      cy.get('#login-password').type('password123')
+      cy.contains('button', 'Sign in').click()
+
+      cy.wait('@login')
+      cy.contains('Confirm your email first').should('be.visible')
+      cy.contains('button', 'Resend link').click()
+      cy.wait('@resend').its('request.body').should('include', { email: 'pending@example.com' })
+      cy.url().should('include', '/login')
     })
   })
 
