@@ -1,6 +1,7 @@
 package com.curio.shared.port.in;
 
 import com.curio.news.entity.Digest;
+import com.curio.shared.i18n.Language;
 import com.curio.user.entity.User;
 
 /**
@@ -28,6 +29,13 @@ public interface EmailUseCase {
     DigestSendOutcome sendDigestEmail(User user, Digest digest);
 
     void sendPasswordResetEmail(User user, String resetToken);
+
+    /**
+     * The sign-up confirmation link ({@code /verify-email?token=...}), valid for
+     * {@code ttlHours} (quoted in the copy). {@code language} is the edition the sign-up page was shown in; null falls
+     * back to the account's stored edition (English until one is picked).
+     */
+    void sendEmailConfirmation(User user, String confirmationToken, long ttlHours, Language language);
 
     /** The one-time sign-in code; {@code ttlMinutes} is quoted in the copy. */
     void sendLoginVerificationEmail(User user, String code, long ttlMinutes);

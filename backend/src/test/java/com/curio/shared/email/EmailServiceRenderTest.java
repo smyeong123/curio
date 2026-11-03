@@ -30,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -247,6 +248,36 @@ class EmailServiceRenderTest {
                 .contains("https://curio.test/verify?code=123456")
                 .contains("Your Curio sign-in code is 123456 — it expires in 10 minutes.")
                 .doesNotContain("Reset password");
+    }
+
+    @Test
+    void signUpConfirmationEmail_usesTheRequestedEdition_andCarriesTheLinkAndTtl() {
+        User reader = user("Alex");
+
+        emailService.sendEmailConfirmation(reader, "tok en", 24, Language.KO);
+
+        ArgumentCaptor<String> html = ArgumentCaptor.forClass(String.class);
+        verify(transport).send(eq("reader@example.com"), eq("Curio 이메일 인증"), html.capture());
+        assertThat(html.getValue()).contains("lang=\"ko\"").contains("이메일을 인증해 주세요")
+                .contains("<strong>24시간</strong>").contains("https://curio.test/verify-email?token=tok+en")
+                .contains("이메일 인증하기").doesNotContain("Reset your password");
+        // An explicit edition never needs the stored preference.
+        verify(preferencesPort, never()).findByUserId(any());
+    }
+
+    @Test
+    void signUpConfirmationEmail_fallsBackToTheAccountEdition_inEnglish() {
+        User reader = user("Alex");
+        when(preferencesPort.findByUserId(reader.getId())).thenReturn(Optional.empty());
+
+        emailService.sendEmailConfirmation(reader, "abc", 24, null);
+
+        ArgumentCaptor<String> html = ArgumentCaptor.forClass(String.class);
+        verify(transport).send(eq("reader@example.com"), eq("Confirm your email for Curio"), html.capture());
+        assertThat(html.getValue()).contains("lang=\"en\"").contains("One click to finish")
+                .contains("<strong>24 hours</strong>").contains("Confirm email →")
+                .contains("The link expires in 24 hours.")
+                .contains("https://curio.test/verify-email?token=abc");
     }
 
     @Test

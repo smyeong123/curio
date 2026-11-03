@@ -1,6 +1,11 @@
 package com.curio.auth.controller;
 
 import com.curio.auth.dto.AuthResponse;
+import com.curio.auth.dto.LoginRequest;
+import com.curio.auth.dto.RegisterRequest;
+import com.curio.auth.dto.RegisterResponse;
+import com.curio.shared.exception.EmailNotConfirmedException;
+import com.curio.shared.exception.InvalidConfirmationTokenException;
 import com.curio.auth.service.AuthService;
 import com.curio.shared.exception.UnauthorizedException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,7 +22,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -96,5 +104,82 @@ class AuthControllerIntegrationTest {
                         .cookie(new Cookie("refreshToken", "rotated-token")))
                 .andExpect(status().isUnauthorized())
                 .andExpect(header().doesNotExist("Set-Cookie"));
+    }
+
+    // --- sign-up email confirmation ---
+
+    @Test
+    void registerIs202_withTheUniformBody_andSetsNoSessionCookie() throws Exception {
+        when(authService.register(any(RegisterRequest.class))).thenReturn(RegisterResponse.confirmationSent());
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", "new@example.com",
+                                "password", "Password123!",
+                                "fullName", "New User",
+                                "language", "ko"))))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("confirmation_sent"))
+                .andExpect(jsonPath("$.accessToken").doesNotExist())
+                .andExpect(header().doesNotExist("Set-Cookie"));
+    }
+
+    @Test
+    void confirmEmailIssuesTheSession_likeTheOtherLoginPaths() throws Exception {
+        AuthResponse authResponse = AuthResponse.builder()
+                .accessToken("access-token")
+                .refreshToken("refresh-token")
+                .userId(UUID.fromString("22222222-2222-2222-2222-222222222222"))
+                .email("new@example.com")
+                .fullName("New User")
+                .isAdmin(false)
+                .build();
+        when(authService.confirmEmail("link-token")).thenReturn(authResponse);
+
+        mockMvc.perform(post("/api/v1/auth/confirm-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("token", "link-token"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("access-token"))
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
+                .andExpect(header().string("Set-Cookie", containsString("refreshToken=refresh-token")));
+    }
+
+    @Test
+    void confirmEmailWithABadLinkIs400_withABranchableCode() throws Exception {
+        when(authService.confirmEmail("stale")).thenThrow(new InvalidConfirmationTokenException());
+
+        mockMvc.perform(post("/api/v1/auth/confirm-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("token", "stale"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("CONFIRMATION_TOKEN_INVALID"))
+                .andExpect(header().doesNotExist("Set-Cookie"));
+    }
+
+    @Test
+    void resendConfirmationIsAlways202() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/resend-confirmation")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", "anyone@example.com", "language", "en"))))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("confirmation_sent"));
+
+        verify(authService).resendConfirmation(eq("anyone@example.com"), eq("en"));
+    }
+
+    @Test
+    void loginToAnUnconfirmedAccountIs403_EmailNotConfirmed_notA401() throws Exception {
+        // 403 on purpose: the axios interceptor only tries a silent refresh on 401.
+        when(authService.login(any(LoginRequest.class))).thenThrow(new EmailNotConfirmedException());
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", "pending@example.com", "password", "Password123!"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("EMAIL_NOT_CONFIRMED"))
+                .andExpect(jsonPath("$.message").exists());
     }
 }

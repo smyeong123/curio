@@ -90,6 +90,13 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         if (path.contains("/verify-code") || path.contains("/resend-code")) {
             return new BucketSpec("verify", LOGIN_CAPACITY, LOGIN_REFILL);
         }
+        // Sign-up confirmation: /register and /resend-confirmation each mail a link
+        // to an address the caller merely typed, and /confirm-email takes a token
+        // guess. Same strict size, own bucket so a sign-up doesn't eat the login budget.
+        if (path.endsWith("/register") || path.contains("/confirm-email")
+                || path.contains("/resend-confirmation")) {
+            return new BucketSpec("confirm", LOGIN_CAPACITY, LOGIN_REFILL);
+        }
         if (path.contains("/forgot-password") || path.contains("/reset-password")
                 || path.contains("/password-reset") || path.contains("/confirm-reset")) {
             return new BucketSpec("reset", RESET_CAPACITY, RESET_REFILL);

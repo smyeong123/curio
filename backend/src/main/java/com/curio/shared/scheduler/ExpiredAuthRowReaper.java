@@ -18,10 +18,11 @@ import java.util.Map;
  * isolated from the digest cleanup: a failure in one does not abort the other.
  *
  * <p>Bulk JPQL DELETEs issue a single SQL statement (no entity load). The
- * {@code password_reset_tokens} and {@code email_verification_codes} tables have
+ * {@code password_reset_tokens}, {@code email_verification_codes} and
+ * {@code email_confirmation_tokens} tables have
  * an {@code expires_at} index that the WHERE predicate uses; {@code refresh_tokens}
  * has no such index yet, so its reap is a full scan — acceptable for a once-daily
- * job. Consumed-but-not-yet-expired rows (used reset tokens, spent codes) are left
+ * job. Consumed-but-not-yet-expired rows (used reset/confirmation tokens, spent codes) are left
  * until they pass {@code expires_at}, which bounds them to their short TTL anyway.
  */
 @Component
@@ -32,8 +33,8 @@ public class ExpiredAuthRowReaper {
     private EntityManager entityManager;
 
     /**
-     * Deletes every refresh token, password-reset token and email-verification
-     * code whose {@code expires_at} is before {@code cutoff}.
+     * Deletes every refresh token, password-reset token, email-verification
+     * code and sign-up email-confirmation token whose {@code expires_at} is before {@code cutoff}.
      *
      * @return an ordered map of table label to number of rows deleted
      */
@@ -43,6 +44,7 @@ public class ExpiredAuthRowReaper {
         reaped.put("expiredRefreshTokens", deleteExpired("RefreshToken", cutoff));
         reaped.put("expiredPasswordResetTokens", deleteExpired("PasswordResetToken", cutoff));
         reaped.put("expiredEmailVerificationCodes", deleteExpired("EmailVerificationCode", cutoff));
+        reaped.put("expiredEmailConfirmationTokens", deleteExpired("EmailConfirmationToken", cutoff));
         return reaped;
     }
 

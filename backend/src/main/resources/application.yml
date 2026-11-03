@@ -58,6 +58,10 @@ server:
   port: 8080
 
 auth:
+  # Sign-up email confirmation (V32): a new password account gets no session
+  # until the emailed link is opened. Lifetime of that link, quoted in the email.
+  email-confirmation:
+    token-ttl-hours: ${AUTH_EMAIL_CONFIRMATION_TOKEN_TTL_HOURS:24}
   # Email-based 2FA on email/password login: after credentials check out, a
   # one-time code is emailed and must be entered to complete sign-in. Google
   # login is never gated by this. Disable for environments that don't want a

@@ -5,17 +5,23 @@ import com.curio.auth.dto.AuthResponse;
 import com.curio.auth.dto.LoginRequest;
 import com.curio.auth.dto.LoginResponse;
 import com.curio.auth.dto.RegisterRequest;
+import com.curio.auth.dto.RegisterResponse;
 import com.curio.auth.dto.ResendCodeRequest;
 import com.curio.auth.dto.ResendCodeResponse;
 import com.curio.auth.dto.VerifyCodeRequest;
 import com.curio.auth.dto.VerifyCodeResponse;
+import com.curio.auth.entity.EmailConfirmationToken;
 import com.curio.auth.entity.PasswordResetToken;
 import com.curio.auth.entity.RefreshToken;
 import com.curio.auth.port.in.AuthUseCase;
+import com.curio.auth.port.out.EmailConfirmationTokenPort;
 import com.curio.auth.port.out.PasswordResetTokenPort;
 import com.curio.auth.port.out.RefreshTokenPort;
 import com.curio.auth.service.EmailVerificationChallengeService.Verification;
+import com.curio.shared.exception.EmailNotConfirmedException;
+import com.curio.shared.exception.InvalidConfirmationTokenException;
 import com.curio.shared.exception.UnauthorizedException;
+import com.curio.shared.i18n.Language;
 import com.curio.shared.port.in.EmailUseCase;
 import com.curio.shared.security.JwtTokenProvider;
 import com.curio.shared.util.EmailNormalizer;
@@ -38,8 +44,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Account and session policy: registration, password login, session
- * issuance/rotation, and password reset. The email second factor lives in
+ * Account and session policy: registration + sign-up email confirmation,
+ * password login, session issuance/rotation, and password reset. The email second factor lives in
  * {@link EmailVerificationChallengeService} and Google token validation in
  * {@link GoogleIdTokenVerifier}; this class decides what an authenticated
  * identity is allowed to become (a new account, a merged account, a session).
@@ -52,6 +58,7 @@ public class AuthService implements AuthUseCase {
     private final UserPort userPort;
     private final RefreshTokenPort refreshTokenPort;
     private final PasswordResetTokenPort passwordResetTokenPort;
+    private final EmailConfirmationTokenPort emailConfirmationTokenPort;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationManager authenticationManager;
@@ -77,38 +84,128 @@ public class AuthService implements AuthUseCase {
     @Value("${jwt.refresh-expiration}")
     private long refreshExpirationMs;
 
+    /** Lifetime of a sign-up confirmation link; quoted in the email copy. */
+    @Value("${auth.email-confirmation.token-ttl-hours:24}")
+    private long confirmationTokenTtlHours = 24;
+
+    /**
+     * Starts a password sign-up. No session is issued: the account stays
+     * unconfirmed (no login) until the emailed link is opened ({@link #confirmEmail}).
+     *
+     * <p>Every case returns the same {@link RegisterResponse} (the controller
+     * answers 202), so registration no longer tells anyone which addresses have
+     * accounts:
+     * <ul>
+     *   <li>new address: create an unconfirmed account and mail a link;</li>
+     *   <li>already CONFIRMED account: change nothing and send nothing;</li>
+     *   <li>still UNCONFIRMED account: neither the old nor the new password is
+     *       proven, so the newest sign-up wins (new password and name, old links
+     *       revoked, a fresh link mailed). Squatting an address therefore blocks
+     *       nobody: the real owner just signs up again and confirms.</li>
+     * </ul>
+     * The password is hashed up front in every case so the confirmed-account path
+     * doesn't skip the slow bcrypt step and answer measurably faster.
+     */
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
-        // Known tradeoff: the distinct "already registered" error allows email
-        // enumeration (bounded by the per-IP auth rate limit). Closing it needs a
-        // registration email-confirmation flow; meanwhile the Google-merge path
-        // defends the resulting squatting risk by neutralizing unproven passwords
-        // (see linkGoogleIdentity).
+    public RegisterResponse register(RegisterRequest request) {
         // Canonicalize so Victim@x.com and victim@x.com can never become two rows
         // for one real mailbox (which would defeat the Google-merge anti-squat defense).
         String email = EmailNormalizer.normalize(request.getEmail());
-        if (userPort.existsByEmail(email)) {
-            throw new IllegalArgumentException("Email already registered");
+        String passwordHash = passwordEncoder.encode(request.getPassword());
+        Language language = Language.fromCode(request.getLanguage());
+
+        User existing = userPort.findByEmail(email).orElse(null);
+        if (existing != null) {
+            if (Boolean.TRUE.equals(existing.getEmailVerified())) {
+                log.info("Sign-up for already-confirmed account {}: nothing changed", existing.getId());
+                return RegisterResponse.confirmationSent();
+            }
+            existing.setPasswordHash(passwordHash);
+            existing.setFullName(request.getFullName());
+            User user = userPort.save(existing);
+            log.info("Sign-up repeated for unconfirmed account {}: password replaced, new link sent", user.getId());
+            sendConfirmation(user, language);
+            return RegisterResponse.confirmationSent();
         }
 
         User user = User.builder()
                 .email(email)
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .passwordHash(passwordHash)
                 .fullName(request.getFullName())
                 .isAdmin(false)
-                .emailVerified(true) // Auto-verify for MVP
+                .emailVerified(false)
                 .build();
 
         try {
             user = userPort.save(user);
         } catch (DataIntegrityViolationException e) {
-            // Lost the unique-email race to a concurrent registration — same
-            // outcome as the pre-check above, not a server error.
-            throw new IllegalArgumentException("Email already registered");
+            // Lost the unique-email race to a concurrent sign-up for the same
+            // address. That request mails its own link; answer the same as always.
+            log.info("Concurrent sign-up for the same email lost the insert race");
+            return RegisterResponse.confirmationSent();
         }
-        log.info("New user registered: {}", user.getId());
+        log.info("New user registered (unconfirmed): {}", user.getId());
+        sendConfirmation(user, language);
+        return RegisterResponse.confirmationSent();
+    }
 
+    /**
+     * Opens a sign-up confirmation link: marks the email confirmed and signs the
+     * user in (AuthService alone issues sessions). Unknown, expired and used links
+     * all fail the same way ({@link InvalidConfirmationTokenException}).
+     */
+    @Transactional
+    public AuthResponse confirmEmail(String rawToken) {
+        EmailConfirmationToken token = emailConfirmationTokenPort.findByTokenHash(TokenHasher.hash(rawToken))
+                .orElseThrow(InvalidConfirmationTokenException::new);
+        if (token.getUsedAt() != null || token.isExpired()) {
+            throw new InvalidConfirmationTokenException();
+        }
+        // Single use even under a double click: only one request wins the claim.
+        if (emailConfirmationTokenPort.markUsed(token.getId(), LocalDateTime.now()) == 0) {
+            throw new InvalidConfirmationTokenException();
+        }
+
+        User user = token.getUser();
+        user.setEmailVerified(true);
+        user.setEmailConfirmedAt(LocalDateTime.now());
+        user = userPort.save(user);
+        log.info("Email confirmed for user {}", user.getId());
         return issueTokens(user);
+    }
+
+    /**
+     * Mails a fresh confirmation link, but only for an existing UNCONFIRMED
+     * account. Unknown and confirmed addresses are a silent no-op; the controller
+     * answers 202 either way, so this can't be used to probe for accounts.
+     */
+    @Transactional
+    public void resendConfirmation(String email, String languageCode) {
+        Language language = Language.fromCode(languageCode);
+        userPort.findByEmail(EmailNormalizer.normalize(email))
+                .filter(user -> !Boolean.TRUE.equals(user.getEmailVerified()))
+                .ifPresent(user -> sendConfirmation(user, language));
+    }
+
+    /** Replaces any outstanding link with a new one and mails it (best effort). */
+    private void sendConfirmation(User user, Language language) {
+        emailConfirmationTokenPort.deleteByUserId(user.getId());
+
+        String rawToken = UUID.randomUUID() + "." + UUID.randomUUID();
+        emailConfirmationTokenPort.save(EmailConfirmationToken.builder()
+                .user(user)
+                .tokenHash(TokenHasher.hash(rawToken))
+                .expiresAt(LocalDateTime.now().plusHours(confirmationTokenTtlHours))
+                .build());
+
+        // Best effort, like the reset email: a provider error must not 500 the
+        // request (that would differ from the no-account answer) or roll back the
+        // account. The user can ask for another link from the sign-in screen.
+        try {
+            emailService.sendEmailConfirmation(user, rawToken, confirmationTokenTtlHours, language);
+        } catch (Exception e) {
+            log.error("Failed to send sign-up confirmation email to user {}", user.getId(), e);
+        }
     }
 
     @Transactional
@@ -121,6 +218,13 @@ public class AuthService implements AuthUseCase {
 
         User user = userPort.findByEmail(email)
                 .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
+
+        // Checked only AFTER the password passed (UserDetailsAdapter.isEnabled is
+        // always true for that reason), so it tells nothing to someone without it.
+        // No 2FA code is sent: the account can't sign in until it is confirmed.
+        if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+            throw new EmailNotConfirmedException();
+        }
 
         if (!challengeService.isEnabled()) {
             log.info("User logged in (email verification disabled): {}", user.getId());
@@ -181,21 +285,31 @@ public class AuthService implements AuthUseCase {
     }
 
     /**
-     * Binds a Google identity to an existing account. When the account was found
-     * by EMAIL rather than by googleId it may be a password account created by
-     * someone who never proved they own this address (register() auto-verifies
-     * for MVP). Google HAS just proven the current login owns the email, so the
-     * merge is legitimate — but the pre-existing password is not: neutralize it
-     * and revoke all sessions so a squatter who pre-registered the victim's email
-     * keeps no backdoor login. A legitimate dual-auth user loses nothing durable:
-     * they own the inbox, so the normal password-reset flow restores password login.
+     * Binds a Google identity to an existing account found by googleId or EMAIL.
+     *
+     * <p>Only a password account whose owner PROVED inbox ownership
+     * ({@code emailConfirmedAt} set: sign-up link opened, or a password reset
+     * completed) is simply linked, keeping its password and sessions. Google has
+     * just proven the current login owns the same inbox, so both are the owner.
+     *
+     * <p>Any other password account may belong to a squatter who never proved
+     * they own this address: an unconfirmed sign-up, or a legacy account whose
+     * {@code emailVerified} is true only because the old MVP register()
+     * auto-verified it (emailVerified alone proves nothing). Google HAS just
+     * proven the current login owns the email, so the merge is legitimate, but
+     * the pre-existing password is not: neutralize it, drop its pending
+     * confirmation links and revoke all sessions so the squatter keeps no
+     * backdoor login. A legitimate owner loses nothing durable: they own the
+     * inbox, so the normal password-reset flow restores password login.
      */
     private void linkGoogleIdentity(User user, GoogleIdentity identity) {
         if (user.getGoogleId() == null || user.getGoogleId().isBlank()) {
-            if (user.getPasswordHash() != null && !user.getPasswordHash().isBlank()) {
-                log.warn("Google login merged into existing password account {} — "
+            boolean inboxProven = user.getEmailConfirmedAt() != null;
+            if (!inboxProven && user.getPasswordHash() != null && !user.getPasswordHash().isBlank()) {
+                log.warn("Google login merged into password account {} with no proven inbox: "
                         + "clearing unproven password and revoking sessions", user.getId());
                 user.setPasswordHash(null);
+                emailConfirmationTokenPort.deleteByUserId(user.getId());
                 refreshTokenPort.deleteByUserId(user.getId());
             }
             user.setGoogleId(identity.sub());
@@ -308,6 +422,8 @@ public class AuthService implements AuthUseCase {
         User user = resetToken.getUser();
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setEmailVerified(true);
+        // Opening the reset link proves inbox ownership (trusted by the Google merge).
+        user.setEmailConfirmedAt(LocalDateTime.now());
         userPort.save(user);
         // Owning the inbox is the recovery path out of a 2FA lockout.
         userPort.resetLoginCodeFailures(user.getId());

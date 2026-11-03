@@ -253,6 +253,14 @@ public class EmailService implements EmailUseCase {
         transport.send(user.getEmail(), message("auth.email.reset.subject", language), html);
     }
 
+    public void sendEmailConfirmation(User user, String confirmationToken, long ttlHours, Language language) {
+        Language edition = language != null ? language : languageFor(user);
+        String link = frontendUrl + "/verify-email?token="
+                + URLEncoder.encode(confirmationToken, StandardCharsets.UTF_8);
+        String html = renderAuthEmail("verify", edition, Map.of("link", link, "ttl", ttlHours));
+        transport.send(user.getEmail(), message("auth.email.verify.subject", edition), html);
+    }
+
     public void sendLoginVerificationEmail(User user, String code, long ttlMinutes) {
         Language language = languageFor(user);
         // A button in an email can't run JS (clients strip it), so the only way a
@@ -264,7 +272,7 @@ public class EmailService implements EmailUseCase {
     }
 
     /**
-     * Renders {@code auth-email.html} for one {@code kind} ("reset" | "code") in the
+     * Renders {@code auth-email.html} for one {@code kind} ("reset" | "code" | "verify") in the
      * given edition. Package-private for the render test.
      */
     String renderAuthEmail(String kind, Language language, Map<String, Object> variables) {
@@ -274,9 +282,11 @@ public class EmailService implements EmailUseCase {
         context.setVariable("kind", kind);
         context.setVariable("title", message("auth.email." + kind + ".subject", language));
         context.setVariable("badge", message("auth.email." + kind + ".badge", language));
-        Object[] preheaderArgs = "code".equals(kind)
-                ? new Object[]{variables.get("code"), variables.get("ttl")}
-                : new Object[0];
+        Object[] preheaderArgs = switch (kind) {
+            case "code" -> new Object[]{variables.get("code"), variables.get("ttl")};
+            case "verify" -> new Object[]{variables.get("ttl")};
+            default -> new Object[0];
+        };
         context.setVariable("preheader", message("auth.email." + kind + ".preheader", language, preheaderArgs));
         variables.forEach(context::setVariable);
         return templateEngine.process("auth-email", context);

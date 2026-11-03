@@ -39,6 +39,28 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
     }
 
+    @ExceptionHandler(EmailNotConfirmedException.class)
+    public ResponseEntity<ErrorResponse> handleEmailNotConfirmed(EmailNotConfirmedException ex) {
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.FORBIDDEN.value())
+                .code(EmailNotConfirmedException.CODE)
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build();
+        return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler(InvalidConfirmationTokenException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidConfirmationToken(InvalidConfirmationTokenException ex) {
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.BAD_REQUEST.value())
+                .code(InvalidConfirmationTokenException.CODE)
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build();
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
         ErrorResponse error = ErrorResponse.builder()
@@ -152,6 +174,8 @@ public class GlobalExceptionHandler {
     @lombok.Builder
     static class ErrorResponse {
         private int status;
+        /** Machine-readable error code the frontend can branch on; null for most errors. */
+        private String code;
         private String message;
         private Map<String, String> errors;
         private LocalDateTime timestamp;
