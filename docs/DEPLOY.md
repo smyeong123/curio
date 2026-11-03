@@ -273,9 +273,19 @@ hop by giving nginx a Cloudflare Origin Certificate and switching Cloudflare to 
   ```
 - [ ] Verify: `curl -sSI https://your-domain.com | head -1` → `200`, and the bare origin IP
       over plain HTTP should now be **unreachable** from anywhere but Cloudflare.
+- [ ] Probe the edge for intermittent failures (prints per-request code, time and `cf-ray`,
+      then a 5xx/000 rate and p50/p95): `scripts/probe-edge.sh https://your-domain.com 60 1`.
 - [ ] Optional hardening: enable **Authenticated Origin Pulls** (Cloudflare mTLS) and uncomment
       the `ssl_client_certificate` / `ssl_verify_client` lines in `frontend/nginx-tls.conf` so
       the origin answers Cloudflare *only*, even if the firewall is later loosened.
+
+`frontend/nginx-tls.conf` restores the real visitor IP from `CF-Connecting-IP`
+(`set_real_ip_from` lists Cloudflare's published ranges — refresh it from
+<https://www.cloudflare.com/ips-v4> / `ips-v6` if Cloudflare adds ranges), so nginx's
+`limit_req` and access log key on the visitor, not the edge. Both nginx configs resolve
+`backend` at request time (`resolver 127.0.0.11`), so a backend restart no longer needs an
+nginx restart, and keep idle client connections for 650 s (longer than Cloudflare reuses
+them) to avoid 520/522s.
 
 Either overlay keeps `app.cookie.secure=true` (already on in the prod profile) valid, because
 the browser-facing scheme is HTTPS end to end.
