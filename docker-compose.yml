@@ -175,7 +175,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${FRONTEND_MEM_LIMIT:-64M}
+          # 96M (was 64M): under the Cloudflare overlay nginx also terminates TLS
+          # (HTTP/2, shared SSL session cache) and now holds idle keep-alive
+          # connections for 650s; 64M left too little headroom for bursts.
+          memory: ${FRONTEND_MEM_LIMIT:-96M}
           cpus: "0.5"
 
 volumes:
